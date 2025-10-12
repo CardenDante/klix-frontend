@@ -195,6 +195,17 @@ export const api = {
     withdrawals: (limit?: number) => apiClient.get('/api/v1/promoters/withdrawals', { params: { limit } }),
     insights: () => apiClient.get('/api/v1/promoters/insights'),
   },
+  // Add to your api object in api-client.ts
+  payments: {
+    initiateMpesa: (transactionId: string) => 
+      apiClient.post(`/api/v1/payments/initiate-mpesa`, null, { params: { transaction_id: transactionId } }),
+    
+    queryStatus: (transactionId: string) => 
+      apiClient.get(`/api/v1/payments/query-status/${transactionId}`),
+    
+    getTransactionStatus: (transactionId: string) => 
+      apiClient.get(`/api/v1/payments/transaction/${transactionId}`),
+  },
 };
 
 export default apiClient;

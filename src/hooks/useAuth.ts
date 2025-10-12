@@ -9,7 +9,7 @@ import {
   signOut as firebaseSignOut,
   sendPasswordResetEmail as firebaseSendPasswordReset 
 } from '@/lib/firebase';
-import { User } from '@/lib/Types';
+import { User } from '@/lib/types';
 
 interface AuthState {
   user: User | null;

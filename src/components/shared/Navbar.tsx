@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Menu, X, Search, User, Ticket } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
+  const { isAuthenticated, user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -55,7 +57,9 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-700 hover:text-[#EB7D30] font-medium transition-colors relative group"
+                className={`font-medium transition-colors relative group ${
+                  isScrolled ? 'text-gray-700 hover:text-[#EB7D30]' : 'text-white hover:text-white/80'
+                }`}
               >
                 {link.label}
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#EB7D30] transition-all group-hover:w-full"></span>
@@ -68,37 +72,61 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-700 hover:text-[#EB7D30]"
+              className={isScrolled ? 'text-gray-700 hover:text-[#EB7D30]' : 'text-white hover:text-white/80'}
             >
               <Search className="h-5 w-5" />
             </Button>
 
-            <Link href="/tickets">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-gray-700 hover:text-[#EB7D30]"
-              >
-                <Ticket className="h-5 w-5" />
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link href="/dashboard/tickets">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={isScrolled ? 'text-gray-700 hover:text-[#EB7D30]' : 'text-white hover:text-white/80'}
+                  >
+                    <Ticket className="h-5 w-5" />
+                  </Button>
+                </Link>
 
-            <Link href="/login">
-              <Button variant="outline" className="border-[#EB7D30] text-[#EB7D30] hover:bg-[#EB7D30] hover:text-white">
-                Login
-              </Button>
-            </Link>
+                <Link href="/dashboard">
+                  <Button
+                    variant="ghost"
+                    className={isScrolled ? 'text-gray-700 hover:text-[#EB7D30]' : 'text-white hover:text-white/80'}
+                  >
+                    <User className="h-5 w-5 mr-2" />
+                    {user?.first_name || 'Dashboard'}
+                  </Button>
+                </Link>
 
-            <Link href="/register">
-              <Button className="bg-[#EB7D30] hover:bg-[#d16a1f] text-white">
-                Sign Up
-              </Button>
-            </Link>
+                <Button
+                  onClick={() => logout()}
+                  variant="outline"
+                  className="border-[#EB7D30] text-[#EB7D30] hover:bg-[#EB7D30] hover:text-white"
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="outline" className="border-[#EB7D30] text-[#EB7D30] hover:bg-[#EB7D30] hover:text-white">
+                    Login
+                  </Button>
+                </Link>
+
+                <Link href="/register">
+                  <Button className="bg-[#EB7D30] hover:bg-[#d16a1f] text-white">
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden text-gray-700 hover:text-[#EB7D30]"
+            className={`md:hidden ${isScrolled ? 'text-gray-700 hover:text-[#EB7D30]' : 'text-white hover:text-white/80'}`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -125,16 +153,38 @@ export default function Navbar() {
               ))}
 
               <div className="pt-4 border-t space-y-3">
-                <Link href="/login" className="block">
-                  <Button variant="outline" className="w-full border-[#EB7D30] text-[#EB7D30]">
-                    Login
-                  </Button>
-                </Link>
-                <Link href="/register" className="block">
-                  <Button className="w-full bg-[#EB7D30] hover:bg-[#d16a1f] text-white">
-                    Sign Up
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link href="/dashboard" className="block">
+                      <Button variant="outline" className="w-full border-[#EB7D30] text-[#EB7D30]">
+                        <User className="h-4 w-4 mr-2" />
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Button
+                      onClick={() => {
+                        logout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full bg-[#EB7D30] hover:bg-[#d16a1f] text-white"
+                    >
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="block">
+                      <Button variant="outline" className="w-full border-[#EB7D30] text-[#EB7D30]">
+                        Login
+                      </Button>
+                    </Link>
+                    <Link href="/register" className="block">
+                      <Button className="w-full bg-[#EB7D30] hover:bg-[#d16a1f] text-white">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
