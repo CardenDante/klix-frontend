@@ -1,29 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search, MapPin, Calendar, Music, Gamepad2, Briefcase, Users, Utensils, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export default function Hero() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  // Hero background images
-  const heroImages = [
-    '/hero/hero1.jpg',
-    '/hero/hero2.jpg', 
-    '/hero/hero3.jpg',
-    '/hero/hero4.jpg',
-  ];
-
-  // Auto-slide images
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [heroImages.length]);
 
   const categories = [
     { icon: Music, label: 'Music', value: 'music' },
@@ -36,21 +19,11 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
-      {/* Image Slideshow */}
-      <div className="absolute inset-0">
-        {heroImages.map((image, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              currentSlide === index ? 'opacity-100' : 'opacity-0'
-            }`}
-            style={{
-              backgroundImage: `url(${image})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
-        ))}
+      {/* Static Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/hero/hero2.jpg')" }}
+      >
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70"></div>
       </div>
@@ -140,19 +113,6 @@ export default function Hero() {
               <category.icon className="h-4 w-4" />
               {category.label}
             </button>
-          ))}
-        </div>
-
-        {/* Slide Indicators */}
-        <div className="flex justify-center gap-2 mt-12">
-          {heroImages.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
-                currentSlide === index ? 'bg-[#EB7D30] w-8' : 'bg-white/50'
-              }`}
-            />
           ))}
         </div>
       </div>
