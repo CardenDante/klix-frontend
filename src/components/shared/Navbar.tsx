@@ -37,19 +37,16 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="relative w-12 h-12 transition-transform group-hover:scale-110">
+          <Link href="/" className="flex items-center group">
+            <div className="relative w-32 h-16 transition-transform group-hover:scale-105">
               <Image
                 src="/logo.png"
-                alt="Klix Logo"
+                alt="Klix"
                 fill
                 className="object-contain"
                 priority
               />
             </div>
-            <span className="text-2xl font-bold font-heading gradient-text">
-              Klix
-            </span>
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,43 +1,67 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, MapPin, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, MapPin, Calendar, Music, Gamepad2, Briefcase, Users, Utensils, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export default function Hero() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-  const floatingTickets = [
-    { top: '15%', left: '10%', delay: '0s', color: 'bg-orange-500' },
-    { top: '25%', right: '15%', delay: '0.5s', color: 'bg-purple-500' },
-    { top: '60%', left: '20%', delay: '1s', color: 'bg-blue-500' },
-    { top: '70%', right: '10%', delay: '1.5s', color: 'bg-pink-500' },
+  // Hero background images
+  const heroImages = [
+    '/hero/hero1.jpg',
+    '/hero/hero2.jpg', 
+    '/hero/hero3.jpg',
+    '/hero/hero4.jpg',
+  ];
+
+  // Auto-slide images
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroImages.length]);
+
+  const categories = [
+    { icon: Music, label: 'Music', value: 'music' },
+    { icon: Gamepad2, label: 'Sports', value: 'sports' },
+    { icon: Briefcase, label: 'Business', value: 'conference' },
+    { icon: PartyPopper, label: 'Festivals', value: 'festival' },
+    { icon: Users, label: 'Networking', value: 'networking' },
+    { icon: Utensils, label: 'Food & Drink', value: 'food_drink' },
   ];
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pattern-bg">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60"></div>
+    <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* Image Slideshow */}
+      <div className="absolute inset-0">
+        {heroImages.map((image, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              currentSlide === index ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              backgroundImage: `url(${image})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        ))}
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70"></div>
+      </div>
 
-      {/* Floating Tickets */}
-      {floatingTickets.map((ticket, index) => (
-        <div
-          key={index}
-          className={`absolute w-24 h-32 ${ticket.color} rounded-lg shadow-2xl opacity-20 animate-float`}
-          style={{
-            top: ticket.top,
-            left: ticket.left,
-            right: ticket.right,
-            animationDelay: ticket.delay,
-          }}
-        ></div>
-      ))}
+      {/* Pattern Overlay - Subtle */}
+      <div className="absolute inset-0 pattern-bg pointer-events-none"></div>
 
       {/* Content */}
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
         {/* Main Heading */}
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 animate-fade-in-up font-heading">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 animate-fade-in-up font-heading">
           Discover{' '}
           <span className="relative inline-block">
             <span className="gradient-text">Unforgettable</span>
@@ -60,13 +84,13 @@ export default function Hero() {
           Events Near You
         </h1>
 
-        <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto animate-fade-in-up font-body" style={{ animationDelay: '0.2s' }}>
-          From concerts to conferences, find and book tickets to the hottest events in town
+        <p className="text-lg text-gray-200 mb-10 max-w-2xl mx-auto animate-fade-in-up font-body" style={{ animationDelay: '0.2s' }}>
+          From concerts to conferences, find and book tickets to the hottest events in Kenya
         </p>
 
         {/* Search Bar */}
         <div className="glass-dark rounded-2xl p-2 max-w-4xl mx-auto mb-8 animate-scale-in" style={{ animationDelay: '0.4s' }}>
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-3">
             {/* Search Input */}
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -75,7 +99,7 @@ export default function Hero() {
                 placeholder="Search events, artists, or venues..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-14 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
+                className="pl-12 h-12 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
               />
             </div>
 
@@ -85,7 +109,7 @@ export default function Hero() {
               <Input
                 type="text"
                 placeholder="Location"
-                className="pl-12 h-14 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
+                className="pl-12 h-12 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
               />
             </div>
 
@@ -94,12 +118,12 @@ export default function Hero() {
               <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="date"
-                className="pl-12 h-14 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
+                className="pl-12 h-12 bg-white/10 border-0 text-white placeholder:text-gray-400 focus:bg-white/20 transition-colors"
               />
             </div>
 
             {/* Search Button */}
-            <Button className="h-14 px-8 bg-[#EB7D30] hover:bg-[#d16a1f] text-white font-semibold animate-glow">
+            <Button className="h-12 px-8 bg-[#EB7D30] hover:bg-[#d16a1f] text-white font-semibold animate-glow">
               <Search className="h-5 w-5 mr-2" />
               Search
             </Button>
@@ -108,34 +132,28 @@ export default function Hero() {
 
         {/* Quick Categories */}
         <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-          {['🎵 Music', '🏀 Sports', '🎭 Theater', '🎪 Festivals', '🎨 Arts', '🍔 Food'].map((category) => (
+          {categories.map((category) => (
             <button
-              key={category}
-              className="glass-dark px-6 py-2 rounded-full text-white hover:bg-white/20 transition-all hover:scale-105"
+              key={category.value}
+              className="glass-dark px-5 py-2.5 rounded-full text-white hover:bg-white/20 transition-all hover:scale-105 flex items-center gap-2"
             >
-              {category}
+              <category.icon className="h-4 w-4" />
+              {category.label}
             </button>
           ))}
         </div>
 
-        {/* Stats */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-white font-heading">10K+</div>
-            <div className="text-gray-300 font-body">Events</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-white font-heading">500K+</div>
-            <div className="text-gray-300 font-body">Tickets Sold</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-white font-heading">50K+</div>
-            <div className="text-gray-300 font-body">Happy Customers</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-white font-heading">1K+</div>
-            <div className="text-gray-300 font-body">Organizers</div>
-          </div>
+        {/* Slide Indicators */}
+        <div className="flex justify-center gap-2 mt-12">
+          {heroImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                currentSlide === index ? 'bg-[#EB7D30] w-8' : 'bg-white/50'
+              }`}
+            />
+          ))}
         </div>
       </div>
 

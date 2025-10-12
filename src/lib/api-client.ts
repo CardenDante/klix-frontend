@@ -72,10 +72,21 @@ export const api = {
 
   // Auth
   auth: {
-    register: (data: any) => apiClient.post('/api/v1/auth/register', data),
-    firebaseLogin: (idToken: string) => apiClient.post('/api/v1/auth/firebase-login', { id_token: idToken }),
+    // Register: First create in Firebase, then send ID token to backend
+    register: (data: { email: string; password: string; first_name?: string; last_name?: string; phone_number?: string }) => 
+      apiClient.post('/api/v1/auth/register', data),
+    
+    // Firebase Login: Send Firebase ID token to get backend JWT tokens
+    firebaseLogin: (idToken: string) => 
+      apiClient.post('/api/v1/auth/firebase-login', { id_token: idToken }),
+    
+    // Logout (clears backend session, Firebase signOut handled separately)
     logout: () => apiClient.post('/api/v1/auth/logout'),
+    
+    // Get current user info
     me: () => apiClient.get('/api/v1/auth/me'),
+    
+    // Password reset handled by Firebase directly
     passwordReset: (email: string) => apiClient.post('/api/v1/auth/password-reset', { email }),
   },
 
@@ -133,6 +144,14 @@ export const api = {
     facets: (q?: string) => apiClient.get('/api/v1/search/facets', { params: { q } }),
     popular: (limit?: number) => apiClient.get('/api/v1/search/popular', { params: { limit } }),
     nearby: (params: any) => apiClient.get('/api/v1/search/nearby', { params }),
+  },
+
+  // Users
+  users: {
+    me: () => apiClient.get('/api/v1/users/me'),
+    updateProfile: (data: any) => apiClient.patch('/api/v1/users/me', data),
+    updatePreferences: (data: any) => apiClient.patch('/api/v1/users/me/preferences', data),
+    getById: (userId: string) => apiClient.get(`/api/v1/users/${userId}`),
   },
 
   // Analytics

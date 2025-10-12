@@ -237,9 +237,9 @@ export function Footer() {
         <div className="flex animate-scroll-slow gap-12 text-white font-semibold text-sm">
           {[...Array(10)].map((_, i) => (
             <div key={i} className="flex gap-12 whitespace-nowrap">
-              <span>🎉 John just bought 2 tickets to Summer Fest</span>
-              <span>🎵 Sarah joined the Music Lovers event</span>
-              <span>⚽ Mike secured VIP tickets to Sports Arena</span>
+              <span>✓ John just bought 2 tickets to Summer Fest</span>
+              <span>✓ Sarah joined the Music Lovers event</span>
+              <span>✓ Mike secured VIP tickets to Sports Arena</span>
             </div>
           ))}
         </div>
