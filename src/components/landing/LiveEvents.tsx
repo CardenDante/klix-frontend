@@ -80,7 +80,7 @@ export default function LiveEvents() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10">
           <div>
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight font-heading">
-              Trending <span className="gradient-text font-playful">Events</span>
+              Trending <span className="gradient-text font-playful pr-2">Events</span>
             </h2>
             <p className="text-gray-600 mt-2 font-body">Don't miss out on these popular events</p>
           </div>
