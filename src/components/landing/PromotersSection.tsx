@@ -67,9 +67,9 @@ export default function PromotersSection() {
             <Sparkles className="h-4 w-4" />
             Turn Events Into Income
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 font-comfortaa">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 font-heading">
             Become a{' '}
-            <span className="gradient-text">Promoter</span>
+            <span className="gradient-text font-playful">Promoter</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto font-body">
             Share events you love and earn commission on every ticket

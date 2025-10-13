@@ -90,17 +90,17 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2 mb-6">
-              <div className="relative w-10 h-10">
+              <div className="relative w-28 h-14 transition-transform group-hover:scale-105">
                 <Image
-                  src="/logo.png"
+                  src="/logo-white.png"
                   alt="Klix Logo"
                   fill
                   className="object-contain"
                 />
               </div>
-              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Comfortaa' }}>
+              {/* <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Comfortaa' }}>
                 Klix
-              </span>
+              </span> */}
             </Link>
             <p className="text-gray-400 mb-6">
               Making event discovery and ticketing simple, fun, and rewarding.

@@ -65,9 +65,9 @@ export default function LoyaltySection() {
             <Gift className="h-4 w-4" />
             Loyalty Rewards
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 font-comfortaa">
+           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-heading">
             Get Rewarded for{' '}
-            <span className="gradient-text">Every Event</span>
+            <span className="gradient-text font-playful">Every Event</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto font-body">
             The more events you attend, the more you save
