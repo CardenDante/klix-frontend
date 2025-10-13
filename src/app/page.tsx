@@ -4,7 +4,7 @@ import LiveEvents from '@/components/landing/LiveEvents';
 import OrganizersSection from '@/components/landing/OrganizersSection';
 import PromotersSection from '@/components/landing/PromotersSection';
 import LoyaltySection from '@/components/landing/LoyaltySection';
-import { PartnersSection, Footer } from '@/components/landing/PartnersAndFooter';
+import  PartnersSection, {Footer}  from '@/components/landing/PartnersAndFooter';
 
 export default function LandingPage() {
   return (

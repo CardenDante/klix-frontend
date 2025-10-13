@@ -23,9 +23,9 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/events', label: 'Events' },
-    { href: '/organizers', label: 'For Organizers' },
-    { href: '/promoters', label: 'For Promoters' },
-    { href: '/loyalty', label: 'Rewards' },
+    { href: '/about', label: 'About Us' },
+    { href: '/organizer', label: 'For Organizers' },
+     { href: '/contact', label: 'Contact' },
   ];
 
   return (
