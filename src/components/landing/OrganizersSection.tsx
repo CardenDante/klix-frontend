@@ -1,9 +1,12 @@
 'use client';
 
-import { BarChart3, Users, Ticket, DollarSign, Shield, Zap } from 'lucide-react';
+import { BarChart3, Users, Ticket, DollarSign, Shield, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 export default function OrganizersSection() {
+  const router = useRouter();
+
   const features = [
     {
       icon: BarChart3,
@@ -97,8 +100,12 @@ export default function OrganizersSection() {
 
         {/* CTA */}
         <div className="text-center">
-          <Button className="bg-[#EB7D30] hover:bg-[#d16a1f] text-white px-10 py-6 text-lg">
+          <Button 
+            onClick={() => router.push('/become-organizer')}
+            className="bg-[#EB7D30] hover:bg-[#d16a1f] text-white px-10 py-6 text-lg"
+          >
             Start Organizing Events
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <p className="text-gray-600 mt-3 font-body">
             Free to start • No credit card required
