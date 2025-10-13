@@ -1,118 +1,137 @@
+'use client';
 
-import Navbar from '@/components/shared/Navbar';
-import { Users, Target, Heart, Zap } from 'lucide-react';
+import { Users, Target, Heart, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function AboutPage() {
+  const router = useRouter();
+
+  const values = [
+    {
+      title: 'Simplicity',
+      description: 'We believe technology should be intuitive. Our platform is designed to be easy for everyone, from first-time ticket buyers to seasoned event organizers.'
+    },
+    {
+      title: 'Trust',
+      description: 'Security and transparency are at our core. We protect your data, ensure secure payments, and maintain honest communication with our community.'
+    },
+    {
+      title: 'Community',
+      description: 'We\'re building a platform for everyone. We support diverse voices and celebrate the unique experiences that bring people together.'
+    }
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 pt-20">
-        {/* Hero Section */}
-        <section className="bg-gradient-to-br from-[#EB7D30] to-orange-600 text-white py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-5xl font-bold mb-6" style={{ fontFamily: 'Comfortaa' }}>
-              About Klix
-            </h1>
-            <p className="text-xl max-w-3xl mx-auto opacity-90">
-              We're on a mission to make event discovery and ticketing simple, fun, and rewarding for everyone.
-            </p>
-          </div>
-        </section>
+    <div className="bg-white">
+      {/* --- Hero Section --- */}
+      <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center text-center text-white">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/hero/hero1.jpg')" }} />
+        {/* --- MODIFIED: Added a gradient overlay for better text contrast --- */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20" />
+        
+        <div className="relative z-10 p-4">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold font-heading tracking-tight animate-fade-in-up">
+            Connecting People Through
+            <br />
+            <span className="gradient-text font-playful mt-2 inline-block pr-4 pb-6">Experiences</span>
+          </h1>
+          <p className="text-lg text-gray-200 max-w-3xl mx-auto mt-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            Klix was founded with a simple vision: to bridge the gap between amazing events and the people who want to experience them.
+          </p>
+        </div>
+      </section>
 
-        {/* Mission Section */}
-        <section className="py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl font-bold mb-6" style={{ fontFamily: 'Comfortaa' }}>
-                  Our Mission
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  Klix was founded with a simple vision: to connect people with experiences that matter. We believe that every event, 
-                  from small community gatherings to major concerts, deserves a platform that's easy to use, reliable, and rewarding.
-                </p>
-                <p className="text-gray-600">
-                  We're building more than just a ticketing platform – we're creating a community where organizers can thrive, 
-                  promoters can succeed, and attendees can discover amazing experiences while earning rewards.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <Users className="w-12 h-12 text-[#EB7D30] mb-4" />
-                  <h3 className="font-bold mb-2">10K+</h3>
-                  <p className="text-sm text-gray-600">Active Users</p>
-                </div>
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <Target className="w-12 h-12 text-[#EB7D30] mb-4" />
-                  <h3 className="font-bold mb-2">500+</h3>
-                  <p className="text-sm text-gray-600">Events Monthly</p>
-                </div>
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <Heart className="w-12 h-12 text-[#EB7D30] mb-4" />
-                  <h3 className="font-bold mb-2">98%</h3>
-                  <p className="text-sm text-gray-600">Satisfaction</p>
-                </div>
-                <div className="bg-orange-50 p-6 rounded-lg">
-                  <Zap className="w-12 h-12 text-[#EB7D30] mb-4" />
-                  <h3 className="font-bold mb-2">24/7</h3>
-                  <p className="text-sm text-gray-600">Support</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Values Section */}
-        <section className="py-20 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-center mb-12" style={{ fontFamily: 'Comfortaa' }}>
-              Our Values
+      {/* --- Our Mission Section --- */}
+      {/* --- MODIFIED: Switched to flexbox and re-ordered elements for mobile-first layout --- */}
+      <section className="py-20 px-4">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 items-center">
+          {/* Text content now comes first in the code */}
+          <div className="lg:w-1/2">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 font-heading tracking-tight mb-6">
+              Our <span className="gradient-text font-playful pr-2">Mission</span>
             </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-lg shadow-sm">
-                <h3 className="text-xl font-bold mb-4">Simplicity</h3>
-                <p className="text-gray-600">
-                  We believe technology should be intuitive. Our platform is designed to be easy for everyone, 
-                  whether you're buying your first ticket or organizing your hundredth event.
+            <p className="text-gray-600 mb-6 font-body text-lg">
+              We're building more than just a ticketing platform – we're creating a community where organizers can thrive, promoters can succeed, and attendees can discover unforgettable moments.
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                <p className="text-gray-700 font-body">
+                  <span className="font-bold">For Attendees:</span> To make finding and attending events simple, secure, and rewarding.
                 </p>
               </div>
-              <div className="bg-white p-8 rounded-lg shadow-sm">
-                <h3 className="text-xl font-bold mb-4">Trust</h3>
-                <p className="text-gray-600">
-                  Security and transparency are at our core. We protect your data, ensure secure payments, 
-                  and maintain honest communication with our community.
-                </p>
-              </div>
-              <div className="bg-white p-8 rounded-lg shadow-sm">
-                <h3 className="text-xl font-bold mb-4">Community</h3>
-                <p className="text-gray-600">
-                  We're building a platform for everyone. From local organizers to international promoters, 
-                  we support diverse voices and celebrate unique experiences.
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                <p className="text-gray-700 font-body">
+                  <span className="font-bold">For Organizers:</span> To provide powerful, easy-to-use tools that help events of all sizes succeed.
                 </p>
               </div>
             </div>
           </div>
-        </section>
+          {/* Image now comes second in the code */}
+          <div className="relative w-full h-80 lg:h-[450px] lg:w-1/2 rounded-2xl overflow-hidden shadow-2xl">
+              <Image 
+                src="/hero/hero3.jpg"
+                alt="Happy people at an event"
+                fill
+                className="object-cover"
+              />
+          </div>
+        </div>
+      </section>
 
-        {/* Team Section */}
-        <section className="py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold mb-6" style={{ fontFamily: 'Comfortaa' }}>
+      {/* --- Values Section --- */}
+      <section className="py-20 relative bg-orange-50/50 overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 h-full w-1/2 bg-no-repeat bg-contain bg-left-top opacity-30 pointer-events-none"
+          style={{ backgroundImage: "url('/bckpattern2.png')" }} 
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 font-heading tracking-tight">
+              Our Core <span className="gradient-text font-playful pr-2">Values</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {values.map((value) => (
+              <div key={value.title} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-gray-200/50 text-center">
+                <h3 className="text-2xl font-bold font-comfortaa mb-4 text-primary">{value.title}</h3>
+                <p className="text-gray-600 font-body">
+                  {value.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- Join Our Journey CTA --- */}
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center bg-gray-900 rounded-2xl p-12 relative overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-10"
+            style={{ backgroundImage: "url('/bckpattern1.png')", backgroundSize: '200%' }}
+          />
+          <div className="relative z-10">
+            <h2 className="text-3xl font-bold text-white mb-4 font-comfortaa">
               Join Our Journey
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto mb-8">
-              We're always looking for passionate individuals to join our team and help shape the future of event experiences.
+            <p className="text-gray-300 max-w-2xl mx-auto mb-8 font-body">
+              We're a passionate team building the future of event experiences in Kenya. If you're excited by our mission, we'd love to hear from you.
             </p>
-            <a
-              href="/careers"
-              className="inline-block bg-[#EB7D30] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#d16a1f] transition-colors"
+            <Button
+              size="lg"
+              onClick={() => router.push('/careers')}
+              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg font-bold"
             >
               View Open Positions
-            </a>
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
     </div>
   );
 }

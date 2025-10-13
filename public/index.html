@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Ticket for {{ event_name }}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f7; color: #333; }
+        .ticket-container { max-width: 400px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background-color: #1a1a1a; padding: 20px; text-align: center; }
+        .header img { max-width: 100px; }
+        .content { padding: 30px; }
+        .event-title { font-size: 24px; font-weight: bold; color: #EB7D30; margin: 0 0 10px; }
+        .attendee-name { font-size: 20px; font-weight: 500; margin: 0 0 20px; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .detail-item { font-size: 14px; }
+        .detail-item strong { display: block; color: #888; font-weight: normal; margin-bottom: 2px; }
+        .qr-section { text-align: center; padding: 20px; border-top: 1px dashed #ccc; }
+        .qr-section h3 { font-size: 16px; color: #555; margin-top: 0; }
+        .qr-code { width: 180px; height: 180px; margin: 10px auto; }
+        .ticket-id { font-family: monospace; font-size: 12px; color: #777; }
+        .footer-bar { height: 8px; display: flex; }
+        .color-1 { background-color: #EB7D30; width: 40%; } /* Orange */
+        .color-2 { background-color: #228B22; width: 25%; } /* Green */
+        .color-3 { background-color: #A0522D; width: 20%; } /* Brown */
+        .color-4 { background-color: #3CB371; width: 15%; } /* Green */
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+        <div class="header">
+            <img src="cid:logo" alt="Klix Logo">
+        </div>
+        <div class="content">
+            <h1 class="event-title">{{ event_name }}</h1>
+            <p class="attendee-name">{{ attendee_name }}</p>
+            
+            <div class="details-grid">
+                <div class="detail-item">
+                    <strong>Ticket Type</strong>
+                    <span>{{ ticket_type }}</span>
+                </div>
+                <div class="detail-item">
+                    <strong>Date & Time</strong>
+                    <span>{{ event_date }}</span>
+                </div>
+                <div class="detail-item">
+                    <strong>Location</strong>
+                    <span>{{ location }}</span>
+                </div>
+                <div class="detail-item">
+                    <strong>Price</strong>
+                    <span>KSh {{ price }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="qr-section">
+            <h3>Scan this QR code at the entrance</h3>
+            <img src="cid:qr_code" alt="QR Code" class="qr-code">
+            <p class="ticket-id">Ticket ID: {{ ticket_id }}</p>
+        </div>
+        <div class="footer-bar">
+            <div class="color-1"></div>
+            <div class="color-2"></div>
+            <div class="color-3"></div>
+            <div class="color-4"></div>
+        </div>
+    </div>
+</body>
+</html>

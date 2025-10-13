@@ -1,69 +1,151 @@
 'use client';
 
-import { Check } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useAuth } from '@/hooks/useAuth';
 
 export default function PricingPage() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      router.push('/dashboard/apply-organizer');
+    } else {
+      router.push('/login?redirect=/dashboard/apply-organizer');
+    }
+  };
+
+  const includedFeatures = [
+    'Unlimited Events',
+    'Multiple Ticket Types',
+    'Real-time Analytics Dashboard',
+    'Secure M-Pesa Payments',
+    'Customizable Event Page',
+    'Promoter & Staff Management Tools',
+    'Attendee Check-in System',
+    '24/7 Customer Support',
+  ];
+
+  const faqItems = [
+    {
+      question: "Are there any setup fees or monthly costs?",
+      answer: "Absolutely not. Klix is completely free to get started with. There are no monthly subscriptions, setup fees, or hidden charges. We only make money when you successfully sell a ticket."
+    },
+    {
+      question: "What payment methods are supported?",
+      answer: "We proudly support M-Pesa, Kenya's most popular mobile payment service, for all transactions. This ensures a fast, secure, and convenient checkout experience for your attendees."
+    },
+    {
+      question: "How and when do I get paid?",
+      answer: "Payouts are processed automatically and sent directly to your registered M-Pesa account after your event concludes. You can track all your earnings in real-time from your organizer dashboard."
+    },
+    {
+      question: "Can I use Klix for free events?",
+      answer: "Yes! Creating listings and managing RSVPs for free events is 100% free on Klix. Our platform fee only applies to paid tickets."
+    }
+  ];
+
   return (
-    <div className="min-h-screen py-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 font-comfortaa">Simple, Transparent Pricing</h1>
-          <p className="text-gray-600 text-xl font-body">No hidden fees. Pay only when you sell tickets.</p>
+    <div className="bg-white">
+      {/* --- Hero Section --- */}
+      <section className="pt-28 pb-20 relative bg-orange-50/50 overflow-hidden">
+        <div 
+            className="absolute inset-0 bg-no-repeat bg-contain bg-center opacity-20 pointer-events-none"
+            style={{ backgroundImage: "url('/bckpattern2.png')" }} 
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-heading tracking-tight">
+            Simple, Transparent <span className="gradient-text font-playful pr-2">Pricing</span>
+          </h1>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto mt-4 font-body">
+            No setup fees. No monthly costs. No surprises. We only succeed when your event does.
+          </p>
         </div>
-        
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="text-2xl font-bold mb-4 font-comfortaa">Attendees</h3>
-              <div className="text-5xl font-bold text-primary mb-4 font-comfortaa">Free</div>
-              <ul className="space-y-3 mb-6">
-                {['Browse unlimited events', 'Secure ticket purchases', 'Loyalty rewards', 'QR code tickets'].map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 font-body">
-                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+      </section>
+
+      {/* --- Pricing & Features Section --- */}
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-start">
           
-          <Card className="border-2 border-primary relative">
-            <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary">
-              Most Popular
-            </Badge>
-            <CardContent className="pt-6">
-              <h3 className="text-2xl font-bold mb-4 font-comfortaa">Organizers</h3>
-              <div className="text-5xl font-bold text-primary mb-2 font-comfortaa">2.5%</div>
-              <p className="text-gray-600 mb-4 font-body">per ticket sold</p>
-              <ul className="space-y-3 mb-6">
-                {['Unlimited events', 'Analytics dashboard', 'Staff management', 'M-Pesa integration', 'Promoter codes'].map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 font-body">
-                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="text-2xl font-bold mb-4 font-comfortaa">Promoters</h3>
-              <div className="text-5xl font-bold text-primary mb-4 font-comfortaa">Free</div>
-              <ul className="space-y-3 mb-6">
-                {['Create promo codes', 'Earn commissions', 'Performance analytics', 'Leaderboard rankings'].map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 font-body">
-                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          {/* --- MODIFIED: Pricing Card --- */}
+          <div className="lg:sticky lg:top-28">
+            <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 text-center text-white">
+              <p className="text-lg font-semibold text-primary font-body">PAY-AS-YOU-GO</p>
+              <div className="my-4">
+                <span className="text-8xl font-bold gradient-text font-heading">2.5%</span>
+              </div>
+              <p className="text-gray-300 font-body text-lg">
+                Per ticket sold – no setup costs.
+              </p>
+              <Button onClick={handleGetStarted} size="lg" className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-6 text-lg mt-8">
+                Get Started For Free
+              </Button>
+            </div>
+          </div>
+
+          {/* Right Column: Included Features */}
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 font-comfortaa mb-6">Everything You Need is Included</h2>
+            <ul className="space-y-4">
+              {includedFeatures.map((feature) => (
+                <li key={feature} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                  <span className="text-gray-700 font-body text-lg">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* --- FAQ Section --- */}
+      <section className="py-20 px-4 bg-gray-50">
+        <div className="max-w-4xl mx-auto">
+           <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 font-heading tracking-tight">
+                Your Questions, <span className="gradient-text font-playful pr-2">Answered</span>
+              </h2>
+            </div>
+            <Accordion type="single" collapsible className="w-full">
+              {faqItems.map((item) => (
+                <AccordionItem key={item.question} value={item.question}>
+                  <AccordionTrigger className="text-lg font-semibold text-gray-800 text-left hover:text-primary">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 font-body">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+        </div>
+      </section>
+
+       {/* --- Final CTA Section --- */}
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-4xl mx-auto text-center bg-gray-900 rounded-2xl p-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: "url('/bckpattern1.png')", backgroundSize: '200%' }} />
+          <div className="relative z-10">
+            <h2 className="text-3xl font-bold text-white mb-4 font-comfortaa">
+              Ready to Start Selling?
+            </h2>
+            <p className="text-gray-300 max-w-2xl mx-auto mb-8 font-body">
+              Create your event and start selling tickets in minutes. It's free to join!
+            </p>
+            <Button
+              size="lg"
+              onClick={handleGetStarted}
+              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg font-bold"
+            >
+              Create Your Event Now
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

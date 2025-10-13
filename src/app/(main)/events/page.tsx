@@ -1,277 +1,201 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Calendar, DollarSign, X } from 'lucide-react';
-import EventCard from '@/components/events/EventCard';
-import { eventsApi, Event, SearchFilters } from '@/lib/api/events';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { api } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Search, MapPin, Calendar, Users, Frown, Music, Gamepad2, Briefcase, PartyPopper, TrendingUp } from 'lucide-react';
+import { format } from 'date-fns';
 
-export default function EventsPage() {
+interface Event {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  location: string;
+  start_datetime: string;
+  banner_image_url: string;
+  tickets_sold: number;
+  is_sold_out: boolean;
+}
+
+// --- Skeleton Card Component (with wave effect) ---
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl h-96 overflow-hidden border border-gray-200/80">
+    <div className="h-48 bg-gray-200 animate-wave" />
+    <div className="p-5 space-y-4">
+      <div className="h-4 bg-gray-200 rounded w-1/4 animate-wave" />
+      <div className="h-6 bg-gray-300 rounded w-3/4 animate-wave" />
+      <div className="h-4 bg-gray-200 rounded w-1/2 animate-wave" />
+      <div className="h-10 bg-gray-300 rounded-full w-full mt-4 animate-wave" />
+    </div>
+  </div>
+);
+
+// --- Main Events Page Component ---
+function EventsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<SearchFilters>({
-    page: 1,
-    page_size: 20,
-  });
-  const [showFilters, setShowFilters] = useState(false);
-  const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
 
-  // Load events
+  const categories = [
+    { value: 'all', label: 'All', icon: TrendingUp },
+    { value: 'music', label: 'Music', icon: Music },
+    { value: 'sports', label: 'Sports', icon: Gamepad2 },
+    { value: 'conference', label: 'Business', icon: Briefcase },
+    { value: 'festival', label: 'Festivals', icon: PartyPopper },
+  ];
+
   useEffect(() => {
-    loadEvents();
-  }, [filters]);
-
-  const loadEvents = async () => {
-    try {
+    const fetchEvents = async () => {
       setLoading(true);
-      const response = await eventsApi.listEvents(filters);
-      setEvents(response.data || []);
-      setTotalPages(response.total_pages || 1);
-    } catch (error) {
-      console.error('Failed to load events:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const params: any = { limit: 20 };
+      if (selectedCategory && selectedCategory !== 'all') {
+        params.category = selectedCategory;
+      }
+      if (searchTerm) {
+        params.q = searchTerm;
+      }
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFilters({ ...filters, q: searchQuery, page: 1 });
-  };
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('category', selectedCategory);
+      if (searchTerm) {
+        newUrl.searchParams.set('q', searchTerm);
+      } else {
+        newUrl.searchParams.delete('q');
+      }
+      window.history.pushState({}, '', newUrl);
 
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters({ ...filters, [key]: value, page: 1 });
-  };
+      try {
+        const response = await api.events.list(params);
+        setEvents(response.data.data || []);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setTimeout(() => setLoading(false), 300);
+      }
+    };
+    fetchEvents();
+  }, [selectedCategory, searchTerm]);
 
-  const clearFilters = () => {
-    setFilters({ page: 1, page_size: 20 });
-    setSearchQuery('');
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), 'MMM dd, yyyy');
   };
-
-  const activeFiltersCount = Object.keys(filters).filter(
-    key => !['page', 'page_size'].includes(key) && filters[key as keyof SearchFilters]
-  ).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Search Section */}
-      <div className="bg-gradient-to-r from-[#EB7D30] to-[#f5a56d] py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="font-comfortaa text-3xl md:text-4xl font-bold text-white mb-3 text-center">
-            Discover Amazing Events
+    <div className="min-h-screen bg-white">
+      {/* --- MODIFIED: Search & Filter Section --- */}
+      <section className="pt-28 pb-12 relative bg-orange-50/50 overflow-hidden">
+        {/* Background Pattern */}
+        <div 
+            className="absolute inset-0 bg-no-repeat bg-contain bg-center opacity-20 pointer-events-none"
+            style={{ backgroundImage: "url('/bckpattern2.png')" }} 
+        />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-heading tracking-tight text-center">
+            Find your next <span className="gradient-text font-playful pb-4 pr-4">Experience</span>
           </h1>
-          <p className="text-white/90 text-center mb-8">
-            Find concerts, conferences, workshops, and more in Nairobi
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mt-4 font-body text-center">
+            Search for events, filter by category, and discover what's happening near you.
           </p>
-
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="max-w-3xl mx-auto">
+          
+          <div className="max-w-2xl mx-auto mt-8">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search events, venues, organizers..."
-                className="w-full pl-12 pr-32 py-4 rounded-full text-gray-900 font-dmsans focus:outline-none focus:ring-2 focus:ring-white/50"
+                placeholder="Search by event, artist, or venue..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-14 bg-white border border-gray-200 rounded-full focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary/30"
               />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors font-semibold"
-              >
-                Search
-              </button>
             </div>
-          </form>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Category Pills */}
-            <div className="flex-1 overflow-x-auto scrollbar-hide">
-              <div className="flex gap-2">
-                {eventsApi.CATEGORIES.slice(0, 6).map((cat) => (
-                  <button
-                    key={cat.value}
-                    onClick={() => handleFilterChange('category', filters.category === cat.value ? undefined : cat.value)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                      filters.category === cat.value
-                        ? 'bg-[#EB7D30] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {cat.icon} {cat.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Filter Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-full hover:border-[#EB7D30] transition-colors"
-            >
-              <Filter className="w-4 h-4" />
-              <span className="font-semibold">Filters</span>
-              {activeFiltersCount > 0 && (
-                <span className="px-2 py-0.5 bg-[#EB7D30] text-white text-xs rounded-full">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
           </div>
 
-          {/* Advanced Filters Panel */}
-          {showFilters && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Location */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <MapPin className="inline w-4 h-4 mr-1" />
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={filters.location || ''}
-                    onChange={(e) => handleFilterChange('location', e.target.value)}
-                    placeholder="e.g., Nairobi"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
-                  />
-                </div>
+          <div className="flex justify-center gap-3 overflow-x-auto pb-4 mt-8 scrollbar-hide">
+            {categories.map((category) => {
+              const Icon = category.icon;
+              return (
+                <button
+                  key={category.value}
+                  onClick={() => setSelectedCategory(category.value)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all whitespace-nowrap text-sm relative ${
+                    selectedCategory === category.value
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white/80 backdrop-blur-sm text-gray-600 hover:bg-white border border-gray-200/80'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{category.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
-                {/* Price Range */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <DollarSign className="inline w-4 h-4 mr-1" />
-                    Price Range
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={filters.min_price || ''}
-                      onChange={(e) => handleFilterChange('min_price', e.target.value)}
-                      placeholder="Min"
-                      className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+      {/* --- Events Grid Section --- */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+            {loading ? (
+              [...Array(8)].map((_, i) => <SkeletonCard key={i} />)
+            ) : events.length > 0 ? (
+              events.map((event) => (
+                <div
+                  key={event.id}
+                  onClick={() => router.push(`/events/${event.slug}`)}
+                  className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2 border border-gray-200/80"
+                >
+                  <div className="relative h-48 overflow-hidden">
+                    <img
+                      src={event.banner_image_url || '/hero/hero3.jpg'}
+                      alt={event.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                    <input
-                      type="number"
-                      value={filters.max_price || ''}
-                      onChange={(e) => handleFilterChange('max_price', e.target.value)}
-                      placeholder="Max"
-                      className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    {event.is_sold_out ? (
+                      <Badge variant="destructive" className="absolute top-3 right-3">Sold Out</Badge>
+                    ) : (
+                      <Badge className="absolute top-3 right-3 bg-white text-primary font-bold">{formatDate(event.start_datetime)}</Badge>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <Badge variant="outline" className="mb-2 text-primary border-primary/50 capitalize">{event.category.replace('_', ' ')}</Badge>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 font-comfortaa line-clamp-2 h-14">{event.title}</h3>
+                    <div className="flex items-center gap-2 text-gray-500 text-sm font-body mb-4">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{event.location}</span>
+                    </div>
+                    <Button size="sm" className="w-full bg-primary hover:bg-primary-dark text-white rounded-full">Get Tickets</Button>
                   </div>
                 </div>
-
-                {/* Sort By */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    <Calendar className="inline w-4 h-4 mr-1" />
-                    Sort By
-                  </label>
-                  <select
-                    value={filters.sort_by || 'relevance'}
-                    onChange={(e) => handleFilterChange('sort_by', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
-                  >
-                    <option value="relevance">Relevance</option>
-                    <option value="date_asc">Date (Earliest)</option>
-                    <option value="date_desc">Date (Latest)</option>
-                    <option value="price_asc">Price (Low to High)</option>
-                    <option value="price_desc">Price (High to Low)</option>
-                    <option value="popularity">Most Popular</option>
-                    <option value="newest">Newest</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Clear Filters */}
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="mt-4 flex items-center gap-2 text-sm text-gray-600 hover:text-[#EB7D30]"
-                >
-                  <X className="w-4 h-4" />
-                  Clear all filters
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Events Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
-                <div className="h-48 bg-gray-200" />
-                <div className="p-5 space-y-3">
-                  <div className="h-6 bg-gray-200 rounded w-3/4" />
-                  <div className="h-4 bg-gray-200 rounded w-1/2" />
-                  <div className="h-4 bg-gray-200 rounded w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-12 h-12 text-gray-400" />
-            </div>
-            <h3 className="font-comfortaa text-xl font-bold text-gray-900 mb-2">No events found</h3>
-            <p className="text-gray-600 mb-6">Try adjusting your search or filters</p>
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2.5 bg-[#EB7D30] text-white rounded-full hover:bg-[#d66d20] transition-colors"
-            >
-              Clear Filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-dmsans text-lg text-gray-600">
-                {events.length} events found
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-12 flex justify-center gap-2">
-                <button
-                  onClick={() => setFilters({ ...filters, page: Math.max(1, (filters.page || 1) - 1) })}
-                  disabled={filters.page === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="px-4 py-2 bg-gray-100 rounded-lg">
-                  Page {filters.page} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setFilters({ ...filters, page: Math.min(totalPages, (filters.page || 1) + 1) })}
-                  disabled={filters.page === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-20">
+                <Frown className="h-16 w-16 mx-auto text-gray-400" />
+                <h3 className="mt-4 text-xl font-semibold text-gray-800">No Events Found</h3>
+                <p className="mt-2 text-gray-500">Try adjusting your search or filters.</p>
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
+}
+
+// Wrapper component to handle Suspense for useSearchParams
+export default function EventsPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EventsPageContent />
+        </Suspense>
+    );
 }

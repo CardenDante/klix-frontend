@@ -63,8 +63,8 @@ export function Footer() {
     <footer className="bg-gray-900 text-gray-300 relative overflow-hidden">
       {/* Background Pattern */}
       <div 
-        className="absolute inset-0 bg-no-repeat bg-cover bg-center opacity-10"
-        style={{ backgroundImage: "url('/bckpattern1.png')", backgroundSize: '200%' }}
+        className="absolute inset-0 bg-no-repeat bg-cover bg-center opacity-15"
+        style={{ backgroundImage: "url('/bckpattern1.png')", backgroundSize: '100%' }}
       />
       <div className="absolute inset-0 bg-gray-900/80" />
       

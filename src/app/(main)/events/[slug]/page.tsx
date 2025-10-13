@@ -1,319 +1,247 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Calendar, MapPin, Clock, Share2, Bookmark, Users, Ticket, AlertCircle } from 'lucide-react';
-import { eventsApi, Event, TicketType } from '@/lib/api/events';
-import EventCard from '@/components/events/EventCard';
+import { api } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
+import Image from 'next/image';
+
+// --- Define Types ---
+interface TicketType {
+  id: string;
+  name: string;
+  price: number;
+  quantity_available: number;
+  is_sold_out: boolean;
+}
+
+interface Organizer {
+  id: string;
+  business_name: string;
+  profile_image_url: string | null;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  start_datetime: string;
+  end_datetime: string;
+  banner_image_url: string;
+  organizer: Organizer;
+  ticket_types: TicketType[];
+}
+
+// --- Skeleton Loader Component ---
+const EventDetailSkeleton = () => (
+  <div>
+    <div className="h-[50vh] bg-gray-200 animate-wave"></div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="grid lg:grid-cols-3 gap-12 -mt-16">
+        <div className="lg:col-span-2">
+          <div className="h-16 bg-gray-300 rounded-lg w-3/4 animate-wave mb-8"></div>
+          <div className="space-y-4">
+            <div className="h-6 bg-gray-200 rounded w-full animate-wave"></div>
+            <div className="h-6 bg-gray-200 rounded w-full animate-wave"></div>
+            <div className="h-6 bg-gray-200 rounded w-5/6 animate-wave"></div>
+          </div>
+        </div>
+        <div className="relative">
+          <div className="bg-white rounded-2xl shadow-2xl border p-6 h-96">
+            <div className="h-8 bg-gray-300 rounded w-1/2 animate-wave mb-6"></div>
+            <div className="h-12 bg-gray-200 rounded animate-wave mb-4"></div>
+            <div className="h-12 bg-gray-200 rounded animate-wave"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 
 export default function EventDetailPage() {
-  const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
-
+  const { slug } = useParams();
+  const { isAuthenticated } = useAuth();
+  
   const [event, setEvent] = useState<Event | null>(null);
-  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [similarEvents, setSimilarEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTickets, setSelectedTickets] = useState<Record<string, number>>({});
-  const [promoterCode, setPromoterCode] = useState('');
-  const [showCodeInput, setShowCodeInput] = useState(false);
-
+  const [ticketQuantities, setTicketQuantities] = useState<{ [key: string]: number }>({});
+  
   useEffect(() => {
-    loadEventData();
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        const response = await api.events.getBySlug(slug as string);
+        setEvent(response.data);
+        // Initialize quantities
+        const initialQuantities = response.data.ticket_types.reduce((acc: any, tt: TicketType) => {
+          acc[tt.id] = 0;
+          return acc;
+        }, {});
+        setTicketQuantities(initialQuantities);
+      } catch (error) {
+        console.error("Failed to fetch event details:", error);
+        // Optionally redirect to a 404 page
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (slug) {
+      fetchEvent();
+    }
   }, [slug]);
 
-  const loadEventData = async () => {
-    try {
-      setLoading(true);
-      const eventData = await eventsApi.getEventBySlug(slug);
-      setEvent(eventData);
-
-      if (eventData.id) {
-        const [types, similar] = await Promise.all([
-          eventsApi.getTicketTypes(eventData.id),
-          eventsApi.getSimilarEvents(eventData.id, 3),
-        ]);
-        setTicketTypes(types);
-        setSimilarEvents(similar.events || []);
-      }
-    } catch (error) {
-      console.error('Failed to load event:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuantityChange = (ticketTypeId: string, change: number) => {
-    setSelectedTickets(prev => {
-      const current = prev[ticketTypeId] || 0;
-      const newValue = Math.max(0, Math.min(10, current + change));
-      if (newValue === 0) {
-        const { [ticketTypeId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [ticketTypeId]: newValue };
+  const handleQuantityChange = (ticketTypeId: string, delta: number) => {
+    setTicketQuantities(prev => {
+      const newQuantity = (prev[ticketTypeId] || 0) + delta;
+      return {
+        ...prev,
+        [ticketTypeId]: Math.max(0, newQuantity) // Ensure quantity doesn't go below 0
+      };
     });
   };
 
-  const getTotalAmount = () => {
-    return Object.entries(selectedTickets).reduce((total, [typeId, qty]) => {
-      const ticketType = ticketTypes.find(t => t.id === typeId);
-      return total + (ticketType ? parseFloat(ticketType.price) * qty : 0);
-    }, 0);
-  };
+  const totalCost = event?.ticket_types.reduce((total, tt) => {
+    return total + (ticketQuantities[tt.id] || 0) * tt.price;
+  }, 0) || 0;
 
-  const getTotalTickets = () => {
-    return Object.values(selectedTickets).reduce((sum, qty) => sum + qty, 0);
-  };
+  const totalTickets = Object.values(ticketQuantities).reduce((total, qty) => total + qty, 0);
 
-  const handleCheckout = () => {
-    if (getTotalTickets() === 0) return;
-    
-    // Store checkout data in session
-    sessionStorage.setItem('checkout_data', JSON.stringify({
-      event,
-      selectedTickets,
-      ticketTypes,
-      promoterCode,
-    }));
-    
-    router.push('/checkout');
+  const handleGetTickets = () => {
+    if (!isAuthenticated) {
+        router.push(`/login?redirect=/events/${slug}`);
+        return;
+    }
+    // Logic to proceed to checkout
+    console.log("Proceeding to checkout with:", ticketQuantities);
+    // router.push('/checkout');
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 animate-pulse">
-        <div className="h-96 bg-gray-200" />
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="h-8 bg-gray-200 rounded w-3/4 mb-4" />
-          <div className="h-6 bg-gray-200 rounded w-1/2" />
-        </div>
-      </div>
-    );
+    return <EventDetailSkeleton />;
   }
 
   if (!event) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-2">Event not found</h2>
-          <button
-            onClick={() => router.push('/events')}
-            className="text-[#EB7D30] hover:underline"
-          >
-            Browse all events
-          </button>
-        </div>
-      </div>
-    );
+    return <div className="text-center py-40">Event not found.</div>;
   }
 
-  const eventDate = new Date(event.start_datetime);
+  const startDate = new Date(event.start_datetime);
   const endDate = new Date(event.end_datetime);
-  const now = new Date();
-  const daysUntil = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner */}
-      <div className="relative h-96 bg-gray-900">
-        {event.banner_image_url ? (
-          <img
-            src={event.banner_image_url}
+    <div className="bg-gray-50">
+      {/* --- Hero Section --- */}
+      <section className="relative h-[50vh] min-h-[300px] text-white">
+        <div className="absolute inset-0">
+          <Image 
+            src={event.banner_image_url || '/hero/hero2.jpg'}
             alt={event.title}
-            className="w-full h-full object-cover opacity-80"
+            fill
+            className="object-cover"
+            priority
           />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#EB7D30] to-[#f5a56d]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-        
-        {/* Countdown Badge */}
-        {daysUntil > 0 && (
-          <div className="absolute top-6 right-6 bg-[#EB7D30] text-white px-4 py-2 rounded-full font-bold">
-            {daysUntil} {daysUntil === 1 ? 'day' : 'days'} to go
-          </div>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Event Details */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-              {/* Title & Organizer */}
-              <div className="mb-6">
-                <div className="flex items-start justify-between mb-4">
-                  <h1 className="font-comfortaa text-3xl md:text-4xl font-bold text-gray-900 flex-1">
-                    {event.title}
-                  </h1>
-                  <div className="flex gap-2 ml-4">
-                    <button className="p-2 border-2 border-gray-200 rounded-full hover:border-[#EB7D30] transition-colors">
-                      <Share2 className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 border-2 border-gray-200 rounded-full hover:border-[#EB7D30] transition-colors">
-                      <Bookmark className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-lg text-gray-600">
-                  by <span className="font-semibold text-[#EB7D30]">{event.organizer.business_name}</span>
-                </p>
-              </div>
-
-              {/* Event Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <Calendar className="w-6 h-6 text-[#EB7D30]" />
-                  <div>
-                    <p className="text-xs text-gray-500">Date</p>
-                    <p className="font-semibold">{eventDate.toLocaleDateString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <Clock className="w-6 h-6 text-[#EB7D30]" />
-                  <div>
-                    <p className="text-xs text-gray-500">Time</p>
-                    <p className="font-semibold">{eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-                  <MapPin className="w-6 h-6 text-[#EB7D30]" />
-                  <div>
-                    <p className="text-xs text-gray-500">Location</p>
-                    <p className="font-semibold line-clamp-1">{event.location}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="mb-8">
-                <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-4">About This Event</h2>
-                <div className="prose prose-lg max-w-none text-gray-600">
-                  {event.description || 'No description available.'}
-                </div>
-              </div>
-
-              {/* Capacity Info */}
-              <div className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span className="text-blue-900">
-                  <strong>{event.total_capacity - event.tickets_sold}</strong> tickets remaining out of {event.total_capacity}
-                </span>
-              </div>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-end pb-12">
+          <Badge variant="outline" className="mb-4 text-white border-white/50 bg-white/10 w-fit capitalize">{event.category.replace('_', ' ')}</Badge>
+          <h1 className="text-4xl lg:text-6xl font-bold font-heading">{event.title}</h1>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-lg">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              <span>{format(startDate, 'E, MMM dd, yyyy')}</span>
             </div>
-          </div>
-
-          {/* Ticket Selection Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
-              <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-6">Select Tickets</h2>
-
-              {/* Ticket Types */}
-              <div className="space-y-4 mb-6">
-                {ticketTypes.map((type) => (
-                  <div key={type.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-bold text-gray-900">{type.name}</h3>
-                        {type.description && (
-                          <p className="text-sm text-gray-600 mt-1">{type.description}</p>
-                        )}
-                      </div>
-                      <p className="font-bold text-[#EB7D30] text-lg">
-                        KSh {parseFloat(type.price).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {type.is_sold_out ? (
-                      <p className="text-sm text-red-600 font-semibold">Sold Out</p>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                          {type.quantity_available} available
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => handleQuantityChange(type.id, -1)}
-                            className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full hover:bg-gray-100"
-                            disabled={!selectedTickets[type.id]}
-                          >
-                            -
-                          </button>
-                          <span className="font-bold w-8 text-center">
-                            {selectedTickets[type.id] || 0}
-                          </span>
-                          <button
-                            onClick={() => handleQuantityChange(type.id, 1)}
-                            className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full hover:bg-gray-100"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Promoter Code */}
-              <div className="mb-6">
-                {!showCodeInput ? (
-                  <button
-                    onClick={() => setShowCodeInput(true)}
-                    className="text-[#EB7D30] text-sm font-semibold hover:underline"
-                  >
-                    + Have a promoter code?
-                  </button>
-                ) : (
-                  <input
-                    type="text"
-                    value={promoterCode}
-                    onChange={(e) => setPromoterCode(e.target.value)}
-                    placeholder="Enter promoter code"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
-                  />
-                )}
-              </div>
-
-              {/* Summary */}
-              <div className="border-t border-gray-200 pt-6 mb-6">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-bold">KSh {getTotalAmount().toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>{getTotalTickets()} ticket(s)</span>
-                </div>
-              </div>
-
-              {/* Checkout Button */}
-              <button
-                onClick={handleCheckout}
-                disabled={getTotalTickets() === 0 || event.is_sold_out}
-                className="w-full py-4 bg-[#EB7D30] text-white font-bold rounded-full hover:bg-[#d66d20] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {event.is_sold_out ? 'Sold Out' : 'Continue to Checkout'}
-              </button>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              <span>{event.location}</span>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Similar Events */}
-        {similarEvents.length > 0 && (
-          <div className="mt-16 mb-12">
-            <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-6">Similar Events</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {similarEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+      {/* --- Main Content --- */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid lg:grid-cols-3 gap-x-12 gap-y-8">
+          
+          {/* Left Column: Details */}
+          <div className="lg:col-span-2">
+            <div className="prose prose-lg max-w-none">
+              <h2 className="text-3xl font-bold font-comfortaa text-gray-900">About this Event</h2>
+              <p className="font-body">{event.description}</p>
+            </div>
+            
+            <div className="mt-12">
+              <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>
+              <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                  <Image 
+                    src={event.organizer.profile_image_url || '/logo.png'}
+                    alt={event.organizer.business_name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="font-bold text-lg text-gray-800">{event.organizer.business_name}</p>
+                  <Button variant="outline" size="sm" className="mt-1">Follow</Button>
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Right Column: Sticky Ticket Box */}
+          <div className="relative">
+            <div className="lg:sticky lg:top-28 bg-white rounded-2xl shadow-2xl border">
+              <div className="p-6">
+                <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-6">Get Your Tickets</h3>
+                <div className="space-y-4">
+                  {event.ticket_types.map((tt) => (
+                    <div key={tt.id} className="p-4 rounded-lg border">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-gray-800">{tt.name}</p>
+                          <p className="text-primary font-semibold">KSh {tt.price.toLocaleString()}</p>
+                        </div>
+                        {tt.is_sold_out ? (
+                          <Badge variant="destructive">Sold Out</Badge>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleQuantityChange(tt.id, -1)} disabled={ticketQuantities[tt.id] === 0}>
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="w-8 text-center font-bold text-lg">{ticketQuantities[tt.id]}</span>
+                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleQuantityChange(tt.id, 1)}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {totalTickets > 0 && (
+                <div className="border-t p-6 bg-gray-50/50 rounded-b-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <p className="font-semibold text-gray-700">Total</p>
+                        <p className="text-2xl font-bold text-gray-900">KSh {totalCost.toLocaleString()}</p>
+                    </div>
+                    <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-white font-bold" onClick={handleGetTickets}>
+                        Checkout ({totalTickets} {totalTickets === 1 ? 'Ticket' : 'Tickets'})
+                    </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

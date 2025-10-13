@@ -42,15 +42,6 @@ export default function Hero() {
       {/* Layer 2: Dark Overlay */}
       <div className="absolute inset-0 bg-black/70" />
 
-      {/* Layer 3: Your Favorite Pattern with Gradient */}
-      <div
-        className="absolute inset-0 bg-cover bg-center opacity-20"
-        style={{ 
-          backgroundImage: "url('/bckpattern3.png')",
-          backgroundBlendMode: 'screen' 
-        }}
-      />
-
       {/* Layer 4: Content */}
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
         <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-4 animate-fade-in-up font-heading tracking-tight">
