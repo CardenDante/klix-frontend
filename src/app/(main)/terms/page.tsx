@@ -1,7 +1,7 @@
 // app/(main)/terms/page.tsx
 import Navbar from '@/components/shared/Navbar';
 
-export function TermsPage() {
+export default function TermsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />

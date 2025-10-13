@@ -1,7 +1,7 @@
 import Navbar from '@/components/shared/Navbar';
 
 // app/(main)/safety/page.tsx
-export function SafetyPage() {
+export default function SafetyPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
