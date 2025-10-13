@@ -106,14 +106,14 @@ export default function Sidebar() {
   const attendeeMenuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'My Tickets', href: '/dashboard/tickets', icon: Ticket },
-    { name: 'Browse Events', href: '/events', icon: Calendar },
+    { name: 'Events', href: '/events', icon: Calendar },
     { name: 'Loyalty', href: '/dashboard/loyalty', icon: Gift },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
   const organizerMenuItems = [
     { name: 'Dashboard', href: '/organizer', icon: LayoutDashboard },
     { name: 'My Events', href: '/organizer/events', icon: Calendar },
-    { name: 'Create Event', href: '/organizer/events/create', icon: Plus },
+    { name: 'Create ', href: '/organizer/events/create', icon: Plus },
     { name: 'Analytics', href: '/organizer/analytics', icon: BarChart3 },
     { name: 'Staff', href: '/organizer/staff', icon: Users },
     { name: 'Promoters', href: '/organizer/promoters', icon: TrendingUp },
