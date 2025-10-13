@@ -22,13 +22,21 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface SocialMediaLinks {
+  instagram?: string;
+  twitter?: string;
+  facebook?: string;
+  tiktok?: string;
+  youtube?: string;
+}
+
 interface PromoterApplication {
   id: string;
   user_id: string;
   user_email: string;
   business_name: string;
   phone_number: string;
-  social_media_links: any;
+  social_media_links: SocialMediaLinks;
   audience_size: string;
   experience_description: string;
   why_join: string;
@@ -38,6 +46,19 @@ interface PromoterApplication {
   created_at: string;
   approved_at?: string;
   rejected_at?: string;
+}
+
+interface ActivePromoter {
+  id: string;
+  user_id: string;
+  user_email: string;
+  business_name: string;
+  phone_number: string;
+  total_tickets_sold: number;
+  total_codes: number;
+  total_commission: number;
+  total_revenue_generated: number;
+  created_at: string;
 }
 
 interface PromoterStats {
@@ -52,7 +73,7 @@ interface PromoterStats {
 export default function AdminPromotersPage() {
   const [stats, setStats] = useState<PromoterStats | null>(null);
   const [applications, setApplications] = useState<PromoterApplication[]>([]);
-  const [activePromoters, setActivePromoters] = useState<any[]>([]);
+  const [activePromoters, setActivePromoters] = useState<ActivePromoter[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApplication, setSelectedApplication] = useState<PromoterApplication | null>(null);
@@ -68,9 +89,9 @@ export default function AdminPromotersPage() {
     try {
       setLoading(true);
       const [statsRes, appsRes, promotersRes] = await Promise.all([
-        apiClient.get('/api/v1/admin/promoters/stats'),
-        apiClient.get('/api/v1/admin/promoters/applications'),
-        apiClient.get('/api/v1/admin/promoters/active')
+        apiClient.get<PromoterStats>('/api/v1/admin/promoters/stats'),
+        apiClient.get<PromoterApplication[]>('/api/v1/admin/promoters/applications'),
+        apiClient.get<ActivePromoter[]>('/api/v1/admin/promoters/active')
       ]);
 
       setStats(statsRes.data);
@@ -295,7 +316,7 @@ export default function AdminPromotersPage() {
                             <div>
                               <strong className="text-gray-600 font-body">Social Media:</strong>
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(app.social_media_links || {}).map(([platform, url]) => (
+                                {app.social_media_links && Object.entries(app.social_media_links).map(([platform, url]) => (
                                   url && (
                                     <Badge key={platform} variant="outline" className="text-xs">
                                       {platform}
@@ -506,7 +527,7 @@ export default function AdminPromotersPage() {
               <div>
                 <label className="text-sm font-semibold text-gray-700 mb-2 block font-body">Social Media Links</label>
                 <div className="space-y-2">
-                  {Object.entries(selectedApplication.social_media_links || {}).map(([platform, url]) => (
+                  {selectedApplication.social_media_links && Object.entries(selectedApplication.social_media_links).map(([platform, url]) => (
                     url && (
                       <div key={platform} className="flex items-center gap-2">
                         <Badge variant="outline" className="capitalize">{platform}</Badge>

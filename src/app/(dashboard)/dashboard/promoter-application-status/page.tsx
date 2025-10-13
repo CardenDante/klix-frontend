@@ -1,632 +1,335 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import apiClient from '@/lib/api-client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { usePromoter } from '@/hooks/usePromoter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { 
-  Users, Search, CheckCircle, XCircle, Clock, Award,
-  TrendingUp, DollarSign, Eye, Ban, Calendar, Phone,
-  Globe, Target, Loader2, AlertCircle
+  Clock, CheckCircle, XCircle, AlertCircle, ArrowRight, 
+  RefreshCw, Calendar, User, Phone, Globe, Target, Award,
+  TrendingUp, Loader2
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-interface SocialMediaLinks {
-  instagram?: string;
-  twitter?: string;
-  facebook?: string;
-  tiktok?: string;
-  youtube?: string;
-}
-
-interface PromoterApplication {
-  id: string;
-  user_id: string;
-  user_email: string;
-  business_name: string;
-  phone_number: string;
-  social_media_links: SocialMediaLinks;
-  audience_size: string;
-  experience_description: string;
-  why_join: string;
-  sample_content?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  rejection_reason?: string;
-  created_at: string;
-  approved_at?: string;
-  rejected_at?: string;
-}
-
-interface ActivePromoter {
-  id: string;
-  user_id: string;
-  user_email: string;
-  business_name: string;
-  phone_number: string;
-  total_tickets_sold: number;
-  total_codes: number;
-  total_commission: number;
-  total_revenue_generated: number;
-  created_at: string;
-}
-
-interface PromoterStats {
-  total_promoters: number;
-  pending_applications: number;
-  active_promoters: number;
-  total_commission_paid: number;
-  total_tickets_sold: number;
-  total_revenue_generated: number;
-}
-
-export default function AdminPromotersPage() {
-  const [stats, setStats] = useState<PromoterStats | null>(null);
-  const [applications, setApplications] = useState<PromoterApplication[]>([]);
-  const [activePromoters, setActivePromoters] = useState<ActivePromoter[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedApplication, setSelectedApplication] = useState<PromoterApplication | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [processing, setProcessing] = useState(false);
+export default function PromoterApplicationStatusPage() {
+  const router = useRouter();
+  const { promoterProfile, loading, isPending, isApproved, isRejected, refetch } = usePromoter();
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [statsRes, appsRes, promotersRes] = await Promise.all([
-        apiClient.get<PromoterStats>('/api/v1/admin/promoters/stats'),
-        apiClient.get<PromoterApplication[]>('/api/v1/admin/promoters/applications'),
-        apiClient.get<ActivePromoter[]>('/api/v1/admin/promoters/active')
-      ]);
-
-      setStats(statsRes.data);
-      setApplications(appsRes.data);
-      setActivePromoters(promotersRes.data);
-    } catch (error) {
-      console.error('Failed to load promoter data:', error);
-      toast.error('Failed to load promoter data');
-    } finally {
-      setLoading(false);
+    // If approved, redirect to promoter dashboard
+    if (isApproved) {
+      router.push('/promoter');
     }
-  };
-
-  const handleApprove = async (applicationId: string) => {
-    if (!confirm('Are you sure you want to approve this application?')) return;
-
-    setProcessing(true);
-    try {
-      await apiClient.post(`/api/v1/admin/promoters/applications/${applicationId}/approve`);
-      toast.success('Application approved successfully');
-      loadData();
-      setSelectedApplication(null);
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to approve application');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!selectedApplication || !rejectionReason.trim()) {
-      toast.error('Please provide a reason for rejection');
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      await apiClient.post(`/api/v1/admin/promoters/applications/${selectedApplication.id}/reject`, {
-        reason: rejectionReason
-      });
-      toast.success('Application rejected');
-      loadData();
-      setShowRejectDialog(false);
-      setSelectedApplication(null);
-      setRejectionReason('');
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to reject application');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleDeactivate = async (promoterId: string) => {
-    if (!confirm('Are you sure you want to deactivate this promoter?')) return;
-
-    try {
-      await apiClient.post(`/api/v1/admin/promoters/${promoterId}/deactivate`);
-      toast.success('Promoter deactivated');
-      loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to deactivate promoter');
-    }
-  };
-
-  const filteredApplications = applications.filter(app =>
-    app.business_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.user_email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const pendingApplications = filteredApplications.filter(app => app.status === 'pending');
-  const approvedApplications = filteredApplications.filter(app => app.status === 'approved');
-  const rejectedApplications = filteredApplications.filter(app => app.status === 'rejected');
+  }, [isApproved, router]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600 font-body">Loading application status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No application found
+  if (!promoterProfile) {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <Card>
+          <CardContent className="pt-12 pb-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-gray-400" />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 font-comfortaa">No Application Found</h2>
+            <p className="text-gray-600 mb-6 font-body">
+              You haven't applied to become a promoter yet.
+            </p>
+            <Button onClick={() => router.push('/become-promoter')}>
+              Apply Now
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">Promoter Management</h1>
-        <p className="text-gray-600 mt-1 font-body">Manage promoter applications and active promoters</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+    <div className="max-w-4xl mx-auto py-8 space-y-6">
+      {/* Status Header */}
+      <Card className={`border-l-4 ${
+        isPending ? 'border-l-yellow-500 bg-yellow-50' :
+        isRejected ? 'border-l-red-500 bg-red-50' :
+        'border-l-green-500 bg-green-50'
+      }`}>
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-full ${
+                isPending ? 'bg-yellow-200' :
+                isRejected ? 'bg-red-200' :
+                'bg-green-200'
+              }`}>
+                {isPending && <Clock className="w-8 h-8 text-yellow-700" />}
+                {isRejected && <XCircle className="w-8 h-8 text-red-700" />}
+                {isApproved && <CheckCircle className="w-8 h-8 text-green-700" />}
+              </div>
               <div>
-                <p className="text-sm text-gray-600 font-body">Pending Applications</p>
-                <p className="text-3xl font-bold text-yellow-600 font-comfortaa">
-                  {stats?.pending_applications || 0}
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl font-bold font-comfortaa">
+                    {isPending && 'Application Under Review'}
+                    {isRejected && 'Application Not Approved'}
+                    {isApproved && 'Application Approved!'}
+                  </h1>
+                  <Badge className={
+                    isPending ? 'bg-yellow-500' :
+                    isRejected ? 'bg-red-500' :
+                    'bg-green-500'
+                  }>
+                    {promoterProfile.status}
+                  </Badge>
+                </div>
+                <p className="text-gray-700 font-body">
+                  {isPending && "We're reviewing your application. This usually takes 24-48 hours."}
+                  {isRejected && "Your application wasn't approved at this time. See details below."}
+                  {isApproved && "Congratulations! You're now an approved promoter."}
                 </p>
               </div>
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <Clock className="w-6 h-6 text-yellow-600" />
+            </div>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-comfortaa">Application Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Submitted */}
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-body">Active Promoters</p>
-                <p className="text-3xl font-bold text-green-600 font-comfortaa">
-                  {stats?.active_promoters || 0}
-                </p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-body">Total Tickets Sold</p>
-                <p className="text-3xl font-bold text-blue-600 font-comfortaa">
-                  {stats?.total_tickets_sold.toLocaleString() || 0}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-body">Commission Paid</p>
-                <p className="text-3xl font-bold text-purple-600 font-comfortaa">
-                  KSh {stats?.total_commission_paid.toLocaleString() || 0}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <DollarSign className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by name or email..."
-          className="pl-11"
-        />
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="pending" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending ({pendingApplications.length})
-          </TabsTrigger>
-          <TabsTrigger value="approved">
-            Approved ({approvedApplications.length})
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            Rejected ({rejectedApplications.length})
-          </TabsTrigger>
-          <TabsTrigger value="active">
-            Active Promoters ({activePromoters.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Pending Applications */}
-        <TabsContent value="pending">
-          {pendingApplications.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-body">No pending applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {pendingApplications.map((app) => (
-                <Card key={app.id} className="hover:shadow-lg transition">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-lg font-bold font-comfortaa">{app.business_name}</h3>
-                          <Badge variant="secondary">{app.status}</Badge>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4 text-sm mb-4">
-                          <div className="space-y-2">
-                            <p className="text-gray-600 font-body">
-                              <strong>Email:</strong> {app.user_email}
-                            </p>
-                            <p className="text-gray-600 font-body">
-                              <strong>Phone:</strong> {app.phone_number}
-                            </p>
-                            <p className="text-gray-600 font-body">
-                              <strong>Audience:</strong> {app.audience_size}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-gray-600 font-body">
-                              <strong>Applied:</strong> {new Date(app.created_at).toLocaleDateString()}
-                            </p>
-                            <div>
-                              <strong className="text-gray-600 font-body">Social Media:</strong>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {app.social_media_links && Object.entries(app.social_media_links).map(([platform, url]) => (
-                                  url && (
-                                    <Badge key={platform} variant="outline" className="text-xs">
-                                      {platform}
-                                    </Badge>
-                                  )
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-sm">
-                          <p className="text-gray-700 font-body">
-                            <strong>Experience:</strong> {app.experience_description.substring(0, 150)}...
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedApplication(app)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprove(app.id)}
-                          disabled={processing}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setSelectedApplication(app);
-                            setShowRejectDialog(true);
-                          }}
-                          disabled={processing}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Approved Applications */}
-        <TabsContent value="approved">
-          {approvedApplications.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-body">No approved applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {approvedApplications.map((app) => (
-                <Card key={app.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold font-comfortaa">{app.business_name}</h3>
-                        <p className="text-sm text-gray-600 font-body">{app.user_email}</p>
-                        <p className="text-xs text-gray-500 font-body">
-                          Approved on {new Date(app.approved_at || '').toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge className="bg-green-600">Approved</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Rejected Applications */}
-        <TabsContent value="rejected">
-          {rejectedApplications.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <XCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-body">No rejected applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {rejectedApplications.map((app) => (
-                <Card key={app.id} className="border-red-200">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold font-comfortaa">{app.business_name}</h3>
-                        <p className="text-sm text-gray-600 mb-2 font-body">{app.user_email}</p>
-                        {app.rejection_reason && (
-                          <div className="mt-2 p-3 bg-red-50 rounded-lg">
-                            <p className="text-sm text-red-800 font-body">
-                              <strong>Reason:</strong> {app.rejection_reason}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <Badge variant="destructive">Rejected</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Active Promoters */}
-        <TabsContent value="active">
-          {activePromoters.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 font-body">No active promoters</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {activePromoters.map((promoter) => (
-                <Card key={promoter.id}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold font-comfortaa">{promoter.business_name}</h3>
-                        <p className="text-sm text-gray-600 font-body">{promoter.user_email}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeactivate(promoter.id)}
-                      >
-                        <Ban className="w-4 h-4 mr-1" />
-                        Deactivate
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-2xl font-bold text-primary font-comfortaa">
-                          {promoter.total_tickets_sold || 0}
-                        </p>
-                        <p className="text-xs text-gray-600 font-body">Tickets Sold</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-green-600 font-comfortaa">
-                          {promoter.total_codes || 0}
-                        </p>
-                        <p className="text-xs text-gray-600 font-body">Active Codes</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-purple-600 font-comfortaa">
-                          KSh {promoter.total_commission?.toLocaleString() || 0}
-                        </p>
-                        <p className="text-xs text-gray-600 font-body">Commission</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* View Application Dialog */}
-      <Dialog open={!!selectedApplication && !showRejectDialog} onOpenChange={(open) => !open && setSelectedApplication(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-comfortaa">Application Details</DialogTitle>
-          </DialogHeader>
-          {selectedApplication && (
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 font-body">Business Name</label>
-                  <p className="font-comfortaa">{selectedApplication.business_name}</p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold font-comfortaa">Application Submitted</h4>
+                  <span className="text-sm text-gray-500 font-body">
+                    {new Date(promoterProfile.created_at).toLocaleDateString()}
+                  </span>
                 </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 font-body">Email</label>
-                  <p className="font-body">{selectedApplication.user_email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 font-body">Phone</label>
-                  <p className="font-body">{selectedApplication.phone_number}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 font-body">Audience Size</label>
-                  <p className="font-body">{selectedApplication.audience_size}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block font-body">Social Media Links</label>
-                <div className="space-y-2">
-                  {selectedApplication.social_media_links && Object.entries(selectedApplication.social_media_links).map(([platform, url]) => (
-                    url && (
-                      <div key={platform} className="flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize">{platform}</Badge>
-                        <a href={url as string} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline font-body">
-                          {url as string}
-                        </a>
-                      </div>
-                    )
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block font-body">Experience</label>
-                <p className="text-gray-700 whitespace-pre-wrap font-body">{selectedApplication.experience_description}</p>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block font-body">Why Join</label>
-                <p className="text-gray-700 whitespace-pre-wrap font-body">{selectedApplication.why_join}</p>
-              </div>
-
-              {selectedApplication.sample_content && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block font-body">Sample Content</label>
-                  <p className="text-gray-700 whitespace-pre-wrap font-body">{selectedApplication.sample_content}</p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={() => handleApprove(selectedApplication.id)}
-                  disabled={processing}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve Application
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowRejectDialog(true)}
-                  disabled={processing}
-                  className="flex-1"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject Application
-                </Button>
+                <p className="text-sm text-gray-600 font-body">Your application has been received</p>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      {/* Reject Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-comfortaa">Reject Application</DialogTitle>
-            <DialogDescription className="font-body">
-              Provide a reason for rejection. The applicant will be notified.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g., Insufficient social media presence, audience size too small, etc."
-              rows={4}
-            />
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRejectDialog(false);
-                  setRejectionReason('');
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={processing || !rejectionReason.trim()}
-                className="flex-1"
-              >
-                {processing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Rejecting...
-                  </>
+            {/* Under Review */}
+            <div className="flex items-start gap-4">
+              <div className={`p-2 rounded-full ${
+                isPending ? 'bg-yellow-100 animate-pulse' : 
+                isApproved || isRejected ? 'bg-green-100' : 
+                'bg-gray-100'
+              }`}>
+                {isPending ? (
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                ) : isApproved || isRejected ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
                 ) : (
-                  'Confirm Rejection'
+                  <Clock className="w-5 h-5 text-gray-400" />
                 )}
-              </Button>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold font-comfortaa">Under Review</h4>
+                <p className="text-sm text-gray-600 font-body">
+                  {isPending ? 'Currently being reviewed by our team' : 'Review completed'}
+                </p>
+              </div>
+            </div>
+
+            {/* Decision */}
+            <div className="flex items-start gap-4">
+              <div className={`p-2 rounded-full ${
+                isApproved ? 'bg-green-100' :
+                isRejected ? 'bg-red-100' :
+                'bg-gray-100'
+              }`}>
+                {isApproved ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : isRejected ? (
+                  <XCircle className="w-5 h-5 text-red-600" />
+                ) : (
+                  <Clock className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold font-comfortaa">Decision</h4>
+                  {(isApproved || isRejected) && (
+                    <span className="text-sm text-gray-500 font-body">
+                      {new Date(promoterProfile.approved_at || promoterProfile.rejected_at || '').toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 font-body">
+                  {isApproved && 'Your application has been approved!'}
+                  {isRejected && 'Your application was not approved'}
+                  {isPending && 'Pending review'}
+                </p>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
+
+      {/* Rejection Reason */}
+      {isRejected && promoterProfile.rejection_reason && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-900 font-comfortaa">Reason for Rejection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-800 font-body">{promoterProfile.rejection_reason}</p>
+            <div className="mt-4">
+              <Button onClick={() => router.push('/become-promoter')}>
+                Submit New Application
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Application Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-comfortaa">Application Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                <User className="w-4 h-4" />
+                <span className="font-body">Business Name</span>
+              </div>
+              <p className="font-semibold font-comfortaa">{promoterProfile.business_name}</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                <Phone className="w-4 h-4" />
+                <span className="font-body">Phone</span>
+              </div>
+              <p className="font-semibold font-comfortaa">{promoterProfile.phone_number}</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                <Target className="w-4 h-4" />
+                <span className="font-body">Audience Size</span>
+              </div>
+              <p className="font-semibold font-comfortaa">{promoterProfile.audience_size}</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                <Calendar className="w-4 h-4" />
+                <span className="font-body">Applied On</span>
+              </div>
+              <p className="font-semibold font-comfortaa">
+                {new Date(promoterProfile.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <Globe className="w-4 h-4" />
+              <span className="font-body">Social Media</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(promoterProfile.social_media_links || {} as Record<string, string | null>)
+                .filter(([, url]) => Boolean(url))
+                .map(([platform, url]) => (
+                  <Badge key={platform} variant="outline" className="font-body">
+                    {platform}: <a href={url as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">View</a>
+                  </Badge>
+                ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <Award className="w-4 h-4" />
+              <span className="font-body">Experience</span>
+            </div>
+            <p className="text-gray-700 font-body">{promoterProfile.experience_description}</p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+              <TrendingUp className="w-4 h-4" />
+              <span className="font-body">Why Join</span>
+            </div>
+            <p className="text-gray-700 font-body">{promoterProfile.why_join}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending - What's Next */}
+      {isPending && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="font-comfortaa">What Happens Next?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 font-body">
+              <li className="flex items-start gap-3">
+                <div className="p-1 bg-blue-200 rounded-full mt-1">
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
+                </div>
+                <span>Our team is reviewing your application and social media presence</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="p-1 bg-blue-200 rounded-full mt-1">
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
+                </div>
+                <span>You'll receive an email notification once we make a decision</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="p-1 bg-blue-200 rounded-full mt-1">
+                  <CheckCircle className="w-4 h-4 text-blue-700" />
+                </div>
+                <span>If approved, you'll get immediate access to create promo codes</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approved - Get Started */}
+      {isApproved && (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <Award className="w-16 h-16 text-green-600 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-2 font-comfortaa">Welcome to the Team!</h3>
+              <p className="text-gray-700 mb-6 font-body">
+                You're now an approved promoter. Start creating promo codes and earning commission.
+              </p>
+              <Button onClick={() => router.push('/promoter')} size="lg">
+                Go to Promoter Dashboard
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

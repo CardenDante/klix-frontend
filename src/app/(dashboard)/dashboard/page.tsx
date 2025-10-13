@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizer } from '@/hooks/useOrganizer';
+import { usePromoter } from '@/hooks/usePromoter';
 import { UserRole } from '@/lib/types';
 import { ticketsApi } from '@/lib/api/tickets';
 import apiClient from '@/lib/api-client';
@@ -16,46 +17,88 @@ import { Badge } from '@/components/ui/badge';
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const { organizerProfile, isPending, isApproved, isRejected, loading: orgLoading } = useOrganizer();
+  const { organizerProfile, isPending: orgPending, isApproved: orgApproved, isRejected: orgRejected, loading: orgLoading } = useOrganizer();
+  const { promoterProfile, isPending: promPending, isApproved: promApproved, isRejected: promRejected, loading: promLoading, hasApplication } = usePromoter();
 
   useEffect(() => {
-    if (authLoading || orgLoading) return;
+    if (authLoading || orgLoading || promLoading) return;
     if (!user) return;
 
-    // Route based on user role
+    console.log('🔀 [DASHBOARD REDIRECT] User role:', user.role);
+    console.log('📊 [ORGANIZER STATUS]', { orgPending, orgApproved, orgRejected, hasProfile: !!organizerProfile });
+    console.log('📣 [PROMOTER STATUS]', { promPending, promApproved, promRejected, hasApplication });
+
+    // Route based on user role and application status
     switch (user.role) {
       case UserRole.ADMIN:
+        console.log('👑 [REDIRECT] Admin → /admin/analytics');
         router.push('/admin/analytics');
         break;
 
       case UserRole.ORGANIZER:
-        if (isPending) {
+        if (orgPending) {
+          console.log('⏳ [REDIRECT] Organizer pending → /dashboard/application-status');
           router.push('/dashboard/application-status');
-        } else if (isApproved) {
+        } else if (orgApproved) {
+          console.log('✅ [REDIRECT] Organizer approved → /organizer');
           router.push('/organizer');
-        } else if (isRejected) {
+        } else if (orgRejected) {
+          console.log('❌ [REDIRECT] Organizer rejected → /dashboard/application-status');
           router.push('/dashboard/application-status');
         } else if (!organizerProfile) {
-          router.push('/dashboard/apply-organizer');
+          // Has organizer role but no application (shouldn't happen, but handle it)
+          console.log('⚠️ [REDIRECT] Organizer role but no profile → /become-organizer');
+          router.push('/become-organizer');
         }
         break;
 
       case UserRole.PROMOTER:
-        router.push('/promoter');
+        if (!hasApplication) {
+          // Has promoter role but no application (shouldn't happen)
+          console.log('⚠️ [REDIRECT] Promoter role but no application → /become-promoter');
+          router.push('/become-promoter');
+        } else if (promPending) {
+          console.log('⏳ [REDIRECT] Promoter pending → /dashboard/promoter-application-status');
+          router.push('/dashboard/promoter-application-status');
+        } else if (promApproved) {
+          console.log('✅ [REDIRECT] Promoter approved → /promoter');
+          router.push('/promoter');
+        } else if (promRejected) {
+          console.log('❌ [REDIRECT] Promoter rejected → /dashboard/promoter-application-status');
+          router.push('/dashboard/promoter-application-status');
+        }
         break;
 
       case UserRole.EVENT_STAFF:
+        console.log('🎫 [REDIRECT] Event Staff → /staff');
         router.push('/staff');
         break;
 
       case UserRole.ATTENDEE:
       case UserRole.GUEST:
       default:
+        console.log('👤 [REDIRECT] Attendee → Stay on dashboard');
+        // Stay on this page (attendee dashboard)
         break;
     }
-  }, [user, authLoading, orgLoading, isPending, isApproved, isRejected, organizerProfile, router]);
+  }, [
+    user, 
+    authLoading, 
+    orgLoading, 
+    promLoading,
+    orgPending, 
+    orgApproved, 
+    orgRejected, 
+    organizerProfile,
+    promPending,
+    promApproved,
+    promRejected,
+    hasApplication,
+    promoterProfile,
+    router
+  ]);
 
-  if (authLoading || orgLoading) {
+  if (authLoading || orgLoading || promLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -63,14 +106,19 @@ export default function DashboardPage() {
     );
   }
 
+  // If user is being redirected, show loading
   if (user?.role !== UserRole.ATTENDEE && user?.role !== UserRole.GUEST) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-gray-600 font-body">Redirecting to your dashboard...</p>
+        </div>
       </div>
     );
   }
 
+  // ATTENDEE DASHBOARD (render below)
   return <AttendeeDashboard user={user} />;
 }
 
@@ -95,7 +143,7 @@ function AttendeeDashboard({ user }: { user: any }) {
 
       // Fetch loyalty balance
       try {
-        const loyaltyRes = await apiClient.get('/loyalty/balance');
+        const loyaltyRes = await apiClient.get('/api/v1/loyalty/balance');
         setLoyaltyBalance(loyaltyRes.data?.available_credits || 0);
       } catch (err) {
         console.log('Loyalty not available:', err);
@@ -103,7 +151,7 @@ function AttendeeDashboard({ user }: { user: any }) {
 
       // Fetch recommendations
       try {
-        const recsRes = await apiClient.get('/recommendations/for-you', {
+        const recsRes = await apiClient.get('/api/v1/recommendations/for-you', {
           params: { limit: 4 }
         });
         setRecommendedEvents(recsRes.data?.recommendations || []);
@@ -196,36 +244,62 @@ function AttendeeDashboard({ user }: { user: any }) {
         </Card>
       </div>
 
-      {/* CTA Banner - Apply as Organizer */}
-      <Card className="bg-gradient-to-br from-[#EB7D30] to-[#ff9554] text-white mb-8 overflow-hidden relative">
-        <CardContent className="pt-6 pb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Gift className="w-5 h-5" />
-                <Badge className="bg-white/20 text-white border-white/30">New</Badge>
+      {/* CTA Banners */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        {/* Become Organizer */}
+        <Card className="bg-gradient-to-br from-[#EB7D30] to-[#ff9554] text-white overflow-hidden relative">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Gift className="w-5 h-5" />
+                  <Badge className="bg-white/20 text-white border-white/30">New</Badge>
+                </div>
+                <h3 className="text-xl font-bold mb-2 font-comfortaa">Become an Organizer</h3>
+                <p className="opacity-90 font-body mb-4 text-sm">
+                  Start creating and managing events. Earn from ticket sales.
+                </p>
+                <Button 
+                  onClick={() => router.push('/become-organizer')}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white text-primary hover:bg-gray-100"
+                >
+                  Learn More
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
               </div>
-              <h3 className="text-2xl font-bold mb-2 font-comfortaa">Become an Organizer</h3>
-              <p className="opacity-90 font-body mb-4">
-                Start creating and managing events. Earn money from ticket sales.
-              </p>
-              <Button 
-                onClick={() => router.push('/become-organizer')}
-                variant="secondary"
-                className="bg-white text-primary hover:bg-gray-100"
-              >
-                Learn More
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
             </div>
-            <div className="hidden md:block">
-              <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
-                <Star className="w-16 h-16 text-white/50" />
+          </CardContent>
+        </Card>
+
+        {/* Become Promoter */}
+        <Card className="bg-gradient-to-br from-purple-600 to-purple-700 text-white overflow-hidden relative">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-5 h-5" />
+                  <Badge className="bg-white/20 text-white border-white/30">Hot</Badge>
+                </div>
+                <h3 className="text-xl font-bold mb-2 font-comfortaa">Become a Promoter</h3>
+                <p className="opacity-90 font-body mb-4 text-sm">
+                  Earn commission by promoting events to your audience.
+                </p>
+                <Button 
+                  onClick={() => router.push('/become-promoter')}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white text-purple-700 hover:bg-gray-100"
+                >
+                  Start Earning
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Upcoming Tickets */}
       {upcomingTickets.length > 0 && (
@@ -242,7 +316,7 @@ function AttendeeDashboard({ user }: { user: any }) {
             </div>
             <div className="space-y-4">
               {upcomingTickets.slice(0, 3).map((ticket) => (
-                <div key={ticket.id} className="flex items-center gap-4 p-4 border rounded-lg hover:border-primary transition">
+                <div key={ticket.id} className="flex items-center gap-4 p-4 border rounded-lg hover:border-primary transition cursor-pointer" onClick={() => router.push(`/dashboard/tickets`)}>
                   <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     {ticket.event?.banner_image_url ? (
                       <img 
@@ -270,7 +344,6 @@ function AttendeeDashboard({ user }: { user: any }) {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => router.push(`/dashboard/tickets`)}
                   >
                     View Ticket
                   </Button>
