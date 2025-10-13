@@ -1,11 +1,25 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Gift, Star, Zap, Crown, Sparkles, Award, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoyaltySection() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
+
+  const handleJoinClick = () => {
+    if (isAuthenticated) {
+      // Already logged in, go to loyalty dashboard
+      router.push('/dashboard/loyalty');
+    } else {
+      // Not logged in, go to signup with redirect
+      router.push('/login?redirect=/dashboard/loyalty');
+    }
+  };
 
   const tiers = [
     {
@@ -51,9 +65,9 @@ export default function LoyaltySection() {
             <Gift className="h-4 w-4" />
             Loyalty Rewards
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 font-heading">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 font-comfortaa">
             Get Rewarded for{' '}
-            <span className="gradient-text font-playful">Every Event</span>
+            <span className="gradient-text">Every Event</span>
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto font-body">
             The more events you attend, the more you save
@@ -68,11 +82,11 @@ export default function LoyaltySection() {
                 <div className="w-16 h-16 bg-gradient-to-br from-[#EB7D30] to-[#ff9554] rounded-full flex items-center justify-center mx-auto">
                   <item.icon className="h-8 w-8 text-white" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg font-bold text-[#EB7D30] text-sm font-heading">
+                <div className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg font-bold text-[#EB7D30] text-sm font-comfortaa">
                   {item.step}
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2 font-heading">{item.title}</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2 font-comfortaa">{item.title}</h3>
               <p className="text-gray-600 text-sm font-body">{item.description}</p>
             </div>
           ))}
@@ -108,7 +122,7 @@ export default function LoyaltySection() {
                   <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br ${tier.color} rounded-full mb-3`}>
                     <tier.icon className="h-8 w-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-1 font-heading">{tier.name} Tier</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-1 font-comfortaa">{tier.name} Tier</h3>
                   <p className="text-gray-600 font-body">{tier.requirement}</p>
                 </div>
 
@@ -129,12 +143,20 @@ export default function LoyaltySection() {
           ))}
         </div>
 
-        {/* CTA */}
+        {/* CTA - UPDATED */}
         <div className="text-center mt-10">
-          <Button className="bg-gradient-to-r from-purple-600 to-[#EB7D30] hover:from-purple-700 hover:to-[#d16a1f] text-white px-10 py-6 text-lg">
-            Join Free
+          <Button 
+            onClick={handleJoinClick}
+            className="bg-gradient-to-r from-purple-600 to-[#EB7D30] hover:from-purple-700 hover:to-[#d16a1f] text-white px-10 py-6 text-lg"
+          >
+            {isAuthenticated ? 'View My Rewards' : 'Join Free'}
           </Button>
-          <p className="text-gray-600 mt-3 font-body">Start earning credits with your first purchase</p>
+          <p className="text-gray-600 mt-3 font-body">
+            {isAuthenticated 
+              ? 'Check your loyalty credits and rewards'
+              : 'Start earning credits with your first purchase'
+            }
+          </p>
         </div>
       </div>
     </section>
