@@ -69,11 +69,11 @@ export default function ContactPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
                   <Phone className="w-6 h-6 flex-shrink-0" />
-                  <span className="font-body">+254 712 345 678</span>
+                  <span className="font-body">+254 796 280 700</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <Mail className="w-6 h-6 flex-shrink-0" />
-                  <span className="font-body">support@klix.co.ke</span>
+                  <span className="font-body">support@e-klix.com</span>
                 </div>
                 <div className="flex items-start gap-4">
                   <MapPin className="w-6 h-6 flex-shrink-0 mt-1" />

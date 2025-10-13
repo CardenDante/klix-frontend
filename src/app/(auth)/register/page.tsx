@@ -157,7 +157,7 @@ export default function RegisterPage() {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
                   type="tel"
-                  placeholder="+254 712 345 678"
+                  placeholder="+254 796 280 700"
                   value={formData.phone_number}
                   onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                   className="pl-11 h-11"

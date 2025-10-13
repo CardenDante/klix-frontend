@@ -98,7 +98,7 @@ export default function SettingsPage() {
                     type="tel"
                     defaultValue={user?.phone_number}
                     className="pl-11"
-                    placeholder="+254 712 345 678"
+                    placeholder="+254 796 280 700"
                   />
                 </div>
               </div>
