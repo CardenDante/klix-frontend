@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, MapPin, Users, TrendingUp, Music, Gamepad2, Briefcase, PartyPopper, Palette, Mic2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Calendar, MapPin, Users, TrendingUp, Music, Gamepad2, Briefcase, PartyPopper, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
+import { Badge } from '@/components/ui/badge';
 
 interface Event {
   id: string;
+  slug: string;
   title: string;
   category: string;
   location: string;
@@ -16,164 +19,153 @@ interface Event {
   is_sold_out: boolean;
 }
 
+// --- Skeleton Card Component (with wave effect) ---
+const SkeletonCard = () => (
+  <div className="bg-white/50 rounded-2xl h-96 overflow-hidden border border-gray-200/50">
+    <div className="h-48 bg-gray-200 animate-wave" />
+    <div className="p-5 space-y-4">
+      <div className="h-4 bg-gray-200 rounded w-1/4 animate-wave" />
+      <div className="h-6 bg-gray-300 rounded w-3/4 animate-wave" />
+      <div className="h-4 bg-gray-200 rounded w-1/2 animate-wave" />
+      <div className="h-10 bg-gray-300 rounded-full w-full mt-4 animate-wave" />
+    </div>
+  </div>
+);
+
 export default function LiveEvents() {
+  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const categories = [
-    { value: 'all', label: 'All Events', icon: TrendingUp },
+    { value: 'all', label: 'All', icon: TrendingUp },
     { value: 'music', label: 'Music', icon: Music },
     { value: 'sports', label: 'Sports', icon: Gamepad2 },
     { value: 'conference', label: 'Business', icon: Briefcase },
-    { value: 'festival', label: 'Festival', icon: PartyPopper },
-    { value: 'theater', label: 'Theater', icon: Mic2 },
-    { value: 'exhibition', label: 'Art', icon: Palette },
+    { value: 'festival', label: 'Festivals', icon: PartyPopper },
   ];
 
   useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const params = selectedCategory !== 'all' ? { category: selectedCategory, limit: 6 } : { limit: 6 };
+        const response = await api.events.list(params);
+        setEvents(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setTimeout(() => setLoading(false), 500);
+      }
+    };
     fetchEvents();
   }, [selectedCategory]);
 
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      const params = selectedCategory !== 'all' ? { category: selectedCategory } : {};
-      const response = await api.events.list(params);
-      setEvents(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
-  };
-
-  const getCategoryIcon = (category: string) => {
-    const cat = categories.find(c => c.value === category);
-    return cat?.icon || TrendingUp;
+    return date.toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   return (
-    <section className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 relative bg-orange-50/50 overflow-hidden">
+      {/* Background Pattern */}
+      <div 
+        className="absolute top-0 right-0 h-full w-2/3 bg-no-repeat bg-contain bg-right-top opacity-30 pointer-events-none"
+        style={{ backgroundImage: "url('/bckpattern2.png')" }} 
+      />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-10">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 font-heading flex items-center gap-3">
-              <TrendingUp className="text-[#EB7D30]" />
-              Trending Events
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight font-heading">
+              Trending <span className="gradient-text font-playful">Events</span>
             </h2>
-            <p className="text-gray-600 mt-1 font-body">Don't miss out on these popular events</p>
+            <p className="text-gray-600 mt-2 font-body">Don't miss out on these popular events</p>
           </div>
-          <Button variant="outline" className="border-[#EB7D30] text-[#EB7D30] hover:bg-[#EB7D30] hover:text-white hidden md:flex">
-            View All
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/events')}
+            className="mt-4 sm:mt-0 border-primary text-primary hover:bg-primary hover:text-white transition-all duration-300 group bg-white/50"
+          >
+            View All Events
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
 
         {/* Category Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-8 scrollbar-hide">
+        <div className="flex gap-3 overflow-x-auto pb-4 mb-8 scrollbar-hide">
           {categories.map((category) => {
             const Icon = category.icon;
             return (
               <button
                 key={category.value}
                 onClick={() => setSelectedCategory(category.value)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all whitespace-nowrap text-sm relative ${
                   selectedCategory === category.value
-                    ? 'bg-[#EB7D30] text-white shadow-lg scale-105'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                    ? 'bg-primary text-white shadow-md'
+                    : 'bg-white/60 text-gray-600 hover:bg-white hover:text-primary'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-5 w-5" />
                 <span>{category.label}</span>
               </button>
             );
           })}
         </div>
 
+
         {/* Events Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-xl h-80 animate-pulse"></div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.slice(0, 6).map((event) => {
-              const CategoryIcon = getCategoryIcon(event.category);
-              return (
-                <div
-                  key={event.id}
-                  className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2"
-                >
-                  {/* Event Image */}
-                  <div className="relative h-48 bg-gradient-to-br from-[#EB7D30] to-[#ff9554] overflow-hidden">
-                    {event.banner_image_url ? (
-                      <img
-                        src={event.banner_image_url}
-                        alt={event.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white">
-                        <CategoryIcon className="h-20 w-20 opacity-50" />
-                      </div>
-                    )}
-                    
-                    {/* Badge */}
-                    {event.is_sold_out ? (
-                      <div className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        Sold Out
-                      </div>
-                    ) : event.tickets_sold > 50 ? (
-                      <div className="absolute top-3 right-3 bg-[#EB7D30] text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" />
-                        Hot
-                      </div>
-                    ) : null}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+          {loading ? (
+            [...Array(3)].map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            events.map((event) => (
+              <div
+                key={event.id}
+                onClick={() => router.push(`/events/${event.slug}`)}
+                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2 border border-transparent hover:border-primary/50"
+              >
+                {/* Event Image */}
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={event.banner_image_url || '/hero/hero3.jpg'} // Fallback image
+                    alt={event.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  {event.is_sold_out ? (
+                    <Badge variant="destructive" className="absolute top-3 right-3">Sold Out</Badge>
+                  ) : (
+                    <Badge className="absolute top-3 right-3 bg-white text-primary font-bold">{formatDate(event.start_datetime)}</Badge>
+                  )}
+                </div>
+
+                {/* Event Details */}
+                <div className="p-5">
+                  <Badge variant="outline" className="mb-2 text-primary border-primary/50 capitalize">{event.category.replace('_', ' ')}</Badge>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 font-comfortaa line-clamp-2 h-14">
+                    {event.title}
+                  </h3>
+                  <div className="flex items-center gap-2 text-gray-500 text-sm font-body mb-4">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="line-clamp-1">{event.location}</span>
                   </div>
-
-                  {/* Event Details */}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 text-sm text-[#EB7D30] font-semibold mb-2">
-                      <CategoryIcon className="h-4 w-4" />
-                      <span className="capitalize">{event.category}</span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-gray-900 mb-3 font-heading line-clamp-2 group-hover:text-[#EB7D30] transition-colors">
-                      {event.title}
-                    </h3>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <Calendar className="h-4 w-4" />
-                        <span>{formatDate(event.start_datetime)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <MapPin className="h-4 w-4" />
-                        <span className="line-clamp-1">{event.location}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-600 text-sm">
-                        <Users className="h-4 w-4" />
-                        <span>{event.tickets_sold} attending</span>
-                      </div>
-                    </div>
-
-                    <Button className="w-full bg-[#EB7D30] hover:bg-[#d16a1f] text-white">
-                      Get Tickets
-                    </Button>
+                  <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">
+                       <Users className="h-4 w-4 text-primary" />
+                       <span>{event.tickets_sold}+ Attending</span>
+                     </div>
+                     <Button size="sm" className="bg-primary hover:bg-primary-dark text-white rounded-full">
+                       Get Tickets
+                     </Button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </section>
   );
