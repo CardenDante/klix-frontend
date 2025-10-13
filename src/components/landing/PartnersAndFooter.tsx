@@ -9,10 +9,10 @@ import { Input } from '@/components/ui/input';
 // Partners section before footer
 export default function PartnersSection() {
   const partners = [
-    { name: 'Eventbrite', logo: '/partners/eventbrite.png' },
-    { name: 'Safaricom', logo: '/partners/safaricom.png' },
-    { name: 'Flutterwave', logo: '/partners/flutterwave.png' },
-    { name: 'Google', logo: '/partners/google.png' },
+    { name: 'Chacha', logo: '/cc.svg' },
+    { name: 'Safaricom', logo: '/M-PESA.png' },
+    { name: 'Google', logo: '/Google_2015_logo.svg.webp' },
+  
   ];
 
   return (
@@ -21,7 +21,7 @@ export default function PartnersSection() {
         <h2 className="text-3xl font-bold text-gray-900 mb-10" style={{ fontFamily: 'Comfortaa' }}>
           Our Partners
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 items-center justify-center">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-10 items-center justify-center">
           {partners.map((partner) => (
             <div key={partner.name} className="flex justify-center">
               <Image

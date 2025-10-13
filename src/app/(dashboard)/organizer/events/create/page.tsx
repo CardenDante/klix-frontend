@@ -70,7 +70,7 @@ export default function CreateEventPage() {
       // Redirect to event page
       router.push(`/organizer/events/${eventId}`);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create event');
+      setError(err.response?.data?.detail || 'Your organizer account must be approved before creating events');
     } finally {
       setLoading(false);
     }

@@ -25,7 +25,8 @@ export default function Navbar() {
     { href: '/events', label: 'Events' },
     { href: '/about', label: 'About Us' },
     { href: '/become-organizer', label: 'For Organizers' },
-     { href: '/contact', label: 'Contact' },
+    { href: '/become-promoter', label: 'For Promoters' },
+    { href: '/contact', label: 'Contact' },
   ];
 
   return (

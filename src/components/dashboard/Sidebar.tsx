@@ -38,15 +38,13 @@ export default function Sidebar() {
     { name: 'Earnings', href: '/promoter/earnings', icon: DollarSign },
     { name: 'Analytics', href: '/promoter/analytics', icon: BarChart3 },
     { name: 'Leaderboard', href: '/promoter/leaderboard', icon: TrendingUp },
-    { name: 'Settings', href: '/promoter/settings', icon: Settings },
   ];
 
   // Event Staff menu items
   const staffMenuItems = [
     { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
-    { name: 'My Assignments', href: '/staff/assignments', icon: Calendar },
+    { name: 'My Assignments', href: '/staff/events', icon: Calendar },
     { name: 'Check-in Scanner', href: '/staff/scanner', icon: UserCheck },
-    { name: 'Settings', href: '/staff/settings', icon: Settings },
   ];
 
   // Admin menu items
@@ -54,6 +52,7 @@ export default function Sidebar() {
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Organizers', href: '/admin/organizers', icon: Shield },
+    { name: 'Promoters', href: '/admin/promoters', icon: TrendingUp },
     { name: 'Events', href: '/admin/events', icon: Calendar },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Reports', href: '/admin/reports', icon: FileText },

@@ -58,7 +58,7 @@ export default function Hero() {
         </h1>
 
         <p className="text-lg text-gray-200 mb-10 max-w-2xl mx-auto animate-fade-in-up font-body" style={{ animationDelay: '0.2s' }}>
-          From concerts to conferences, find and book tickets to the hottest events in Kenya
+          From concerts to conferences, experience the world’s most exciting events in just one Klix.
         </p>
 
         {/* Search Bar */}
