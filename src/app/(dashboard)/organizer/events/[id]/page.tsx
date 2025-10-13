@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import ImageUpload from '@/components/shared/ImageUpload';
 import { 
   ArrowLeft, Save, Trash2, Eye, EyeOff, Calendar, MapPin, 
   DollarSign, Users, Plus, Edit, Ticket 
@@ -64,7 +65,7 @@ export default function EventDetailsPage() {
 
   const fetchEventDetails = async () => {
     try {
-      const response = await apiClient.get(`/events/${eventId}`);
+      const response = await apiClient.get(`/api/v1/events/${eventId}`);
       setEvent(response.data);
       setFormData(response.data);
     } catch (err: any) {
@@ -76,7 +77,7 @@ export default function EventDetailsPage() {
 
   const fetchTicketTypes = async () => {
     try {
-      const response = await apiClient.get(`/tickets/events/${eventId}/ticket-types`, {
+      const response = await apiClient.get(`/api/v1/tickets/events/${eventId}/ticket-types`, {
         params: { include_inactive: true }
       });
       setTicketTypes(response.data);
@@ -91,11 +92,14 @@ export default function EventDetailsPage() {
     setSuccess('');
     
     try {
-      const response = await apiClient.patch(`/events/${eventId}`, formData);
+      const response = await apiClient.patch(`/api/v1/events/${eventId}`, formData);
       setEvent(response.data);
       setFormData(response.data);
       setIsEditing(false);
       setSuccess('Event updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to update event');
     } finally {
@@ -106,9 +110,10 @@ export default function EventDetailsPage() {
   const togglePublish = async () => {
     try {
       const endpoint = event?.is_published ? 'unpublish' : 'publish';
-      const response = await apiClient.post(`/events/${eventId}/${endpoint}`);
+      const response = await apiClient.post(`/api/v1/events/${eventId}/${endpoint}`);
       setEvent(response.data);
       setSuccess(`Event ${event?.is_published ? 'unpublished' : 'published'} successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to update publish status');
     }
@@ -120,7 +125,7 @@ export default function EventDetailsPage() {
     }
 
     try {
-      await apiClient.delete(`/events/${eventId}`);
+      await apiClient.delete(`/api/v1/events/${eventId}`);
       router.push('/organizer/events');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete event');
@@ -136,7 +141,7 @@ export default function EventDetailsPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#EB7D30] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading event details...</p>
+          <p className="text-gray-600 font-body">Loading event details...</p>
         </div>
       </div>
     );
@@ -145,7 +150,7 @@ export default function EventDetailsPage() {
   if (!event) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Event not found</p>
+        <p className="text-gray-600 font-body">Event not found</p>
       </div>
     );
   }
@@ -160,7 +165,7 @@ export default function EventDetailsPage() {
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Comfortaa' }}>
+            <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">
               {event.title}
             </h1>
             <div className="flex items-center gap-2 mt-1">
@@ -177,7 +182,7 @@ export default function EventDetailsPage() {
             {event.is_published ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {event.is_published ? 'Unpublish' : 'Publish'}
           </Button>
-          <Button variant="outline" onClick={() => router.push(`/organizer/events/${eventId}/analytics`)}>
+          <Button variant="outline" onClick={() => router.push(`/organizer/analytics`)}>
             Analytics
           </Button>
           <Button variant="destructive" onClick={handleDelete}>
@@ -194,15 +199,15 @@ export default function EventDetailsPage() {
         </Alert>
       )}
       {success && (
-        <Alert>
-          <AlertDescription>{success}</AlertDescription>
+        <Alert className="bg-green-50 border-green-200">
+          <AlertDescription className="text-green-800">{success}</AlertDescription>
         </Alert>
       )}
 
       {/* Event Details Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Event Details</CardTitle>
+          <CardTitle className="font-comfortaa">Event Details</CardTitle>
           <Button
             variant={isEditing ? 'default' : 'outline'}
             onClick={() => {
@@ -230,15 +235,29 @@ export default function EventDetailsPage() {
         <CardContent className="space-y-4">
           {isEditing ? (
             <>
+              {/* UPDATED: Image Upload Component */}
               <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
+                <ImageUpload
+                  value={formData.banner_image_url || ''}
+                  onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
+                  uploadType="event_banner"
+                  entityId={eventId}
+                  label="Event Banner"
+                  aspectRatio="16:9"
+                  recommendedSize="1920x1080px"
+                  maxSizeMB={5}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 font-body">Title</label>
                 <Input
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-sm font-medium mb-1 font-body">Description</label>
                 <Textarea
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -247,9 +266,9 @@ export default function EventDetailsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Category</label>
+                  <label className="block text-sm font-medium mb-1 font-body">Category</label>
                   <select
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md font-body"
                     value={formData.category || ''}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   >
@@ -258,11 +277,17 @@ export default function EventDetailsPage() {
                     <option value="conference">Conference</option>
                     <option value="workshop">Workshop</option>
                     <option value="party">Party</option>
+                    <option value="festival">Festival</option>
+                    <option value="exhibition">Exhibition</option>
+                    <option value="comedy">Comedy</option>
+                    <option value="theater">Theater</option>
+                    <option value="food_drink">Food & Drink</option>
+                    <option value="charity">Charity</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Location</label>
+                  <label className="block text-sm font-medium mb-1 font-body">Location</label>
                   <Input
                     value={formData.location || ''}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
@@ -271,7 +296,7 @@ export default function EventDetailsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Start Date & Time</label>
+                  <label className="block text-sm font-medium mb-1 font-body">Start Date & Time</label>
                   <Input
                     type="datetime-local"
                     value={formData.start_datetime?.slice(0, 16) || ''}
@@ -279,7 +304,7 @@ export default function EventDetailsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">End Date & Time</label>
+                  <label className="block text-sm font-medium mb-1 font-body">End Date & Time</label>
                   <Input
                     type="datetime-local"
                     value={formData.end_datetime?.slice(0, 16) || ''}
@@ -290,23 +315,33 @@ export default function EventDetailsPage() {
             </>
           ) : (
             <>
+              {event.banner_image_url && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image</h3>
+                  <img 
+                    src={event.banner_image_url} 
+                    alt="Event banner" 
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                </div>
+              )}
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                <p className="mt-1">{event.description || 'No description'}</p>
+                <h3 className="text-sm font-medium text-gray-500 font-body">Description</h3>
+                <p className="mt-1 font-body">{event.description || 'No description'}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2 font-body">
                     <Calendar className="w-4 h-4" /> Date & Time
                   </h3>
-                  <p className="mt-1">{new Date(event.start_datetime).toLocaleString()}</p>
-                  <p className="text-sm text-gray-500">to {new Date(event.end_datetime).toLocaleString()}</p>
+                  <p className="mt-1 font-body">{new Date(event.start_datetime).toLocaleString()}</p>
+                  <p className="text-sm text-gray-500 font-body">to {new Date(event.end_datetime).toLocaleString()}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                  <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2 font-body">
                     <MapPin className="w-4 h-4" /> Location
                   </h3>
-                  <p className="mt-1">{event.location}</p>
+                  <p className="mt-1 font-body">{event.location}</p>
                 </div>
               </div>
             </>
@@ -317,7 +352,7 @@ export default function EventDetailsPage() {
       {/* Ticket Types */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 font-comfortaa">
             <Ticket className="w-5 h-5" />
             Ticket Types
           </CardTitle>
@@ -332,7 +367,7 @@ export default function EventDetailsPage() {
               <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h4 className="font-semibold">{ticket.name}</h4>
+                    <h4 className="font-semibold font-comfortaa">{ticket.name}</h4>
                     <Badge variant={ticket.is_active ? 'default' : 'secondary'}>
                       {ticket.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -341,14 +376,14 @@ export default function EventDetailsPage() {
                     )}
                   </div>
                   {ticket.description && (
-                    <p className="text-sm text-gray-600 mt-1">{ticket.description}</p>
+                    <p className="text-sm text-gray-600 mt-1 font-body">{ticket.description}</p>
                   )}
                   <div className="flex items-center gap-6 mt-2 text-sm">
-                    <span className="flex items-center gap-1 font-medium text-[#EB7D30]">
+                    <span className="flex items-center gap-1 font-medium text-[#EB7D30] font-body">
                       <DollarSign className="w-4 h-4" />
                       {formatCurrency(ticket.price)}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 font-body">
                       <Users className="w-4 h-4" />
                       {ticket.quantity_sold} / {ticket.quantity_total} sold
                     </span>
@@ -368,7 +403,7 @@ export default function EventDetailsPage() {
               </div>
             ))}
             {ticketTypes.length === 0 && (
-              <p className="text-center text-gray-500 py-8">No ticket types yet. Add one to get started!</p>
+              <p className="text-center text-gray-500 py-8 font-body">No ticket types yet. Add one to get started!</p>
             )}
           </div>
         </CardContent>

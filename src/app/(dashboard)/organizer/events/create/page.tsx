@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, MapPin, Image as ImageIcon, Ticket, Check } from 'lucide-react';
 import { organizersApi, EventCreateData } from '@/lib/api/organizers';
 import { eventsApi } from '@/lib/api/events';
+import ImageUpload from '@/components/shared/ImageUpload';
 
 export default function CreateEventPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tempEventId, setTempEventId] = useState('');
 
   const [formData, setFormData] = useState<EventCreateData>({
     title: '',
@@ -30,6 +32,11 @@ export default function CreateEventPage() {
     { name: 'General Admission', description: '', price: '', quantity_total: '' },
   ]);
 
+  // Generate temporary event ID for file uploads
+  useEffect(() => {
+    setTempEventId(crypto.randomUUID());
+  }, []);
+
   const steps = [
     { number: 1, title: 'Basic Info', icon: Calendar },
     { number: 2, title: 'Date & Location', icon: MapPin },
@@ -39,10 +46,25 @@ export default function CreateEventPage() {
   ];
 
   const handleNext = () => {
+    // Validate current step before moving forward
+    if (currentStep === 1) {
+      if (!formData.title.trim()) {
+        setError('Please enter an event title');
+        return;
+      }
+    } else if (currentStep === 2) {
+      if (!formData.start_datetime || !formData.end_datetime || !formData.location.trim()) {
+        setError('Please fill in all required fields');
+        return;
+      }
+    }
+    
+    setError('');
     if (currentStep < 5) setCurrentStep(currentStep + 1);
   };
 
   const handleBack = () => {
+    setError('');
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
@@ -50,6 +72,13 @@ export default function CreateEventPage() {
     try {
       setLoading(true);
       setError('');
+
+      // Validate required fields
+      if (!formData.title || !formData.start_datetime || !formData.end_datetime || !formData.location) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
 
       // Create event
       const eventResponse = await organizersApi.createEvent(formData);
@@ -90,14 +119,14 @@ export default function CreateEventPage() {
         {/* Header */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-[#EB7D30] mb-6"
+          className="flex items-center gap-2 text-gray-600 hover:text-[#EB7D30] mb-6 font-body"
         >
           <ArrowLeft className="w-5 h-5" />
           Back
         </button>
 
         <h1 className="font-comfortaa text-3xl font-bold text-gray-900 mb-2">Create New Event</h1>
-        <p className="text-gray-600 mb-8">Fill in the details to create your event</p>
+        <p className="text-gray-600 mb-8 font-body">Fill in the details to create your event</p>
 
         {/* Progress Steps */}
         <div className="mb-8">
@@ -117,7 +146,7 @@ export default function CreateEventPage() {
                     }`}>
                       {isCompleted ? <Check className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
                     </div>
-                    <p className={`mt-2 text-xs font-semibold ${
+                    <p className={`mt-2 text-xs font-semibold font-body ${
                       isActive ? 'text-[#EB7D30]' : 'text-gray-500'
                     }`}>
                       {step.title}
@@ -137,7 +166,7 @@ export default function CreateEventPage() {
         {/* Form Content */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 font-body">
               {error}
             </div>
           )}
@@ -146,7 +175,7 @@ export default function CreateEventPage() {
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                   Event Title *
                 </label>
                 <input
@@ -154,19 +183,19 @@ export default function CreateEventPage() {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g., Summer Music Festival 2025"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                   Category *
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                 >
                   {eventsApi.CATEGORIES.map(cat => (
                     <option key={cat.value} value={cat.value}>
@@ -177,7 +206,7 @@ export default function CreateEventPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                   Description
                 </label>
                 <textarea
@@ -185,7 +214,7 @@ export default function CreateEventPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Tell attendees what makes your event special..."
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                 />
               </div>
             </div>
@@ -196,34 +225,34 @@ export default function CreateEventPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                     Start Date & Time *
                   </label>
                   <input
                     type="datetime-local"
                     value={formData.start_datetime}
                     onChange={(e) => setFormData({ ...formData, start_datetime: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                     End Date & Time *
                   </label>
                   <input
                     type="datetime-local"
                     value={formData.end_datetime}
                     onChange={(e) => setFormData({ ...formData, end_datetime: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                   Location *
                 </label>
                 <input
@@ -231,72 +260,63 @@ export default function CreateEventPage() {
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   placeholder="e.g., Carnivore Grounds, Nairobi"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                     Latitude (optional)
                   </label>
                   <input
                     type="number"
                     step="any"
                     value={formData.latitude || ''}
-                    onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) || undefined })}
                     placeholder="-1.286389"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                     Longitude (optional)
                   </label>
                   <input
                     type="number"
                     step="any"
                     value={formData.longitude || ''}
-                    onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) || undefined })}
                     placeholder="36.817223"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 3: Media */}
+          {/* Step 3: Media - UPDATED WITH IMAGE UPLOAD */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Banner Image URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.banner_image_url}
-                  onChange={(e) => setFormData({ ...formData, banner_image_url: e.target.value })}
-                  placeholder="https://example.com/banner.jpg"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
-                />
-                <p className="mt-2 text-sm text-gray-500">Recommended: 1920x1080px</p>
+              <ImageUpload
+                value={formData.banner_image_url}
+                onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
+                uploadType="event_banner"
+                entityId={tempEventId}
+                label="Event Banner Image"
+                aspectRatio="16:9"
+                recommendedSize="1920x1080px"
+                maxSizeMB={5}
+              />
+              
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-body">
+                  💡 <strong>Tip:</strong> A high-quality banner image helps attract more attendees. 
+                  Use an image that represents your event well!
+                </p>
               </div>
-
-              {formData.banner_image_url && (
-                <div className="relative h-64 rounded-lg overflow-hidden">
-                  <img
-                    src={formData.banner_image_url}
-                    alt="Banner preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-                    }}
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -304,10 +324,10 @@ export default function CreateEventPage() {
           {currentStep === 4 && (
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Ticket Types</h3>
+                <h3 className="font-semibold text-gray-900 font-comfortaa">Ticket Types</h3>
                 <button
                   onClick={addTicketType}
-                  className="text-[#EB7D30] hover:underline text-sm font-semibold"
+                  className="text-[#EB7D30] hover:underline text-sm font-semibold font-body"
                 >
                   + Add Ticket Type
                 </button>
@@ -316,11 +336,11 @@ export default function CreateEventPage() {
               {ticketTypes.map((ticket, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-semibold text-gray-900">Ticket Type #{index + 1}</h4>
+                    <h4 className="font-semibold text-gray-900 font-comfortaa">Ticket Type #{index + 1}</h4>
                     {ticketTypes.length > 1 && (
                       <button
                         onClick={() => removeTicketType(index)}
-                        className="text-red-600 hover:underline text-sm"
+                        className="text-red-600 hover:underline text-sm font-body"
                       >
                         Remove
                       </button>
@@ -329,7 +349,7 @@ export default function CreateEventPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                         Name *
                       </label>
                       <input
@@ -341,12 +361,12 @@ export default function CreateEventPage() {
                           setTicketTypes(updated);
                         }}
                         placeholder="e.g., VIP"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                         Price (KSh) *
                       </label>
                       <input
@@ -358,12 +378,12 @@ export default function CreateEventPage() {
                           setTicketTypes(updated);
                         }}
                         placeholder="2000"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                         Quantity *
                       </label>
                       <input
@@ -375,12 +395,12 @@ export default function CreateEventPage() {
                           setTicketTypes(updated);
                         }}
                         placeholder="100"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 font-body">
                         Description
                       </label>
                       <input
@@ -392,7 +412,7 @@ export default function CreateEventPage() {
                           setTicketTypes(updated);
                         }}
                         placeholder="Optional"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30]"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#EB7D30] font-body"
                       />
                     </div>
                   </div>
@@ -407,36 +427,54 @@ export default function CreateEventPage() {
               <h3 className="font-comfortaa text-xl font-bold text-gray-900 mb-4">Review Your Event</h3>
               
               <div className="space-y-4">
+                {formData.banner_image_url && (
+                  <div className="border-b pb-4">
+                    <p className="text-sm text-gray-600 mb-2 font-body">Banner Image</p>
+                    <img 
+                      src={formData.banner_image_url} 
+                      alt="Event banner" 
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+
                 <div className="border-b pb-4">
-                  <p className="text-sm text-gray-600">Title</p>
-                  <p className="font-semibold text-gray-900">{formData.title}</p>
+                  <p className="text-sm text-gray-600 font-body">Title</p>
+                  <p className="font-semibold text-gray-900 font-comfortaa">{formData.title}</p>
                 </div>
 
                 <div className="border-b pb-4">
-                  <p className="text-sm text-gray-600">Category</p>
-                  <p className="font-semibold text-gray-900">{formData.category}</p>
+                  <p className="text-sm text-gray-600 font-body">Category</p>
+                  <p className="font-semibold text-gray-900 font-body capitalize">{formData.category}</p>
                 </div>
 
+                {formData.description && (
+                  <div className="border-b pb-4">
+                    <p className="text-sm text-gray-600 font-body">Description</p>
+                    <p className="text-gray-900 font-body">{formData.description}</p>
+                  </div>
+                )}
+
                 <div className="border-b pb-4">
-                  <p className="text-sm text-gray-600">Date & Time</p>
-                  <p className="font-semibold text-gray-900">
+                  <p className="text-sm text-gray-600 font-body">Date & Time</p>
+                  <p className="font-semibold text-gray-900 font-body">
                     {formData.start_datetime && new Date(formData.start_datetime).toLocaleString()} - {formData.end_datetime && new Date(formData.end_datetime).toLocaleString()}
                   </p>
                 </div>
 
                 <div className="border-b pb-4">
-                  <p className="text-sm text-gray-600">Location</p>
-                  <p className="font-semibold text-gray-900">{formData.location}</p>
+                  <p className="text-sm text-gray-600 font-body">Location</p>
+                  <p className="font-semibold text-gray-900 font-body">{formData.location}</p>
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-600 mb-2">Ticket Types</p>
+                  <p className="text-sm text-gray-600 mb-2 font-body">Ticket Types</p>
                   <div className="space-y-2">
-                    {ticketTypes.map((ticket, index) => (
+                    {ticketTypes.filter(t => t.name && t.price && t.quantity_total).map((ticket, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="font-semibold text-gray-900">{ticket.name}</span>
-                        <span className="text-gray-600">
-                          KSh {ticket.price} • {ticket.quantity_total} available
+                        <span className="font-semibold text-gray-900 font-comfortaa">{ticket.name}</span>
+                        <span className="text-gray-600 font-body">
+                          KSh {parseFloat(ticket.price).toLocaleString()} • {ticket.quantity_total} available
                         </span>
                       </div>
                     ))}
@@ -451,7 +489,7 @@ export default function CreateEventPage() {
             <button
               onClick={handleBack}
               disabled={currentStep === 1}
-              className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-full hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-full hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-body"
             >
               <ArrowLeft className="w-5 h-5" />
               Back
@@ -460,7 +498,7 @@ export default function CreateEventPage() {
             {currentStep < 5 ? (
               <button
                 onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-3 bg-[#EB7D30] text-white font-semibold rounded-full hover:bg-[#d66d20] transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-[#EB7D30] text-white font-semibold rounded-full hover:bg-[#d66d20] transition-colors font-body"
               >
                 Next
                 <ArrowRight className="w-5 h-5" />
@@ -469,7 +507,7 @@ export default function CreateEventPage() {
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 disabled:opacity-50 transition-colors font-body"
               >
                 {loading ? 'Creating...' : 'Create Event'}
                 <Check className="w-5 h-5" />
