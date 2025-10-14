@@ -11,7 +11,7 @@ import apiClient from '@/lib/api-client';
 import { Ticket, Calendar, TrendingUp, Crown, Users, DollarSign, BarChart3, ArrowRight, Gift, Star, MapPin, Clock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
@@ -82,13 +82,13 @@ export default function DashboardPage() {
         break;
     }
   }, [
-    user, 
-    authLoading, 
-    orgLoading, 
+    user,
+    authLoading,
+    orgLoading,
     promLoading,
-    orgPending, 
-    orgApproved, 
-    orgRejected, 
+    orgPending,
+    orgApproved,
+    orgRejected,
     organizerProfile,
     promPending,
     promApproved,
@@ -136,7 +136,7 @@ function AttendeeDashboard({ user }: { user: any }) {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch tickets
       const ticketsRes = await ticketsApi.getMyTickets();
       setTickets(ticketsRes || []);
@@ -181,18 +181,20 @@ function AttendeeDashboard({ user }: { user: any }) {
   }
 
   return (
-    <div>
+    <div className="space-y-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">
-          Welcome back, {user?.first_name || 'there'}! 👋
+      <div className="text-center">
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 font-heading tracking-tight">
+          Welcome back, <span className="gradient-text font-playful pr-2">{user?.first_name || 'there'}!</span>
         </h1>
-        <p className="text-gray-600 mt-2 font-body">Discover and book your next amazing event</p>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto mt-4 font-body">
+          Here's a look at your upcoming events and rewards.
+        </p>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        <Card className="transform hover:-translate-y-1 transition-transform">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -203,13 +205,13 @@ function AttendeeDashboard({ user }: { user: any }) {
             <p className="text-3xl font-bold text-gray-900 font-comfortaa">{upcomingTickets.length}</p>
             {upcomingTickets.length > 0 && (
               <Link href="/dashboard/tickets" className="text-sm text-blue-600 hover:underline font-body mt-2 inline-block">
-                View all tickets →
+                View all tickets <ArrowRight className="inline w-3 h-3" />
               </Link>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="transform hover:-translate-y-1 transition-transform">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -224,11 +226,11 @@ function AttendeeDashboard({ user }: { user: any }) {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50 to-yellow-50">
+        <Card className="bg-gradient-to-br from-orange-50 to-yellow-50 transform hover:-translate-y-1 transition-transform col-span-2 md:col-span-1">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Crown className="h-6 w-6 text-[#EB7D30]" />
+                <Crown className="h-6 w-6 text-primary" />
               </div>
             </div>
             <p className="text-gray-600 text-sm mb-1 font-body">Loyalty Credits</p>
@@ -237,7 +239,7 @@ function AttendeeDashboard({ user }: { user: any }) {
             </p>
             {loyaltyBalance > 0 && (
               <Link href="/dashboard/loyalty" className="text-sm text-orange-600 hover:underline font-body mt-2 inline-block">
-                Redeem credits →
+                Redeem credits <ArrowRight className="inline w-3 h-3" />
               </Link>
             )}
           </CardContent>
@@ -245,67 +247,60 @@ function AttendeeDashboard({ user }: { user: any }) {
       </div>
 
       {/* CTA Banners */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        {/* Become Organizer */}
-        <Card className="bg-gradient-to-br from-[#EB7D30] to-[#ff9554] text-white overflow-hidden relative">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Gift className="w-5 h-5" />
-                  <Badge className="bg-white/20 text-white border-white/30">New</Badge>
-                </div>
-                <h3 className="text-xl font-bold mb-2 font-comfortaa">Become an Organizer</h3>
-                <p className="opacity-90 font-body mb-4 text-sm">
-                  Start creating and managing events. Earn from ticket sales.
-                </p>
-                <Button 
-                  onClick={() => router.push('/become-organizer')}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white text-primary hover:bg-gray-100"
-                >
-                  Learn More
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div
+          className="bg-gradient-to-br from-primary to-orange-400 text-white rounded-2xl p-8 flex flex-col justify-between items-start cursor-pointer transform hover:scale-105 transition-transform"
+          onClick={() => router.push('/become-organizer')}
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="w-5 h-5" />
+              <Badge className="bg-white/20 text-white border-white/30">New</Badge>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Become Promoter */}
-        <Card className="bg-gradient-to-br from-purple-600 to-purple-700 text-white overflow-hidden relative">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-5 h-5" />
-                  <Badge className="bg-white/20 text-white border-white/30">Hot</Badge>
-                </div>
-                <h3 className="text-xl font-bold mb-2 font-comfortaa">Become a Promoter</h3>
-                <p className="opacity-90 font-body mb-4 text-sm">
-                  Earn commission by promoting events to your audience.
-                </p>
-                <Button 
-                  onClick={() => router.push('/become-promoter')}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white text-purple-700 hover:bg-gray-100"
-                >
-                  Start Earning
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
+            <h3 className="text-xl font-bold mb-2 font-comfortaa">Become an Organizer</h3>
+            <p className="opacity-90 font-body mb-4 text-sm">
+              Start creating and managing events. Earn from ticket sales.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="bg-white text-primary hover:bg-gray-100"
+          >
+            Learn More
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+        <div
+          className="bg-gradient-to-br from-purple-600 to-purple-800 text-white rounded-2xl p-8 flex flex-col justify-between items-start cursor-pointer transform hover:scale-105 transition-transform"
+          onClick={() => router.push('/become-promoter')}
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-5 h-5" />
+              <Badge className="bg-white/20 text-white border-white/30">Hot</Badge>
             </div>
-          </CardContent>
-        </Card>
+            <h3 className="text-xl font-bold mb-2 font-comfortaa">Become a Promoter</h3>
+            <p className="opacity-90 font-body mb-4 text-sm">
+              Earn commission by promoting events to your audience.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="bg-white text-purple-700 hover:bg-gray-100"
+          >
+            Start Earning
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
       </div>
 
       {/* Upcoming Tickets */}
       {upcomingTickets.length > 0 && (
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 font-comfortaa">Your Upcoming Events</h2>
               <Link href="/dashboard/tickets">
                 <Button variant="ghost" size="sm">
@@ -314,13 +309,19 @@ function AttendeeDashboard({ user }: { user: any }) {
                 </Button>
               </Link>
             </div>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
               {upcomingTickets.slice(0, 3).map((ticket) => (
-                <div key={ticket.id} className="flex items-center gap-4 p-4 border rounded-lg hover:border-primary transition cursor-pointer" onClick={() => router.push(`/dashboard/tickets`)}>
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div
+                  key={ticket.id}
+                  className="flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg hover:border-primary transition cursor-pointer"
+                  onClick={() => router.push(`/dashboard/tickets`)}
+                >
+                  <div className="w-full sm:w-20 h-24 sm:h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     {ticket.event?.banner_image_url ? (
-                      <img 
-                        src={ticket.event.banner_image_url} 
+                      <img
+                        src={ticket.event.banner_image_url}
                         alt={ticket.event.title}
                         className="w-full h-full object-cover rounded-lg"
                       />
@@ -328,9 +329,9 @@ function AttendeeDashboard({ user }: { user: any }) {
                       <Ticket className="w-8 h-8 text-primary" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-center sm:text-left">
                     <h3 className="font-semibold text-gray-900 font-comfortaa truncate">{ticket.event?.title}</h3>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-1 font-body">
+                    <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-sm text-gray-600 mt-1 font-body">
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
                         {new Date(ticket.event?.start_datetime).toLocaleDateString()}
@@ -341,9 +342,10 @@ function AttendeeDashboard({ user }: { user: any }) {
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
+                    className="mt-4 sm:mt-0"
                   >
                     View Ticket
                   </Button>
@@ -357,8 +359,8 @@ function AttendeeDashboard({ user }: { user: any }) {
       {/* Recommended Events */}
       {recommendedEvents.length > 0 && (
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 font-comfortaa">Recommended For You</h2>
               <Link href="/events">
                 <Button variant="ghost" size="sm">
@@ -367,9 +369,15 @@ function AttendeeDashboard({ user }: { user: any }) {
                 </Button>
               </Link>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {recommendedEvents.slice(0, 4).map((event) => (
-                <div key={event.id} className="border rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer" onClick={() => router.push(`/events/${event.slug}`)}>
+                <div
+                  key={event.id}
+                  className="border rounded-lg overflow-hidden hover:shadow-lg transition cursor-pointer transform hover:-translate-y-1"
+                  onClick={() => router.push(`/events/${event.slug}`)}
+                >
                   <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
                     {event.banner_image_url ? (
                       <img src={event.banner_image_url} alt={event.title} className="w-full h-full object-cover" />
@@ -393,12 +401,14 @@ function AttendeeDashboard({ user }: { user: any }) {
 
       {/* Empty State */}
       {tickets.length === 0 && (
-        <Card className="text-center py-12">
+        <Card className="text-center py-16 bg-gray-50 border-dashed">
           <CardContent>
             <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2 font-comfortaa">No tickets yet</h3>
-            <p className="text-gray-600 mb-6 font-body">Start exploring events and book your first ticket!</p>
-            <Button onClick={() => router.push('/events')}>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2 font-comfortaa">Your dashboard is empty</h3>
+            <p className="text-gray-600 mb-6 font-body">
+              It's time to find your next unforgettable experience.
+            </p>
+            <Button onClick={() => router.push('/events')} size="lg">
               Browse Events
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

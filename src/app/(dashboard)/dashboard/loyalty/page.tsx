@@ -2,22 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Gift, TrendingUp, Clock, Award, Star, CheckCircle, 
-  ArrowRight, Zap, Crown, Sparkles, Calendar, Ticket,
+  ArrowRight, Zap, Crown, Sparkles, Ticket,
   DollarSign, RefreshCw, Info, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// --- INTERFACES ---
 interface LoyaltyBalance {
   total_credits: number;
   available_credits: number;
   pending_credits: number;
-  expired_credits: number;
   lifetime_earned: number;
 }
 
@@ -26,8 +25,6 @@ interface LoyaltyTransaction {
   type: 'earned' | 'redeemed' | 'expired';
   amount: number;
   description: string;
-  reference_type?: string;
-  reference_id?: string;
   created_at: string;
   expires_at?: string;
 }
@@ -40,13 +37,20 @@ interface ExpiringCredit {
 
 interface LoyaltySummary {
   current_tier: string;
-  next_tier: string;
+  next_tier: string | null;
   credits_to_next_tier: number;
-  total_events_attended: number;
-  total_tickets_purchased: number;
   member_since: string;
 }
 
+// --- TIER CONFIGURATION ---
+const tiers = {
+  bronze: { name: 'Bronze', color: 'text-orange-600', gradient: 'from-orange-500 to-yellow-500', icon: Award, threshold: 0, multiplier: '1x' },
+  silver: { name: 'Silver', color: 'text-gray-500', gradient: 'from-gray-400 to-gray-600', icon: Star, threshold: 1000, multiplier: '1.25x' },
+  gold: { name: 'Gold', color: 'text-yellow-500', gradient: 'from-yellow-400 to-amber-500', icon: Crown, threshold: 5000, multiplier: '1.5x' },
+  platinum: { name: 'Platinum', color: 'text-purple-600', gradient: 'from-purple-500 to-indigo-600', icon: Sparkles, threshold: 10000, multiplier: '2x' },
+};
+
+// --- MAIN COMPONENT ---
 export default function LoyaltyPage() {
   const [balance, setBalance] = useState<LoyaltyBalance | null>(null);
   const [transactions, setTransactions] = useState<LoyaltyTransaction[]>([]);
@@ -61,12 +65,12 @@ export default function LoyaltyPage() {
 
   const loadLoyaltyData = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       const [balanceRes, transactionsRes, expiringRes, summaryRes] = await Promise.all([
-        apiClient.get<LoyaltyBalance>('/api/v1/loyalty/balance'),
-        apiClient.get<LoyaltyTransaction[]>('/api/v1/loyalty/transactions'),
-        apiClient.get<ExpiringCredit[]>('/api/v1/loyalty/credits/expiring'),
-        apiClient.get<LoyaltySummary>('/api/v1/loyalty/summary')
+        apiClient.get('/api/v1/loyalty/balance'),
+        apiClient.get('/api/v1/loyalty/transactions'),
+        apiClient.get('/api/v1/loyalty/credits/expiring'),
+        apiClient.get('/api/v1/loyalty/summary')
       ]);
 
       setBalance(balanceRes.data);
@@ -75,7 +79,7 @@ export default function LoyaltyPage() {
       setSummary(summaryRes.data);
     } catch (error) {
       console.error('Failed to load loyalty data:', error);
-      toast.error('Failed to load loyalty data');
+      toast.error('Could not fetch your loyalty rewards data.');
     } finally {
       setLoading(false);
     }
@@ -85,57 +89,33 @@ export default function LoyaltyPage() {
     setRefreshing(true);
     await loadLoyaltyData();
     setRefreshing(false);
-    toast.success('Loyalty data refreshed');
+    toast.success('Loyalty data refreshed!');
   };
 
-  const getTierIcon = (tier: string) => {
-    switch (tier?.toLowerCase()) {
-      case 'bronze':
-        return <Award className="w-8 h-8 text-orange-600" />;
-      case 'silver':
-        return <Star className="w-8 h-8 text-gray-400" />;
-      case 'gold':
-        return <Crown className="w-8 h-8 text-yellow-500" />;
-      case 'platinum':
-        return <Sparkles className="w-8 h-8 text-purple-600" />;
-      default:
-        return <Gift className="w-8 h-8 text-primary" />;
-    }
-  };
-
-  const getTierColor = (tier: string) => {
-    switch (tier?.toLowerCase()) {
-      case 'bronze':
-        return 'from-orange-500 to-orange-600';
-      case 'silver':
-        return 'from-gray-400 to-gray-500';
-      case 'gold':
-        return 'from-yellow-400 to-yellow-500';
-      case 'platinum':
-        return 'from-purple-500 to-purple-600';
-      default:
-        return 'from-primary to-primary/80';
-    }
-  };
+  const currentTierKey = summary?.current_tier?.toLowerCase() as keyof typeof tiers || 'bronze';
+  const currentTier = tiers[currentTierKey];
+  const nextTierKey = summary?.next_tier?.toLowerCase() as keyof typeof tiers | null;
+  const nextTier = nextTierKey ? tiers[nextTierKey] : null;
+  
+  const tierProgress = nextTier 
+    ? ((balance?.lifetime_earned || 0) - (tiers[currentTierKey]?.threshold || 0)) / ((nextTier.threshold || 1) - (tiers[currentTierKey]?.threshold || 0)) * 100
+    : 100;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600 font-body">Loading loyalty rewards...</p>
-        </div>
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">Loyalty Rewards</h1>
-          <p className="text-gray-600 mt-1 font-body">Earn credits on every purchase and redeem for discounts</p>
+          <p className="text-gray-600 mt-1 font-body">Earn credits on every purchase and redeem for discounts.</p>
         </div>
         <Button variant="outline" onClick={refreshData} disabled={refreshing}>
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -143,314 +123,169 @@ export default function LoyaltyPage() {
         </Button>
       </div>
 
-      {/* Balance Card */}
-      <Card className={`bg-gradient-to-r ${getTierColor(summary?.current_tier || 'bronze')} text-white overflow-hidden relative`}>
-        <div className="absolute top-0 right-0 opacity-10">
-          {getTierIcon(summary?.current_tier || 'bronze')}
-        </div>
-        <CardContent className="pt-6 pb-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <p className="text-white/80 text-sm mb-1 font-body">Available Balance</p>
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-5xl font-bold font-comfortaa">
-                  {balance?.available_credits.toLocaleString() || 0}
-                </h2>
-                <span className="text-2xl font-body">credits</span>
-              </div>
-              <p className="text-white/80 text-sm mt-2 font-body">
-                = KSh {((balance?.available_credits || 0) * 10).toLocaleString()} value
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center gap-2 justify-end mb-2">
-                {getTierIcon(summary?.current_tier || 'bronze')}
-                <Badge className="bg-white/20 text-white border-white/30 text-lg px-3 py-1">
-                  {summary?.current_tier || 'Bronze'} Tier
-                </Badge>
-              </div>
-              <p className="text-white/80 text-sm font-body">Member since {summary?.member_since ? new Date(summary.member_since).getFullYear() : 'N/A'}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/20">
-            <div>
-              <p className="text-white/70 text-xs mb-1 font-body">Lifetime Earned</p>
-              <p className="text-xl font-bold font-comfortaa">{balance?.lifetime_earned.toLocaleString() || 0}</p>
-            </div>
-            <div>
-              <p className="text-white/70 text-xs mb-1 font-body">Pending</p>
-              <p className="text-xl font-bold font-comfortaa">{balance?.pending_credits.toLocaleString() || 0}</p>
-            </div>
-            <div>
-              <p className="text-white/70 text-xs mb-1 font-body">Total Tickets</p>
-              <p className="text-xl font-bold font-comfortaa">{summary?.total_tickets_purchased || 0}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Expiring Credits Alert */}
-      {expiringCredits.length > 0 && (
-        <Card className="border-yellow-300 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-yellow-200 rounded-full">
-                <Clock className="w-6 h-6 text-yellow-700" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-2 font-comfortaa">Credits Expiring Soon!</h3>
-                <div className="space-y-2">
-                  {expiringCredits.map((credit, index) => (
-                    <p key={index} className="text-sm text-gray-700 font-body">
-                      <strong>{credit.amount}</strong> credits expire in <strong>{credit.days_until_expiry}</strong> days
-                      ({new Date(credit.expires_at).toLocaleDateString()})
-                    </p>
-                  ))}
-                </div>
-                <Button size="sm" className="mt-3" onClick={() => window.location.href = '/events'}>
-                  Use Credits Now
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* How to Earn */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-comfortaa flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              How to Earn
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-full mt-1">
-                  <Ticket className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm font-comfortaa">Buy Tickets</h4>
-                  <p className="text-xs text-gray-600 font-body">Earn 1 credit per KSh 100 spent</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-green-100 rounded-full mt-1">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm font-comfortaa">Attend Events</h4>
-                  <p className="text-xs text-gray-600 font-body">Bonus credits for checking in</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-purple-100 rounded-full mt-1">
-                  <Star className="w-4 h-4 text-purple-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm font-comfortaa">Tier Bonuses</h4>
-                  <p className="text-xs text-gray-600 font-body">Higher tiers earn more per purchase</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-orange-100 rounded-full mt-1">
-                  <Gift className="w-4 h-4 text-orange-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-sm font-comfortaa">Special Promotions</h4>
-                  <p className="text-xs text-gray-600 font-body">Watch for bonus credit events</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* How to Redeem */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-comfortaa flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-600" />
-              How to Redeem
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <h4 className="font-semibold mb-2 font-comfortaa">Ticket Discounts</h4>
-                <p className="text-sm text-gray-700 mb-3 font-body">
-                  Apply credits at checkout to get instant discounts
-                </p>
-                <div className="text-xs text-gray-600 font-body">
-                  <strong>1 credit</strong> = <strong>KSh 10</strong> off
-                </div>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-sm mb-1 font-comfortaa">Requirements</h4>
-                <ul className="text-xs text-gray-600 space-y-1 font-body">
-                  <li>• Minimum 10 credits to redeem</li>
-                  <li>• Maximum 50% of ticket price</li>
-                  <li>• Cannot combine with some promo codes</li>
-                  <li>• Credits valid for 12 months</li>
-                </ul>
-              </div>
-
-              <Button className="w-full" onClick={() => window.location.href = '/events'}>
-                Browse Events
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tier Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-comfortaa flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-              Tier Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold font-comfortaa">Current: {summary?.current_tier || 'Bronze'}</span>
-                  <span className="text-sm font-semibold font-comfortaa">Next: {summary?.next_tier || 'Silver'}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className={`bg-gradient-to-r ${getTierColor(summary?.current_tier || 'bronze')} h-3 rounded-full transition-all`}
-                    style={{ width: `${Math.min((balance?.lifetime_earned || 0) / 1000 * 100, 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-600 mt-2 font-body">
-                  {summary?.credits_to_next_tier || 0} more credits to {summary?.next_tier || 'Silver'}
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t">
-                {[
-                  { tier: 'Bronze', min: 0, max: 999, color: 'text-orange-600', benefit: '1x credits' },
-                  { tier: 'Silver', min: 1000, max: 4999, color: 'text-gray-500', benefit: '1.25x credits' },
-                  { tier: 'Gold', min: 5000, max: 9999, color: 'text-yellow-600', benefit: '1.5x credits' },
-                  { tier: 'Platinum', min: 10000, max: 999999, color: 'text-purple-600', benefit: '2x credits' }
-                ].map((tier) => (
-                  <div key={tier.tier} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        summary?.current_tier?.toLowerCase() === tier.tier.toLowerCase() 
-                          ? 'bg-current ' + tier.color
-                          : 'bg-gray-300'
-                      }`} />
-                      <span className={`text-sm font-semibold font-comfortaa ${
-                        summary?.current_tier?.toLowerCase() === tier.tier.toLowerCase() 
-                          ? tier.color
-                          : 'text-gray-600'
-                      }`}>
-                        {tier.tier}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-gray-500 font-body">{tier.benefit}</span>
-                    </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column (Main Cards) */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Balance & Tier Card */}
+          <Card className={`bg-gradient-to-br ${currentTier.gradient} text-white overflow-hidden`}>
+            <CardContent className="pt-8 relative">
+              <currentTier.icon className="absolute -top-4 -right-4 w-32 h-32 opacity-10" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div>
+                  <p className="text-white/80 text-sm font-body">Available Balance</p>
+                  <div className="flex items-baseline gap-2">
+                    <h2 className="text-5xl font-bold font-comfortaa">
+                      {balance?.available_credits.toLocaleString() || 0}
+                    </h2>
+                    <span className="text-xl font-body">credits</span>
                   </div>
-                ))}
+                  <p className="text-white/90 text-sm mt-1 font-body">
+                    ≈ KSh {((balance?.available_credits || 0) * 10).toLocaleString()} in value
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className="bg-white/20 text-white border-none text-sm px-3 py-1 font-semibold">{currentTier.name} Tier</Badge>
+                    {nextTier && <span className="text-sm font-semibold">{nextTier.name}</span>}
+                  </div>
+                  <div className="w-full bg-white/20 rounded-full h-2.5">
+                    <div className="bg-white h-2.5 rounded-full" style={{ width: `${Math.min(tierProgress, 100)}%` }} />
+                  </div>
+                  {summary?.credits_to_next_tier && summary.credits_to_next_tier > 0 ? (
+                    <p className="text-xs text-center text-white/90">
+                      {summary.credits_to_next_tier.toLocaleString()} credits to the next tier
+                    </p>
+                  ) : (
+                     <p className="text-xs text-center text-white/90">You're at the top tier!</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+          
+          {/* Expiring Credits Alert */}
+          {expiringCredits.length > 0 && (
+            <Card className="border-yellow-300 bg-yellow-50">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-yellow-100 rounded-full mt-1">
+                    <Clock className="w-5 h-5 text-yellow-700" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold font-comfortaa">Credits Expiring Soon!</h3>
+                    {expiringCredits.slice(0, 2).map((credit, index) => (
+                      <p key={index} className="text-sm text-gray-700 font-body">
+                        <strong>{credit.amount}</strong> credits expire in <strong>{credit.days_until_expiry}</strong> days.
+                      </p>
+                    ))}
+                     <Button size="sm" className="mt-3" asChild>
+                       <a href="/events">
+                          Use Credits Now <ArrowRight className="w-4 h-4 ml-2" />
+                       </a>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Transaction History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-comfortaa">Transaction History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="earned">Earned</TabsTrigger>
-              <TabsTrigger value="redeemed">Redeemed</TabsTrigger>
-              <TabsTrigger value="expired">Expired</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="mt-4">
+          {/* Transaction History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-comfortaa">Transaction History</CardTitle>
+              <CardDescription className="font-body">A record of your loyalty credits activity.</CardDescription>
+            </CardHeader>
+            <CardContent>
               <TransactionList transactions={transactions} />
-            </TabsContent>
+            </CardContent>
+          </Card>
+        </div>
 
-            <TabsContent value="earned" className="mt-4">
-              <TransactionList transactions={transactions.filter(t => t.type === 'earned')} />
-            </TabsContent>
+        {/* Right Column (Info) */}
+        <div className="space-y-8">
+          {/* How to Earn */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-comfortaa flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                How to Earn
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <p className="flex items-center gap-3"><Ticket className="w-4 h-4 text-gray-500" /><span>Earn <strong>1 credit</strong> per KSh 100 spent.</span></p>
+              <p className="flex items-center gap-3"><CheckCircle className="w-4 h-4 text-gray-500" /><span>Get <strong>bonus credits</strong> for attending events.</span></p>
+              <p className="flex items-center gap-3"><Star className="w-4 h-4 text-gray-500" /><span>Higher tiers get <strong>credit multipliers</strong>.</span></p>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="redeemed" className="mt-4">
-              <TransactionList transactions={transactions.filter(t => t.type === 'redeemed')} />
-            </TabsContent>
-
-            <TabsContent value="expired" className="mt-4">
-              <TransactionList transactions={transactions.filter(t => t.type === 'expired')} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+          {/* How to Redeem */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-comfortaa flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                How to Redeem
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <div className="p-4 bg-green-50 rounded-lg text-center">
+                 <p className="font-semibold font-comfortaa text-green-800">1 Credit = KSh 10</p>
+                 <p className="text-xs text-green-700">Apply your credits for discounts at checkout.</p>
+               </div>
+               <ul className="text-xs text-gray-600 space-y-1 pl-4 list-disc font-body">
+                  <li>Minimum 10 credits to redeem.</li>
+                  <li>Max 50% of ticket price redeemable.</li>
+                  <li>Credits expire after 12 months.</li>
+                </ul>
+              <Button className="w-full" asChild>
+                <a href="/events">
+                  Browse Events <ArrowRight className="w-4 h-4 ml-2" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
 
+// --- SUB-COMPONENTS ---
 function TransactionList({ transactions }: { transactions: LoyaltyTransaction[] }) {
   if (transactions.length === 0) {
     return (
-      <div className="text-center py-8">
-        <Info className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-600 font-body">No transactions found</p>
+      <div className="text-center py-10 bg-gray-50 rounded-lg">
+        <Info className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-600 font-body">No transactions yet!</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {transactions.map((transaction) => (
-        <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition">
+    <div className="space-y-2">
+      {transactions.slice(0, 5).map((tx) => (
+        <div key={tx.id} className="flex items-center justify-between p-3 border-b last:border-b-0">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-full ${
-              transaction.type === 'earned' ? 'bg-green-100' :
-              transaction.type === 'redeemed' ? 'bg-blue-100' :
-              'bg-red-100'
+              tx.type === 'earned' ? 'bg-green-100' :
+              tx.type === 'redeemed' ? 'bg-blue-100' : 'bg-red-100'
             }`}>
-              {transaction.type === 'earned' && <TrendingUp className="w-5 h-5 text-green-600" />}
-              {transaction.type === 'redeemed' && <DollarSign className="w-5 h-5 text-blue-600" />}
-              {transaction.type === 'expired' && <Clock className="w-5 h-5 text-red-600" />}
+              {tx.type === 'earned' && <TrendingUp className="w-4 h-4 text-green-600" />}
+              {tx.type === 'redeemed' && <DollarSign className="w-4 h-4 text-blue-600" />}
+              {tx.type === 'expired' && <Clock className="w-4 h-4 text-red-600" />}
             </div>
             <div>
-              <p className="font-semibold font-comfortaa">{transaction.description}</p>
-              <p className="text-sm text-gray-600 font-body">
-                {new Date(transaction.created_at).toLocaleDateString()} at {new Date(transaction.created_at).toLocaleTimeString()}
+              <p className="font-semibold text-sm font-comfortaa">{tx.description}</p>
+              <p className="text-xs text-gray-500 font-body">
+                {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
-              {transaction.expires_at && (
-                <p className="text-xs text-gray-500 font-body">
-                  Expires: {new Date(transaction.expires_at).toLocaleDateString()}
-                </p>
-              )}
             </div>
           </div>
-          <div className="text-right">
-            <p className={`text-lg font-bold font-comfortaa ${
-              transaction.type === 'earned' ? 'text-green-600' :
-              transaction.type === 'redeemed' ? 'text-blue-600' :
-              'text-red-600'
-            }`}>
-              {transaction.type === 'earned' ? '+' : '-'}{transaction.amount}
-            </p>
-            <p className="text-xs text-gray-500 font-body">credits</p>
-          </div>
+          <p className={`font-bold font-mono text-sm ${
+            tx.type === 'earned' ? 'text-green-600' : 'text-gray-700'
+          }`}>
+            {tx.type === 'earned' ? '+' : '-'}{tx.amount}
+          </p>
         </div>
       ))}
     </div>

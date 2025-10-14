@@ -1,335 +1,211 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePromoter } from '@/hooks/usePromoter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
-  Clock, CheckCircle, XCircle, AlertCircle, ArrowRight, 
-  RefreshCw, Calendar, User, Phone, Globe, Target, Award,
-  TrendingUp, Loader2
+  Loader2, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  ArrowRight,
+  Mail,
+  Edit,
+  Sparkles,
+  FileText,
+  Megaphone
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 export default function PromoterApplicationStatusPage() {
   const router = useRouter();
-  const { promoterProfile, loading, isPending, isApproved, isRejected, refetch } = usePromoter();
+  const { promoterProfile, isApproved, isPending, isRejected, loading, hasApplication } = usePromoter();
+  const [showConfetti, setShowConfetti] = useState(false);
 
+  // Redirect to promoter dashboard if approved
   useEffect(() => {
-    // If approved, redirect to promoter dashboard
-    if (isApproved) {
-      router.push('/promoter');
+    if (isApproved && !showConfetti) {
+      setShowConfetti(true);
+      
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#EB7D30', '#000000', '#FFD700']
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#EB7D30', '#000000', '#FFD700']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+
+      const timer = setTimeout(() => {
+        router.push('/promoter');
+      }, 5000);
+
+      return () => clearTimeout(timer);
     }
-  }, [isApproved, router]);
+  }, [isApproved, showConfetti, router]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-gray-600 font-body">Loading application status...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasApplication) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 text-center">
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <FileText className="w-12 h-12 text-gray-400" />
+        </div>
+        <h1 className="text-3xl font-bold font-comfortaa mb-2">No Application Found</h1>
+        <p className="text-gray-600 mb-6 font-body">
+          You haven't applied to become a promoter yet.
+        </p>
+        <Button onClick={() => router.push('/dashboard/apply-promoter')} size="lg">
+          Start Your Application
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
+    );
+  }
+
+  // --- APPROVED STATE ---
+  if (isApproved) {
+    return (
+      <div className="max-w-3xl mx-auto py-8 text-center">
+        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Sparkles className="w-12 h-12 text-green-600" />
+        </div>
+        <h1 className="text-4xl font-bold font-heading mb-4 text-gray-900">
+          Welcome to the <span className="gradient-text font-playful pr-2">Promoter Program!</span>
+        </h1>
+        <p className="text-lg text-gray-600 max-w-xl mx-auto mb-8 font-body">
+          Your application is approved! You can now generate unique promo codes and start earning commissions.
+        </p>
+        <div className="bg-white rounded-2xl shadow-xl border p-8 space-y-4">
+          <p className="font-semibold">What's next?</p>
+          <ul className="text-gray-600 font-body space-y-2">
+              <li className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <span>Generate your first promo code for an event.</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                <span>Share your code and track your earnings.</span>
+              </li>
+          </ul>
+          <Button onClick={() => router.push('/promoter')} size="lg" className="w-full mt-4">
+            Go to Promoter Dashboard
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+          <p className="text-sm text-gray-500">Redirecting automatically in 5 seconds...</p>
         </div>
       </div>
     );
   }
 
-  // No application found
-  if (!promoterProfile) {
-    return (
-      <div className="max-w-2xl mx-auto py-12">
-        <Card>
-          <CardContent className="pt-12 pb-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-gray-400" />
-            </div>
-            <h2 className="text-2xl font-bold mb-4 font-comfortaa">No Application Found</h2>
-            <p className="text-gray-600 mb-6 font-body">
-              You haven't applied to become a promoter yet.
-            </p>
-            <Button onClick={() => router.push('/become-promoter')}>
-              Apply Now
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // --- PENDING / REJECTED STATES ---
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-6">
-      {/* Status Header */}
-      <Card className={`border-l-4 ${
-        isPending ? 'border-l-yellow-500 bg-yellow-50' :
-        isRejected ? 'border-l-red-500 bg-red-50' :
-        'border-l-green-500 bg-green-50'
-      }`}>
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-full ${
-                isPending ? 'bg-yellow-200' :
-                isRejected ? 'bg-red-200' :
-                'bg-green-200'
-              }`}>
-                {isPending && <Clock className="w-8 h-8 text-yellow-700" />}
-                {isRejected && <XCircle className="w-8 h-8 text-red-700" />}
-                {isApproved && <CheckCircle className="w-8 h-8 text-green-700" />}
+    <div className="max-w-3xl mx-auto py-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">
+          Promoter Application Status
+        </h1>
+        <p className="text-gray-600 mt-1 font-body">Here's the current status of your promoter application.</p>
+      </div>
+
+      {isPending && (
+        <Card className="border-yellow-200 bg-yellow-50/80">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <Clock className="w-6 h-6 text-yellow-600" />
               </div>
               <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold font-comfortaa">
-                    {isPending && 'Application Under Review'}
-                    {isRejected && 'Application Not Approved'}
-                    {isApproved && 'Application Approved!'}
-                  </h1>
-                  <Badge className={
-                    isPending ? 'bg-yellow-500' :
-                    isRejected ? 'bg-red-500' :
-                    'bg-green-500'
-                  }>
-                    {promoterProfile.status}
-                  </Badge>
-                </div>
-                <p className="text-gray-700 font-body">
-                  {isPending && "We're reviewing your application. This usually takes 24-48 hours."}
-                  {isRejected && "Your application wasn't approved at this time. See details below."}
-                  {isApproved && "Congratulations! You're now an approved promoter."}
-                </p>
+                <CardTitle className="text-yellow-900 font-comfortaa">Application Under Review</CardTitle>
+                <CardDescription className="text-yellow-700 font-body">
+                  We're reviewing your application, usually within 24-48 hours.
+                </CardDescription>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={refetch}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Timeline */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-comfortaa">Application Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {/* Submitted */}
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-green-100 rounded-full">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold font-comfortaa">Application Submitted</h4>
-                  <span className="text-sm text-gray-500 font-body">
-                    {new Date(promoterProfile.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 font-body">Your application has been received</p>
-              </div>
-            </div>
-
-            {/* Under Review */}
-            <div className="flex items-start gap-4">
-              <div className={`p-2 rounded-full ${
-                isPending ? 'bg-yellow-100 animate-pulse' : 
-                isApproved || isRejected ? 'bg-green-100' : 
-                'bg-gray-100'
-              }`}>
-                {isPending ? (
-                  <Clock className="w-5 h-5 text-yellow-600" />
-                ) : isApproved || isRejected ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : (
-                  <Clock className="w-5 h-5 text-gray-400" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold font-comfortaa">Under Review</h4>
-                <p className="text-sm text-gray-600 font-body">
-                  {isPending ? 'Currently being reviewed by our team' : 'Review completed'}
-                </p>
-              </div>
-            </div>
-
-            {/* Decision */}
-            <div className="flex items-start gap-4">
-              <div className={`p-2 rounded-full ${
-                isApproved ? 'bg-green-100' :
-                isRejected ? 'bg-red-100' :
-                'bg-gray-100'
-              }`}>
-                {isApproved ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                ) : isRejected ? (
-                  <XCircle className="w-5 h-5 text-red-600" />
-                ) : (
-                  <Clock className="w-5 h-5 text-gray-400" />
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold font-comfortaa">Decision</h4>
-                  {(isApproved || isRejected) && (
-                    <span className="text-sm text-gray-500 font-body">
-                      {new Date(promoterProfile.approved_at || promoterProfile.rejected_at || '').toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 font-body">
-                  {isApproved && 'Your application has been approved!'}
-                  {isRejected && 'Your application was not approved'}
-                  {isPending && 'Pending review'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Rejection Reason */}
-      {isRejected && promoterProfile.rejection_reason && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-red-900 font-comfortaa">Reason for Rejection</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-red-800 font-body">{promoterProfile.rejection_reason}</p>
-            <div className="mt-4">
-              <Button onClick={() => router.push('/become-promoter')}>
-                Submit New Application
-              </Button>
-            </div>
-          </CardContent>
         </Card>
       )}
 
+      {isRejected && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle className="font-comfortaa">Application Not Approved</AlertTitle>
+          <AlertDescription className="font-body mt-2">
+            <p className="font-semibold">Reason:</p>
+            <p>{promoterProfile?.rejection_reason || 'No specific reason provided.'}</p>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Application Details */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-comfortaa">Application Details</CardTitle>
+          <CardTitle className="font-comfortaa">Your Application</CardTitle>
+          <CardDescription className="font-body">Submitted on {new Date(promoterProfile.created_at).toLocaleDateString()}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+        <CardContent>
+          <dl className="space-y-4">
             <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                <User className="w-4 h-4" />
-                <span className="font-body">Business Name</span>
+              <dt className="text-sm font-semibold text-gray-500 font-body">Promotion Methods</dt>
+              <dd className="text-gray-700 font-body whitespace-pre-wrap">{promoterProfile.promotion_methods}</dd>
+            </div>
+            {promoterProfile.social_media_handles && (
+              <div>
+                <dt className="text-sm font-semibold text-gray-500 font-body">Social Media / Website</dt>
+                <dd className="text-gray-900 font-body">{promoterProfile.social_media_handles}</dd>
               </div>
-              <p className="font-semibold font-comfortaa">{promoterProfile.business_name}</p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                <Phone className="w-4 h-4" />
-                <span className="font-body">Phone</span>
+            )}
+             {promoterProfile.audience_description && (
+              <div>
+                <dt className="text-sm font-semibold text-gray-500 font-body">Audience Description</dt>
+                <dd className="text-gray-700 font-body whitespace-pre-wrap">{promoterProfile.audience_description}</dd>
               </div>
-              <p className="font-semibold font-comfortaa">{promoterProfile.phone_number}</p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                <Target className="w-4 h-4" />
-                <span className="font-body">Audience Size</span>
-              </div>
-              <p className="font-semibold font-comfortaa">{promoterProfile.audience_size}</p>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                <Calendar className="w-4 h-4" />
-                <span className="font-body">Applied On</span>
-              </div>
-              <p className="font-semibold font-comfortaa">
-                {new Date(promoterProfile.created_at).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Globe className="w-4 h-4" />
-              <span className="font-body">Social Media</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(promoterProfile.social_media_links || {} as Record<string, string | null>)
-                .filter(([, url]) => Boolean(url))
-                .map(([platform, url]) => (
-                  <Badge key={platform} variant="outline" className="font-body">
-                    {platform}: <a href={url as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">View</a>
-                  </Badge>
-                ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <Award className="w-4 h-4" />
-              <span className="font-body">Experience</span>
-            </div>
-            <p className="text-gray-700 font-body">{promoterProfile.experience_description}</p>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-              <TrendingUp className="w-4 h-4" />
-              <span className="font-body">Why Join</span>
-            </div>
-            <p className="text-gray-700 font-body">{promoterProfile.why_join}</p>
-          </div>
+            )}
+          </dl>
         </CardContent>
       </Card>
 
-      {/* Pending - What's Next */}
-      {isPending && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="font-comfortaa">What Happens Next?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3 font-body">
-              <li className="flex items-start gap-3">
-                <div className="p-1 bg-blue-200 rounded-full mt-1">
-                  <CheckCircle className="w-4 h-4 text-blue-700" />
-                </div>
-                <span>Our team is reviewing your application and social media presence</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="p-1 bg-blue-200 rounded-full mt-1">
-                  <CheckCircle className="w-4 h-4 text-blue-700" />
-                </div>
-                <span>You'll receive an email notification once we make a decision</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="p-1 bg-blue-200 rounded-full mt-1">
-                  <CheckCircle className="w-4 h-4 text-blue-700" />
-                </div>
-                <span>If approved, you'll get immediate access to create promo codes</span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-      )}
+      {/* Actions */}
+      <div className="flex gap-4">
+        <Button onClick={() => router.push('/dashboard/apply-promoter')}>
+          <Edit className="w-4 h-4 mr-2" />
+          {isRejected ? 'Update & Reapply' : 'Edit Application'}
+        </Button>
+        <Button 
+          variant="outline"
+          onClick={() => window.location.href = 'mailto:support@e-klix.com'}
+        >
+          <Mail className="w-4 h-4 mr-2" />
+          Contact Support
+        </Button>
+      </div>
 
-      {/* Approved - Get Started */}
-      {isApproved && (
-        <Card className="bg-green-50 border-green-200">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Award className="w-16 h-16 text-green-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2 font-comfortaa">Welcome to the Team!</h3>
-              <p className="text-gray-700 mb-6 font-body">
-                You're now an approved promoter. Start creating promo codes and earning commission.
-              </p>
-              <Button onClick={() => router.push('/promoter')} size="lg">
-                Go to Promoter Dashboard
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

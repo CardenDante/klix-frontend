@@ -1,4 +1,5 @@
-// lib/api/organizers.ts
+// src/lib/api/organizers.ts
+
 import apiClient from '@/lib/api-client';
 
 export interface OrganizerProfile {
@@ -12,6 +13,8 @@ export interface OrganizerProfile {
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   approved_at?: string;
   approved_by?: string;
+  rejection_reason?: string; // Added this line
+  rejected_at?: string; // Added this line
   created_at: string;
   updated_at: string;
 }
