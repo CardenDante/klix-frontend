@@ -2,7 +2,6 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -11,7 +10,6 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('access_token');
@@ -25,20 +23,17 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Handle 401 errors (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          // Attempt to refresh token
           const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
             refresh_token: refreshToken,
           });
@@ -46,14 +41,12 @@ apiClient.interceptors.response.use(
           const { access_token } = response.data;
           localStorage.setItem('access_token', access_token);
 
-          // Retry original request
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${access_token}`;
           }
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, logout user
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';
@@ -65,32 +58,19 @@ apiClient.interceptors.response.use(
   }
 );
 
-// API Functions
 export const api = {
-  // Health
   health: () => apiClient.get('/health'),
 
-  // Auth
   auth: {
-    // Register: First create in Firebase, then send ID token to backend
     register: (data: { email: string; password: string; first_name?: string; last_name?: string; phone_number?: string }) => 
       apiClient.post('/api/v1/auth/register', data),
-    
-    // Firebase Login: Send Firebase ID token to get backend JWT tokens
     firebaseLogin: (idToken: string) => 
       apiClient.post('/api/v1/auth/firebase-login', { id_token: idToken }),
-    
-    // Logout (clears backend session, Firebase signOut handled separately)
     logout: () => apiClient.post('/api/v1/auth/logout'),
-    
-    // Get current user info
     me: () => apiClient.get('/api/v1/auth/me'),
-    
-    // Password reset handled by Firebase directly
     passwordReset: (email: string) => apiClient.post('/api/v1/auth/password-reset', { email }),
   },
 
-  // Events
   events: {
     list: (params?: any) => apiClient.get('/api/v1/events', { params }),
     get: (id: string) => apiClient.get(`/api/v1/events/${id}`),
@@ -103,7 +83,6 @@ export const api = {
     myEvents: (params?: any) => apiClient.get('/api/v1/events/my-events', { params }),
   },
 
-  // Tickets
   tickets: {
     purchase: (data: any) => apiClient.post('/api/v1/tickets/purchase', data),
     confirm: (transactionId: string, mpesaReceipt?: string) => 
@@ -124,7 +103,6 @@ export const api = {
     },
   },
 
-  // Recommendations
   recommendations: {
     forYou: (params?: any) => apiClient.get('/api/v1/recommendations/for-you', { params }),
     similar: (eventId: string, limit?: number) => apiClient.get(`/api/v1/recommendations/similar/${eventId}`, { params: { limit } }),
@@ -137,7 +115,6 @@ export const api = {
     },
   },
 
-  // Search
   search: {
     events: (params: any) => apiClient.get('/api/v1/search/', { params }),
     suggestions: (q: string, limit?: number) => apiClient.get('/api/v1/search/suggestions', { params: { q, limit } }),
@@ -146,7 +123,6 @@ export const api = {
     nearby: (params: any) => apiClient.get('/api/v1/search/nearby', { params }),
   },
 
-  // Users
   users: {
     me: () => apiClient.get('/api/v1/users/me'),
     updateProfile: (data: any) => apiClient.patch('/api/v1/users/me', data),
@@ -154,7 +130,6 @@ export const api = {
     getById: (userId: string) => apiClient.get(`/api/v1/users/${userId}`),
   },
 
-  // Analytics
   analytics: {
     organizer: {
       dashboard: () => apiClient.get('/api/v1/analytics/organizer/dashboard'),
@@ -173,7 +148,6 @@ export const api = {
     },
   },
 
-  // Loyalty
   loyalty: {
     balance: () => apiClient.get('/api/v1/loyalty/balance'),
     transactions: () => apiClient.get('/api/v1/loyalty/transactions'),
@@ -182,7 +156,6 @@ export const api = {
     summary: () => apiClient.get('/api/v1/loyalty/summary'),
   },
 
-  // Promoter
   promoter: {
     createCode: (data: any) => apiClient.post('/api/v1/promoters/codes', data),
     myCodes: (params?: any) => apiClient.get('/api/v1/promoters/my-codes', { params }),
@@ -195,16 +168,77 @@ export const api = {
     withdrawals: (limit?: number) => apiClient.get('/api/v1/promoters/withdrawals', { params: { limit } }),
     insights: () => apiClient.get('/api/v1/promoters/insights'),
   },
-  // Add to your api object in api-client.ts
+
   payments: {
     initiateMpesa: (transactionId: string) => 
       apiClient.post(`/api/v1/payments/initiate-mpesa`, null, { params: { transaction_id: transactionId } }),
-    
     queryStatus: (transactionId: string) => 
       apiClient.get(`/api/v1/payments/query-status/${transactionId}`),
-    
     getTransactionStatus: (transactionId: string) => 
       apiClient.get(`/api/v1/payments/transaction/${transactionId}`),
+  },
+
+  admin: {
+    statistics: () => apiClient.get('/api/v1/admin/statistics'),
+    
+    users: {
+      list: (params?: any) => apiClient.get('/api/v1/admin/users', { params }),
+      get: (userId: string) => apiClient.get(`/api/v1/admin/users/${userId}`),
+      delete: (userId: string, reason: string) => 
+        apiClient.delete(`/api/v1/admin/users/${userId}`, { params: { reason } }),
+      updateRole: (userId: string, data: any) => 
+        apiClient.patch(`/api/v1/admin/users/${userId}/role`, data),
+      suspend: (userId: string, data: any) => 
+        apiClient.post(`/api/v1/admin/users/${userId}/suspend`, data),
+    },
+    
+    organizers: {
+      list: (params?: any) => apiClient.get('/api/v1/admin/organizers', { params }),
+      pending: (params?: any) => apiClient.get('/api/v1/admin/organizers/pending', { params }),
+      approve: (organizerId: string, data?: any) => 
+        apiClient.post(`/api/v1/admin/organizers/${organizerId}/approve`, data || {}),
+      reject: (organizerId: string, data: any) => 
+        apiClient.post(`/api/v1/admin/organizers/${organizerId}/reject`, data),
+      suspend: (organizerId: string, data: any) => 
+        apiClient.post(`/api/v1/admin/organizers/${organizerId}/suspend`, data),
+    },
+    
+    events: {
+      flag: (eventId: string, data: any) => 
+        apiClient.post(`/api/v1/admin/events/${eventId}/flag`, data),
+      unflag: (eventId: string, data: any) => 
+        apiClient.post(`/api/v1/admin/events/${eventId}/unflag`, data),
+      forceDelete: (eventId: string, data: any) => 
+        apiClient.delete(`/api/v1/admin/events/${eventId}/force-delete`, { data }),
+    },
+    
+    auditLogs: (params?: any) => apiClient.get('/api/v1/admin/audit-logs', { params }),
+    
+    analytics: {
+      overview: () => apiClient.get('/api/v1/analytics/admin/overview'),
+      summary: () => apiClient.get('/api/v1/analytics/admin/summary'),
+      userGrowth: () => apiClient.get('/api/v1/analytics/admin/users/growth'),
+      revenue: () => apiClient.get('/api/v1/analytics/admin/revenue'),
+      topOrganizers: (params?: any) => 
+        apiClient.get('/api/v1/analytics/admin/organizers/top', { params }),
+      topEvents: (params?: any) => 
+        apiClient.get('/api/v1/analytics/admin/events/top', { params }),
+      categories: () => apiClient.get('/api/v1/analytics/admin/categories'),
+      systemHealth: () => apiClient.get('/api/v1/analytics/admin/system/health'),
+      clearCache: () => apiClient.post('/api/v1/analytics/admin/cache/clear'),
+    },
+
+    promoters: {
+      stats: () => apiClient.get('/api/v1/admin/promoters/stats'),
+      applications: () => apiClient.get('/api/v1/admin/promoters/applications'),
+      active: () => apiClient.get('/api/v1/admin/promoters/active'),
+      approve: (applicationId: string) => 
+        apiClient.post(`/api/v1/admin/promoters/applications/${applicationId}/approve`),
+      reject: (applicationId: string, data: { reason: string }) => 
+        apiClient.post(`/api/v1/admin/promoters/applications/${applicationId}/reject`, data),
+      deactivate: (promoterId: string) => 
+        apiClient.post(`/api/v1/admin/promoters/${promoterId}/deactivate`),
+    },
   },
 };
 
