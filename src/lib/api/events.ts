@@ -75,7 +75,7 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/events?${params.toString()}`);
+    const response = await apiClient.get(`/api/v1/events?${params.toString()}`);
     return response.data;
   },
 
@@ -88,25 +88,25 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/search/?${params.toString()}`);
+    const response = await apiClient.get(`/api/v1/search/?${params.toString()}`);
     return response.data;
   },
 
   // Get event by ID
   getEvent: async (eventId: string) => {
-    const response = await apiClient.get(`/events/${eventId}`);
+    const response = await apiClient.get(`/api/v1/events/${eventId}`);
     return response.data;
   },
 
   // Get event by slug
   getEventBySlug: async (slug: string) => {
-    const response = await apiClient.get(`/events/slug/${slug}`);
+    const response = await apiClient.get(`/api/v1/events/slug/${slug}`);
     return response.data;
   },
 
   // Get ticket types for event
   getTicketTypes: async (eventId: string) => {
-    const response = await apiClient.get(`/tickets/events/${eventId}/ticket-types`);
+    const response = await apiClient.get(`/api/v1/tickets/events/${eventId}/ticket-types`);
     return response.data;
   },
 
@@ -119,7 +119,7 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/recommendations/trending?${params.toString()}`);
+    const response = await apiClient.get(`/api/v1/recommendations/trending?${params.toString()}`);
     return response.data;
   },
 
@@ -132,25 +132,27 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/recommendations/popular?${params.toString()}`);
+    const response = await apiClient.get(`/api/v1/recommendations/popular?${params.toString()}`);
     return response.data;
   },
 
   // Get similar events
   getSimilarEvents: async (eventId: string, limit: number = 6) => {
-    const response = await apiClient.get(`/recommendations/similar/${eventId}?limit=${limit}`);
+    const response = await apiClient.get(`/api/v1/recommendations/similar/${eventId}?limit=${limit}`);
     return response.data;
   },
 
   // Get search suggestions (autocomplete)
   getSearchSuggestions: async (query: string, limit: number = 10) => {
-    const response = await apiClient.get(`/search/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`);
+    const response = await apiClient.get(`/api/v1/search/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`);
     return response.data;
   },
 
   // Get search facets (for filter UI)
   getSearchFacets: async (query?: string) => {
-    const url = query ? `/search/facets?q=${encodeURIComponent(query)}` : '/search/facets';
+    const url = query 
+      ? `/api/v1/search/facets?q=${encodeURIComponent(query)}` 
+      : '/api/v1/search/facets';
     const response = await apiClient.get(url);
     return response.data;
   },
@@ -170,7 +172,7 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/search/nearby?${queryParams.toString()}`);
+    const response = await apiClient.get(`/api/v1/search/nearby?${queryParams.toString()}`);
     return response.data;
   },
 
@@ -183,7 +185,7 @@ export const eventsApi = {
       }
     });
     
-    const response = await apiClient.get(`/recommendations/for-you?${params.toString()}`);
+    const response = await apiClient.get(`/api/v1/recommendations/for-you?${params.toString()}`);
     return response.data;
   },
 

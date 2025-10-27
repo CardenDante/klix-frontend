@@ -136,7 +136,7 @@ export default function LoyaltyPage() {
                   <p className="text-white/80 text-sm font-body">Available Balance</p>
                   <div className="flex items-baseline gap-2">
                     <h2 className="text-5xl font-bold font-comfortaa">
-                      {balance?.available_credits.toLocaleString() || 0}
+                      {(balance?.available_credits ?? 0).toLocaleString()}
                     </h2>
                     <span className="text-xl font-body">credits</span>
                   </div>
@@ -154,7 +154,7 @@ export default function LoyaltyPage() {
                   </div>
                   {summary?.credits_to_next_tier && summary.credits_to_next_tier > 0 ? (
                     <p className="text-xs text-center text-white/90">
-                      {summary.credits_to_next_tier.toLocaleString()} credits to the next tier
+                      {(summary.credits_to_next_tier ?? 0).toLocaleString()} credits to the next tier
                     </p>
                   ) : (
                      <p className="text-xs text-center text-white/90">You're at the top tier!</p>

@@ -132,22 +132,44 @@ export default function ApplyOrganizerPage() {
       formDataUpload.append('upload_type', 'organizer_logo')
       formDataUpload.append('entity_id', user?.id || '')
 
+      const token = localStorage.getItem('access_token')
+      
       const response = await fetch('/api/v1/uploads/upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: formDataUpload
       })
 
-      if (!response.ok) throw new Error('Upload failed')
+      // Get the response body for better error messages
+      const responseData = await response.json().catch(() => null)
 
-      const data = await response.json()
-      setFormData(prev => ({ ...prev, logo_url: data.url }))
+      if (!response.ok) {
+        // Show specific error from server if available
+        const errorMessage = responseData?.detail || responseData?.message || `Upload failed with status ${response.status}`
+        throw new Error(errorMessage)
+      }
+
+      if (!responseData?.url) {
+        throw new Error('Upload succeeded but no URL returned')
+      }
+
+      setFormData(prev => ({ ...prev, logo_url: responseData.url }))
       toast.success('Logo uploaded successfully!')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error)
-      toast.error('Failed to upload logo')
+      
+      // Show user-friendly error messages
+      if (error.message.includes('404')) {
+        toast.error('Upload endpoint not found. Please contact support.')
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        toast.error('Authentication error. Please log in again.')
+      } else if (error.message.includes('413')) {
+        toast.error('File too large. Please use a smaller image.')
+      } else {
+        toast.error(error.message || 'Failed to upload logo')
+      }
     } finally {
       setUploadingLogo(false)
     }
