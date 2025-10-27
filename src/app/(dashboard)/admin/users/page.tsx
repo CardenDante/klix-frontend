@@ -4,17 +4,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { AxiosError } from 'axios';
 import { UserRole } from '@/lib/types';
+import { X, Search, Loader2, User, Mail, Phone, Calendar, Shield, Activity } from 'lucide-react';
+import { toast } from 'sonner';
 
 // ==================== TYPES ====================
 
 interface AdminUser {
   id: string;
-  email: string;
+  email?: string; // Made optional to reflect runtime reality
   first_name?: string;
   last_name?: string;
   full_name?: string;
   phone_number?: string;
-  role: UserRole;
+  role?: UserRole; // Made optional to reflect runtime reality
   is_active: boolean;
   email_verified: boolean;
   profile_image_url?: string;
@@ -22,8 +24,8 @@ interface AdminUser {
   total_tickets_purchased?: number;
   total_events_organized?: number;
   total_spent?: number;
-  created_at: string;
-  updated_at: string;
+  created_at?: string; // Made optional
+  updated_at?: string; // Made optional
 }
 
 interface UserListParams {
@@ -50,6 +52,10 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | ''>('');
   const [verifiedFilter, setVerifiedFilter] = useState<'verified' | 'unverified' | ''>('');
+
+  // Modal state
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -82,17 +88,18 @@ export default function AdminUsersPage() {
       const responseData = response.data;
       
       if (Array.isArray(responseData)) {
-        // Non-paginated response
         setUsers(responseData);
         setTotal(responseData.length);
         setTotalPages(1);
+      } else if (responseData.items && Array.isArray(responseData.items)) {
+        setUsers(responseData.items);
+        setTotal(responseData.total || 0);
+        setTotalPages(responseData.total_pages || Math.ceil((responseData.total || 0) / pageSize));
       } else if (responseData.data && Array.isArray(responseData.data)) {
-        // Paginated response
         setUsers(responseData.data);
         setTotal(responseData.total || 0);
-        setTotalPages(responseData.total_pages || 0);
+        setTotalPages(responseData.total_pages || Math.ceil((responseData.total || 0) / pageSize));
       } else {
-        // Fallback
         setUsers([]);
         setTotal(0);
         setTotalPages(0);
@@ -101,29 +108,28 @@ export default function AdminUsersPage() {
       const axiosError = err as AxiosError<any>;
       
       console.error('Users fetch error:', err);
-      console.error('Error response:', axiosError.response);
-      console.error('Error request:', axiosError.request);
       
       let errorMessage = 'Failed to load users';
       
-      if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        errorMessage = 'Network error: Unable to connect to the server. Please check if the API is running and accessible.';
+      if (axiosError.response?.status === 404) {
+        errorMessage = 'Users endpoint not found. Check your backend.';
+      } else if (axiosError.response?.status === 403) {
+        errorMessage = 'Access denied. You may not have admin permissions.';
+      } else if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
+        errorMessage = 'Network error: Unable to connect to the server.';
       } else if (axiosError.response) {
-        // Server responded with error
         errorMessage = 
           axiosError.response?.data?.detail || 
           axiosError.response?.data?.message || 
-          `Server error: ${axiosError.response.status} ${axiosError.response.statusText}`;
+          `Server error: ${axiosError.response.status}`;
       } else if (axiosError.request) {
-        // Request made but no response
-        errorMessage = 'No response from server. Please check your network connection and API availability.';
+        errorMessage = 'No response from server.';
       } else {
         errorMessage = axiosError.message || 'Unknown error occurred';
       }
       
       setError(errorMessage);
-      
-      // Set empty data on error
+      toast.error(errorMessage);
       setUsers([]);
       setTotal(0);
       setTotalPages(0);
@@ -142,10 +148,48 @@ export default function AdminUsersPage() {
 
   // ==================== ACTION HANDLERS ====================
 
+  const handleViewDetails = async (userId: string) => {
+    try {
+      console.log('Fetching user details for:', userId);
+      const response = await api.admin.users.get(userId);
+      console.log('User details response:', response);
+      console.log('User details response.data:', response.data);
+      
+      // Extract user data - handle different response formats
+      let userData = response.data;
+      
+      // Check if data is nested in a 'user' or 'data' property
+      if (response.data?.user) {
+        userData = response.data.user;
+        console.log('Extracted from response.data.user:', userData);
+      } else if (response.data?.data) {
+        userData = response.data.data;
+        console.log('Extracted from response.data.data:', userData);
+      }
+      
+      console.log('Final user data being set:', userData);
+      setSelectedUser(userData);
+      setShowDetailsModal(true);
+    } catch (err) {
+      const axiosError = err as AxiosError<any>;
+      const errorMessage = 
+        axiosError.response?.data?.detail || 
+        axiosError.response?.data?.message || 
+        'Failed to load user details';
+      toast.error(errorMessage);
+      console.error('Failed to fetch user details:', err);
+    }
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedUser(null);
+  };
+
   const handleSuspend = async (userId: string, userName: string) => {
     const reason = prompt(`Enter reason for suspending ${userName} (minimum 10 characters):`);
     if (!reason || reason.length < 10) {
-      alert('Reason must be at least 10 characters long');
+      toast.error('Reason must be at least 10 characters long');
       return;
     }
 
@@ -157,56 +201,70 @@ export default function AdminUsersPage() {
       setActionLoading(userId);
       await api.admin.users.suspend(userId, { 
         reason,
-        suspended_until: undefined // Indefinite suspension
+        duration_days: undefined
       });
       setSuccess(`User ${userName} suspended successfully`);
+      toast.success(`${userName} suspended`);
       await fetchUsers();
+      if (selectedUser?.id === userId) {
+        closeDetailsModal();
+      }
     } catch (err) {
       const axiosError = err as AxiosError<any>;
       const errorMessage = 
         axiosError.response?.data?.detail || 
         axiosError.response?.data?.message || 
-        axiosError.message || 
         'Failed to suspend user';
       setError(errorMessage);
-      console.error('Suspend error:', err);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleChangeRole = async (userId: string, currentRole: UserRole, userName: string) => {
+  const handleChangeRole = async (userId: string, currentRole: UserRole | undefined, userName: string) => {
     const roleOptions = Object.values(UserRole).join(', ');
-    const newRole = prompt(
-      `Change role for ${userName}\nCurrent: ${currentRole}\n\nAvailable roles: ${roleOptions}\n\nEnter new role:`
-    )?.toUpperCase();
+    const newRoleInput = prompt(
+      `Change role for ${userName}\nCurrent: ${currentRole || 'No Role'}\n\nAvailable roles: ${roleOptions}\n\nEnter new role:`
+    );
 
-    if (!newRole) return;
+    if (!newRoleInput) return;
 
-    if (!Object.values(UserRole).includes(newRole as UserRole)) {
-      alert('Invalid role. Please enter one of: ' + roleOptions);
+    const newRole = newRoleInput.toUpperCase() as UserRole;
+
+    if (!Object.values(UserRole).includes(newRole)) {
+      toast.error('Invalid role. Please use one of: ' + roleOptions);
       return;
     }
 
-    const notes = prompt('Enter reason for role change (optional):') || 'Role updated by admin';
+    if (newRole === currentRole) {
+      toast.info('Role is already set to ' + newRole);
+      return;
+    }
+
+    const notes = prompt('Optional: Add notes for this role change:') || undefined;
 
     try {
       setActionLoading(userId);
-      await api.admin.users.updateRole(userId, {
-        role: newRole as UserRole,
-        notes
+      await api.admin.users.updateRole(userId, { 
+        role: newRole,
+        notes 
       });
-      setSuccess(`Role updated to ${newRole} for ${userName}`);
+      setSuccess(`Role changed from ${currentRole || 'No Role'} to ${newRole}`);
+      toast.success(`${userName}'s role changed to ${newRole}`);
       await fetchUsers();
+      if (selectedUser?.id === userId) {
+        const response = await api.admin.users.get(userId);
+        setSelectedUser(response.data);
+      }
     } catch (err) {
       const axiosError = err as AxiosError<any>;
       const errorMessage = 
         axiosError.response?.data?.detail || 
         axiosError.response?.data?.message || 
-        axiosError.message || 
-        'Failed to update role';
+        'Failed to change role';
       setError(errorMessage);
-      console.error('Update role error:', err);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
@@ -214,15 +272,22 @@ export default function AdminUsersPage() {
 
   const handleDelete = async (userId: string, userName: string) => {
     const reason = prompt(
-      `⚠️ WARNING: This will permanently delete ${userName}\n\nEnter deletion reason (minimum 10 characters):`
+      `⚠️ WARNING: This will permanently delete ${userName}\n\nThis action cannot be undone!\n\nEnter deletion reason (minimum 10 characters):`
     );
-    
+
     if (!reason || reason.length < 10) {
-      alert('Reason must be at least 10 characters long');
+      if (reason !== null) {
+        toast.error('Deletion reason must be at least 10 characters');
+      }
       return;
     }
 
-    if (!confirm(`🚨 FINAL CONFIRMATION\n\nPermanently delete ${userName}?\n\nThis action CANNOT be undone!`)) {
+    const confirmation = prompt(
+      `Type "DELETE ${userName.split(' ')[0]}" to confirm deletion:`
+    );
+
+    if (confirmation !== `DELETE ${userName.split(' ')[0]}`) {
+      toast.error('Deletion cancelled - confirmation text did not match');
       return;
     }
 
@@ -230,349 +295,213 @@ export default function AdminUsersPage() {
       setActionLoading(userId);
       await api.admin.users.delete(userId, reason);
       setSuccess(`User ${userName} deleted successfully`);
+      toast.success(`${userName} deleted`);
       await fetchUsers();
+      if (selectedUser?.id === userId) {
+        closeDetailsModal();
+      }
     } catch (err) {
       const axiosError = err as AxiosError<any>;
       const errorMessage = 
         axiosError.response?.data?.detail || 
         axiosError.response?.data?.message || 
-        axiosError.message || 
         'Failed to delete user';
       setError(errorMessage);
-      console.error('Delete error:', err);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleViewDetails = async (userId: string) => {
-    try {
-      const response = await api.admin.users.get(userId);
-      // Display user details in a formatted way
-      const user = response.data;
-      const details = JSON.stringify(user, null, 2);
-      
-      // Create a better formatted display
-      const formattedDetails = `
-User Details:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ID: ${user.id}
-Email: ${user.email}
-Name: ${user.first_name || ''} ${user.last_name || ''}
-Phone: ${user.phone_number || 'N/A'}
-Role: ${user.role}
-Status: ${user.is_active ? 'Active' : 'Suspended'}
-Verified: ${user.email_verified ? 'Yes' : 'No'}
-Created: ${new Date(user.created_at).toLocaleString()}
-Updated: ${new Date(user.updated_at).toLocaleString()}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Full JSON:
-${details}
-      `.trim();
-      
-      alert(formattedDetails);
-    } catch (err) {
-      const axiosError = err as AxiosError<any>;
-      const errorMessage = 
-        axiosError.response?.data?.detail || 
-        axiosError.response?.data?.message || 
-        axiosError.message || 
-        'Failed to load user details';
-      alert(errorMessage);
-      console.error('View details error:', err);
-    }
-  };
-
-  // ==================== HELPER FUNCTIONS ====================
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // ==================== UTILITY FUNCTIONS ====================
 
   const getUserDisplayName = (user: AdminUser): string => {
-    if (user.full_name) return user.full_name;
-    if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`;
-    if (user.first_name) return user.first_name;
-    return user.email.split('@')[0];
+    return user.full_name || user.first_name || (user.email ? user.email.split('@')[0] : 'Unknown User');
   };
 
   const getUserInitials = (user: AdminUser): string => {
-    const name = getUserDisplayName(user);
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+    const displayName = getUserDisplayName(user);
+    const names = displayName.split(' ');
+    if (names.length >= 2) {
+      return `${names[0][0]}${names[1][0]}`.toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return displayName.substring(0, 2).toUpperCase();
   };
 
-  const getRoleBadgeColor = (role: UserRole): string => {
-    switch (role) {
-      case UserRole.ADMIN: return 'bg-red-100 text-red-800 border-red-200';
-      case UserRole.ORGANIZER: return 'bg-purple-100 text-purple-800 border-purple-200';
-      case UserRole.PROMOTER: return 'bg-blue-100 text-blue-800 border-blue-200';
-      case UserRole.EVENT_STAFF: return 'bg-green-100 text-green-800 border-green-200';
-      case UserRole.ATTENDEE: return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+  const getRoleDisplay = (role: UserRole | undefined): string => {
+    if (!role) return 'No Role';
+    return role.replace(/_/g, ' ');
+  };
+
+  const getRoleBadgeColor = (role: UserRole | undefined): string => {
+    if (!role) return 'bg-gray-100 text-gray-800 border-gray-300';
+    
+    const colors = {
+      [UserRole.ADMIN]: 'bg-red-100 text-red-800 border-red-300',
+      [UserRole.ORGANIZER]: 'bg-purple-100 text-purple-800 border-purple-300',
+      [UserRole.PROMOTER]: 'bg-blue-100 text-blue-800 border-blue-300',
+      [UserRole.EVENT_STAFF]: 'bg-green-100 text-green-800 border-green-300',
+      [UserRole.ATTENDEE]: 'bg-gray-100 text-gray-800 border-gray-300',
+      [UserRole.GUEST]: 'bg-gray-50 text-gray-600 border-gray-200',
+    };
+    return colors[role] || 'bg-gray-100 text-gray-800 border-gray-300';
+  };
+
+  const formatCurrency = (amount: number | undefined | null): string => {
+    if (!amount) return 'KSh 0';
+    return `KSh ${amount.toLocaleString()}`;
+  };
+
+  const formatDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
     }
   };
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setRoleFilter('');
-    setStatusFilter('');
-    setVerifiedFilter('');
-    setPage(1);
+  const formatDateTime = (dateString: string | undefined | null): string => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
-  // ==================== COMPUTED VALUES ====================
+  // Check if there are active filters
+  const hasActiveFilters = Boolean(searchTerm || roleFilter || statusFilter || verifiedFilter);
 
+  // Stats
   const stats = {
     total: users.length,
     active: users.filter(u => u.is_active).length,
     verified: users.filter(u => u.email_verified).length,
-    suspended: users.filter(u => !u.is_active).length,
+    admins: users.filter(u => u.role === UserRole.ADMIN).length,
   };
 
-  const hasActiveFilters = searchTerm || roleFilter || statusFilter || verifiedFilter;
-
   // ==================== RENDER ====================
-
-  if (loading && users.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-            <div className="h-96 bg-gray-200 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            <p className="text-gray-600 mt-1">Manage platform users, roles, and permissions</p>
-          </div>
-          <button
-            onClick={fetchUsers}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">Manage all users, roles, and permissions</p>
         </div>
 
-        {/* Alerts */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-red-800">{error}</p>
-              <button onClick={() => setError(null)} className="ml-auto text-red-600 hover:text-red-800">
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <p className="text-green-800">{success}</p>
-              <button onClick={() => setSuccess(null)} className="ml-auto text-green-600 hover:text-green-800">
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Total Users</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{total}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Total Users</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Active Users</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.active}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
+          <div className="bg-green-50 rounded-lg shadow p-4">
+            <p className="text-sm text-green-700">Active</p>
+            <p className="text-2xl font-bold text-green-900">{stats.active}</p>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Verified</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.verified}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-            </div>
+          <div className="bg-blue-50 rounded-lg shadow p-4">
+            <p className="text-sm text-blue-700">Verified</p>
+            <p className="text-2xl font-bold text-blue-900">{stats.verified}</p>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Suspended</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{stats.suspended}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              </div>
-            </div>
+          <div className="bg-red-50 rounded-lg shadow p-4">
+            <p className="text-sm text-red-700">Admins</p>
+            <p className="text-2xl font-bold text-red-900">{stats.admins}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Filters</h3>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  Clear all filters
-                </button>
-              )}
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Search */}
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
 
-              {/* Role Filter */}
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as UserRole | '')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Roles</option>
-                <option value={UserRole.GUEST}>Guest</option>
-                <option value={UserRole.ATTENDEE}>Attendee</option>
-                <option value={UserRole.PROMOTER}>Promoter</option>
-                <option value={UserRole.ORGANIZER}>Organizer</option>
-                <option value={UserRole.EVENT_STAFF}>Event Staff</option>
-                <option value={UserRole.ADMIN}>Admin</option>
-              </select>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as UserRole | '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Roles</option>
+              {Object.values(UserRole).map(role => (
+                <option key={role} value={role}>{getRoleDisplay(role)}</option>
+              ))}
+            </select>
 
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Suspended</option>
-              </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'active' | 'inactive' | '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Suspended</option>
+            </select>
 
-              {/* Verified Filter */}
-              <select
-                value={verifiedFilter}
-                onChange={(e) => setVerifiedFilter(e.target.value as typeof verifiedFilter)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Verification</option>
-                <option value="verified">Verified</option>
-                <option value="unverified">Unverified</option>
-              </select>
-            </div>
+            <select
+              value={verifiedFilter}
+              onChange={(e) => setVerifiedFilter(e.target.value as 'verified' | 'unverified' | '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Verification</option>
+              <option value="verified">Verified</option>
+              <option value="unverified">Unverified</option>
+            </select>
           </div>
         </div>
 
-        {/* Users List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">
-              Users ({users.length} {users.length === pageSize ? '+' : ''})
-            </h3>
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-green-800">{success}</p>
+            <button onClick={() => setSuccess(null)} className="text-green-600 hover:text-green-800">
+              <X className="w-5 h-5" />
+            </button>
           </div>
+        )}
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-red-800">{error}</p>
+            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Users List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-gray-600 mt-4">Loading users...</p>
+              <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading users...</p>
             </div>
           ) : users.length === 0 ? (
             <div className="p-12 text-center">
-              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
+              <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {hasActiveFilters ? 'No users match your filters' : 'No users found'}
               </p>
@@ -599,8 +528,8 @@ ${details}
 
                     {/* User Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-semibold text-gray-900 truncate">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <h4 className="font-semibold text-gray-900">
                           {getUserDisplayName(user)}
                         </h4>
                         
@@ -615,7 +544,7 @@ ${details}
 
                         {/* Role Badge */}
                         <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(user.role)}`}>
-                          {user.role.replace('_', ' ')}
+                          {getRoleDisplay(user.role)}
                         </span>
 
                         {/* Verified Badge */}
@@ -629,23 +558,17 @@ ${details}
                       {/* Contact Info */}
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
                         <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                          {user.email}
+                          <Mail className="w-4 h-4" />
+                          {user.email || 'No email'}
                         </span>
                         {user.phone_number && (
                           <span className="flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                            </svg>
+                            <Phone className="w-4 h-4" />
                             {user.phone_number}
                           </span>
                         )}
                         <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                          <Calendar className="w-4 h-4" />
                           Joined {formatDate(user.created_at)}
                         </span>
                       </div>
@@ -653,10 +576,10 @@ ${details}
                       {/* Stats */}
                       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                         {(user.total_tickets_purchased ?? 0) > 0 && (
-                          <span>🎫 {user.total_tickets_purchased} tickets purchased</span>
+                          <span>🎫 {user.total_tickets_purchased} tickets</span>
                         )}
                         {(user.total_events_organized ?? 0) > 0 && (
-                          <span>📅 {user.total_events_organized} events organized</span>
+                          <span>📅 {user.total_events_organized} events</span>
                         )}
                         {(user.total_spent ?? 0) > 0 && (
                           <span>💰 {formatCurrency(user.total_spent)}</span>
@@ -668,7 +591,7 @@ ${details}
                     </div>
 
                     {/* Actions */}
-                    <div className="flex-shrink-0 flex items-center gap-2">
+                    <div className="flex-shrink-0 flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => handleViewDetails(user.id)}
                         className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
@@ -693,16 +616,12 @@ ${details}
                           className="px-3 py-1.5 text-sm border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-50 transition disabled:opacity-50"
                           title="Suspend User"
                         >
-                          {actionLoading === user.id ? '...' : 'Suspend'}
+                          {actionLoading === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Suspend'}
                         </button>
                       ) : (
-                        <button
-                          onClick={() => handleViewDetails(user.id)}
-                          className="px-3 py-1.5 text-sm border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition"
-                          title="View to Reactivate"
-                        >
+                        <span className="px-3 py-1.5 text-sm text-gray-500">
                           Suspended
-                        </button>
+                        </span>
                       )}
 
                       <button
@@ -711,7 +630,7 @@ ${details}
                         className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
                         title="Delete User"
                       >
-                        {actionLoading === user.id ? '...' : 'Delete'}
+                        {actionLoading === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
                       </button>
                     </div>
                   </div>
@@ -745,6 +664,167 @@ ${details}
             </div>
           )}
         </div>
+
+        {/* User Details Modal */}
+        {showDetailsModal && selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+                <h3 className="text-xl font-bold text-gray-900">User Details</h3>
+                <button
+                  onClick={closeDetailsModal}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Debug Info - Remove this after fixing */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                    <p className="font-semibold mb-1">Debug Info:</p>
+                    <pre className="overflow-auto">{JSON.stringify(selectedUser, null, 2)}</pre>
+                  </div>
+                )}
+
+                {/* Profile Section */}
+                <div className="flex items-center gap-4">
+                  {selectedUser.profile_image_url ? (
+                    <img
+                      src={selectedUser.profile_image_url}
+                      alt={getUserDisplayName(selectedUser)}
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                      {getUserInitials(selectedUser)}
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900">{getUserDisplayName(selectedUser)}</h4>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        selectedUser.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedUser.is_active ? 'Active' : 'Suspended'}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeColor(selectedUser.role)}`}>
+                        {getRoleDisplay(selectedUser.role)}
+                      </span>
+                      {selectedUser.email_verified && (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          ✓ Verified
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <h5 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Contact Information
+                  </h5>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-gray-600">Email:</span>
+                      <span className="ml-2 font-medium">{selectedUser.email || 'No email'}</span>
+                    </div>
+                    {selectedUser.phone_number && (
+                      <div>
+                        <span className="text-gray-600">Phone:</span>
+                        <span className="ml-2 font-medium">{selectedUser.phone_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Account Information */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <h5 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    Account Information
+                  </h5>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">User ID:</span>
+                      <p className="font-mono text-xs break-all">{selectedUser.id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Created:</span>
+                      <p className="font-medium">{formatDate(selectedUser.created_at)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Last Updated:</span>
+                      <p className="font-medium">{formatDate(selectedUser.updated_at)}</p>
+                    </div>
+                    {selectedUser.last_login && (
+                      <div>
+                        <span className="text-gray-600">Last Login:</span>
+                        <p className="font-medium">{formatDateTime(selectedUser.last_login)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Activity Statistics */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <h5 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Activity Statistics
+                  </h5>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-2xl font-bold text-blue-600">{selectedUser.total_tickets_purchased || 0}</p>
+                      <p className="text-xs text-gray-600 mt-1">Tickets Purchased</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-2xl font-bold text-purple-600">{selectedUser.total_events_organized || 0}</p>
+                      <p className="text-xs text-gray-600 mt-1">Events Organized</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(selectedUser.total_spent || 0)}</p>
+                      <p className="text-xs text-gray-600 mt-1">Total Spent</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <button
+                    onClick={() => handleChangeRole(selectedUser.id, selectedUser.role, getUserDisplayName(selectedUser))}
+                    disabled={actionLoading === selectedUser.id}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                  >
+                    Change Role
+                  </button>
+                  {selectedUser.is_active && (
+                    <button
+                      onClick={() => handleSuspend(selectedUser.id, getUserDisplayName(selectedUser))}
+                      disabled={actionLoading === selectedUser.id}
+                      className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50"
+                    >
+                      Suspend User
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(selectedUser.id, getUserDisplayName(selectedUser))}
+                    disabled={actionLoading === selectedUser.id}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                  >
+                    Delete User
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
