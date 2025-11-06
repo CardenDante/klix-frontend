@@ -78,11 +78,15 @@ export default function OrganizersPage() {
       setLoading(true);
       let response;
 
+      // WORKAROUND: Backend has a bug where get_all_organizers endpoint expects UPPERCASE
+      // status but compares against lowercase enum values, so filtering never works.
+      // Solution: Always fetch all organizers and filter on frontend.
       if (activeTab === 'pending') {
+        // Use dedicated pending endpoint (this one works correctly)
         response = await api.admin.organizers.pending();
       } else {
-        // Backend expects UPPERCASE status values
-        response = await api.admin.organizers.list({ status: activeTab.toUpperCase() });
+        // Fetch ALL organizers (no status filter) and filter on frontend
+        response = await api.admin.organizers.list();
       }
 
       console.log('📊 [ORGANIZERS] Raw response:', response);
@@ -90,13 +94,55 @@ export default function OrganizersPage() {
       console.log('📊 [ORGANIZERS] Type:', typeof response.data, 'IsArray:', Array.isArray(response.data));
 
       // Handle different response structures
-      const organizersData = Array.isArray(response.data)
+      let organizersData = Array.isArray(response.data)
         ? response.data
         : (response.data?.organizers || response.data?.data || []);
 
-      console.log('📊 [ORGANIZERS] Processed:', organizersData.length, 'organizers for tab:', activeTab);
+      console.log('📊 [ORGANIZERS] Before filtering:', organizersData.length, 'items');
       if (organizersData.length > 0) {
-        console.log('📊 [ORGANIZERS] First organizer:', organizersData[0]);
+        console.log('📊 [ORGANIZERS] First item structure:', organizersData[0]);
+      }
+
+      // For non-pending tabs, filter on frontend since backend filter is broken
+      if (activeTab !== 'pending' && organizersData.length > 0) {
+        // get_all_organizers returns objects like {organizer: {...}, total_events: X, ...}
+        // get_pending_organizers returns direct organizer objects
+
+        // Check if we have the wrapped format from get_all_organizers
+        if (organizersData[0]?.organizer) {
+          console.log('📊 [ORGANIZERS] Detected wrapped format, extracting organizers');
+          // Filter by status and extract the organizer objects
+          organizersData = organizersData
+            .filter((item: any) => {
+              const status = item.organizer?.status?.toLowerCase();
+              const match = status === activeTab.toLowerCase();
+              if (!match) {
+                console.log(`📊 [ORGANIZERS] Filtering out organizer with status: ${status}`);
+              }
+              return match;
+            })
+            .map((item: any) => ({
+              ...item.organizer,
+              total_events: item.total_events,
+              total_revenue: item.total_revenue,
+              platform_earnings: item.platform_earnings,
+            }));
+        } else {
+          // Direct organizer objects from pending endpoint
+          organizersData = organizersData.filter((org: any) => {
+            const status = org.status?.toLowerCase();
+            const match = status === activeTab.toLowerCase();
+            if (!match) {
+              console.log(`📊 [ORGANIZERS] Filtering out organizer with status: ${status}`);
+            }
+            return match;
+          });
+        }
+      }
+
+      console.log('📊 [ORGANIZERS] After filtering:', organizersData.length, 'organizers for tab:', activeTab);
+      if (organizersData.length > 0) {
+        console.log('📊 [ORGANIZERS] First organizer after processing:', organizersData[0]);
       }
       setOrganizers(organizersData);
     } catch (err: any) {
