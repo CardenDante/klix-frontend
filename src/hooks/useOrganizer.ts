@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { organizersApi, OrganizerProfile } from '@/lib/api/organizers'
+import { UserRole } from '@/lib/types'
 
 export const useOrganizer = () => {
   const { user, isAuthenticated } = useAuth()
@@ -19,8 +20,15 @@ export const useOrganizer = () => {
         return
       }
 
-      // Only fetch if user is organizer, event_staff, or admin
-      if (!['organizer', 'event_staff', 'admin'].includes(user?.role || '')) {
+      // Skip fetching for admin users (they don't have organizer profiles)
+      if (user?.role === UserRole.ADMIN) {
+        setOrganizerProfile(null)
+        setLoading(false)
+        return
+      }
+
+      // Only fetch if user is organizer or event_staff
+      if (![UserRole.ORGANIZER, UserRole.EVENT_STAFF].includes(user?.role as UserRole)) {
         setLoading(false)
         return
       }

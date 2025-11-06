@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from './useAuth';
+import { UserRole } from '@/lib/types';
 import apiClient from '@/lib/api-client';
 
 interface PromoterProfile {
@@ -28,11 +29,19 @@ export function usePromoter() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchPromoterProfile();
-    } else {
+    if (!isAuthenticated || !user) {
       setLoading(false);
+      return;
     }
+
+    // Skip fetching for admin users (they don't have promoter profiles)
+    if (user.role === UserRole.ADMIN) {
+      setPromoterProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    fetchPromoterProfile();
   }, [isAuthenticated, user]);
 
   const fetchPromoterProfile = async () => {
