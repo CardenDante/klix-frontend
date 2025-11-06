@@ -85,12 +85,25 @@ export default function OrganizersPage() {
         response = await api.admin.organizers.list({ status: activeTab.toUpperCase() });
       }
 
-      console.log('📊 [ORGANIZERS] Fetched:', response.data.length, 'organizers for tab:', activeTab);
-      console.log('📊 [ORGANIZERS] Data:', response.data);
-      setOrganizers(response.data);
+      console.log('📊 [ORGANIZERS] Raw response:', response);
+      console.log('📊 [ORGANIZERS] Response.data:', response.data);
+      console.log('📊 [ORGANIZERS] Type:', typeof response.data, 'IsArray:', Array.isArray(response.data));
+
+      // Handle different response structures
+      const organizersData = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.organizers || response.data?.data || []);
+
+      console.log('📊 [ORGANIZERS] Processed:', organizersData.length, 'organizers for tab:', activeTab);
+      if (organizersData.length > 0) {
+        console.log('📊 [ORGANIZERS] First organizer:', organizersData[0]);
+      }
+      setOrganizers(organizersData);
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to fetch organizers';
       toast.error(errorMessage);
+      console.error('📊 [ORGANIZERS] Error:', err);
+      setOrganizers([]);
     } finally {
       setLoading(false);
     }

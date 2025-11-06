@@ -86,11 +86,32 @@ export default function UsersPage() {
       }
 
       const response = await api.admin.users.list(params);
-      setUsers(response.data);
-      setTotal(response.data.length); // In production, this should come from backend pagination
+      console.log('👥 [USERS] Raw response:', response);
+      console.log('👥 [USERS] Response.data:', response.data);
+      console.log('👥 [USERS] Type:', typeof response.data, 'IsArray:', Array.isArray(response.data));
+
+      // Handle different response structures
+      const usersData = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.users || response.data?.data || []);
+
+      console.log('👥 [USERS] Processed:', usersData.length, 'users');
+      if (usersData.length > 0) {
+        console.log('👥 [USERS] First user:', usersData[0]);
+        console.log('👥 [USERS] First user name fields:', {
+          first_name: usersData[0].first_name,
+          last_name: usersData[0].last_name,
+          email: usersData[0].email
+        });
+      }
+
+      setUsers(usersData);
+      setTotal(usersData.length); // In production, this should come from backend pagination
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to fetch users';
       toast.error(errorMessage);
+      console.error('👥 [USERS] Error:', err);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
