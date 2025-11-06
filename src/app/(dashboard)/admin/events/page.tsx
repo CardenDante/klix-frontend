@@ -86,10 +86,19 @@ export default function EventsPage() {
       }
 
       const response = await api.events.list(params);
-      setEvents(response.data);
+      console.log('📅 [EVENTS] Response:', response.data);
+
+      // Handle different response formats
+      const eventsData = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.events || response.data?.data || []);
+
+      console.log('📅 [EVENTS] Processed:', eventsData.length, 'events');
+      setEvents(eventsData);
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to fetch events';
       toast.error(errorMessage);
+      setEvents([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

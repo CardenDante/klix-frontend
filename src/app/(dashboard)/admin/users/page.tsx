@@ -236,12 +236,12 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="ORGANIZER">Organizer</SelectItem>
-                  <SelectItem value="PROMOTER">Promoter</SelectItem>
-                  <SelectItem value="EVENT_STAFF">Event Staff</SelectItem>
-                  <SelectItem value="ATTENDEE">Attendee</SelectItem>
-                  <SelectItem value="GUEST">Guest</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="organizer">Organizer</SelectItem>
+                  <SelectItem value="promoter">Promoter</SelectItem>
+                  <SelectItem value="event_staff">Event Staff</SelectItem>
+                  <SelectItem value="attendee">Attendee</SelectItem>
+                  <SelectItem value="guest">Guest</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -301,7 +301,7 @@ export default function UsersPage() {
                         <div className="font-medium">
                           {user.first_name || user.last_name
                             ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-                            : 'No name'}
+                            : user.email.split('@')[0]}
                         </div>
                         <div className="text-sm text-muted-foreground flex items-center gap-1">
                           <Mail className="h-3 w-3" />

@@ -125,45 +125,58 @@ export default function AnalyticsPage() {
   const fetchUserGrowth = async () => {
     try {
       const response = await api.admin.analytics.userGrowth();
-      setUserGrowth(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setUserGrowth(data);
     } catch (err: any) {
       console.error('Failed to fetch user growth:', err);
+      setUserGrowth([]);
     }
   };
 
   const fetchRevenue = async () => {
     try {
       const response = await api.admin.analytics.revenue();
-      setRevenue(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      setRevenue(data);
     } catch (err: any) {
       console.error('Failed to fetch revenue:', err);
+      setRevenue([]);
     }
   };
 
   const fetchTopOrganizers = async () => {
     try {
       const response = await api.admin.analytics.topOrganizers({ limit: 10 });
-      setTopOrganizers(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      console.log('📊 [TOP ORGANIZERS]', data);
+      setTopOrganizers(data);
     } catch (err: any) {
       console.error('Failed to fetch top organizers:', err);
+      setTopOrganizers([]);
     }
   };
 
   const fetchTopEvents = async () => {
     try {
       const response = await api.admin.analytics.topEvents({ limit: 10 });
-      setTopEvents(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      console.log('📊 [TOP EVENTS]', data);
+      setTopEvents(data);
     } catch (err: any) {
       console.error('Failed to fetch top events:', err);
+      setTopEvents([]);
     }
   };
 
   const fetchCategories = async () => {
     try {
       const response = await api.admin.analytics.categories();
-      setCategories(response.data);
+      const data = Array.isArray(response.data) ? response.data : [];
+      console.log('📊 [CATEGORIES]', data);
+      setCategories(data);
     } catch (err: any) {
       console.error('Failed to fetch categories:', err);
+      setCategories([]);
     }
   };
 

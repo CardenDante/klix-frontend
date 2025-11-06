@@ -37,7 +37,7 @@ interface Organizer {
   business_registration_number?: string;
   phone_number?: string;
   email?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  status: 'pending' | 'approved' | 'rejected' | 'suspended';
   created_at: string;
   approved_at?: string;
   rejected_at?: string;
@@ -81,9 +81,12 @@ export default function OrganizersPage() {
       if (activeTab === 'pending') {
         response = await api.admin.organizers.pending();
       } else {
+        // Backend expects UPPERCASE status values
         response = await api.admin.organizers.list({ status: activeTab.toUpperCase() });
       }
 
+      console.log('📊 [ORGANIZERS] Fetched:', response.data.length, 'organizers for tab:', activeTab);
+      console.log('📊 [ORGANIZERS] Data:', response.data);
       setOrganizers(response.data);
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to fetch organizers';
@@ -172,19 +175,19 @@ export default function OrganizersPage() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: any; icon: any }> = {
-      PENDING: { variant: 'default', icon: Clock },
-      APPROVED: { variant: 'default', icon: CheckCircle },
-      REJECTED: { variant: 'destructive', icon: XCircle },
-      SUSPENDED: { variant: 'destructive', icon: Ban },
+      pending: { variant: 'default', icon: Clock },
+      approved: { variant: 'default', icon: CheckCircle },
+      rejected: { variant: 'destructive', icon: XCircle },
+      suspended: { variant: 'destructive', icon: Ban },
     };
 
-    const config = statusConfig[status] || statusConfig.PENDING;
+    const config = statusConfig[status.toLowerCase()] || statusConfig.pending;
     const Icon = config.icon;
 
     return (
       <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
         <Icon className="h-3 w-3" />
-        {status}
+        {status.toUpperCase()}
       </Badge>
     );
   };
