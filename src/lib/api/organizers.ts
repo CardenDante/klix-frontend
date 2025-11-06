@@ -54,17 +54,28 @@ export interface MpesaCredentials {
 // Use apiClient directly for organizer-specific endpoints
 export const organizersApi = {
   // Profile
-  apply: (data: Partial<OrganizerProfile>) => 
+  apply: (data: Partial<OrganizerProfile>) =>
     apiClient.post('/api/v1/organizers/apply', data),
-  
-  getMyProfile: () => 
+
+  getMyProfile: () =>
     apiClient.get('/api/v1/organizers/me'),
-  
-  updateProfile: (data: Partial<OrganizerProfile>) => 
+
+  updateProfile: (data: Partial<OrganizerProfile>) =>
     apiClient.patch('/api/v1/organizers/me', data),
-  
-  getById: (organizerId: string) => 
+
+  getById: (organizerId: string) =>
     apiClient.get(`/api/v1/organizers/${organizerId}`),
+
+  // Logo Upload
+  uploadLogo: (file: File, entityId: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_type', 'organizer_logo');
+    formData.append('entity_id', entityId);
+    return apiClient.post('/api/v1/uploads/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 
   // M-Pesa Credentials
   addMpesaCredentials: (data: MpesaCredentials) =>

@@ -126,49 +126,33 @@ export default function ApplyOrganizerPage() {
 
     try {
       setUploadingLogo(true)
-      
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      formDataUpload.append('upload_type', 'organizer_logo')
-      formDataUpload.append('entity_id', user?.id || '')
 
-      const token = localStorage.getItem('access_token')
-      
-      const response = await fetch('/api/v1/uploads/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formDataUpload
-      })
+      // Use centralized API client for uploads
+      const response = await organizersApi.uploadLogo(file, user?.id || '')
 
-      // Get the response body for better error messages
-      const responseData = await response.json().catch(() => null)
+      // Extract file URL from response
+      const fileUrl = response.data?.data?.file_url || response.data?.url
 
-      if (!response.ok) {
-        // Show specific error from server if available
-        const errorMessage = responseData?.detail || responseData?.message || `Upload failed with status ${response.status}`
-        throw new Error(errorMessage)
-      }
-
-      if (!responseData?.url) {
+      if (!fileUrl) {
         throw new Error('Upload succeeded but no URL returned')
       }
 
-      setFormData(prev => ({ ...prev, logo_url: responseData.url }))
+      setFormData(prev => ({ ...prev, logo_url: fileUrl }))
       toast.success('Logo uploaded successfully!')
     } catch (error: any) {
       console.error('Upload error:', error)
-      
+
       // Show user-friendly error messages
-      if (error.message.includes('404')) {
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message
+
+      if (error.response?.status === 404) {
         toast.error('Upload endpoint not found. Please contact support.')
-      } else if (error.message.includes('401') || error.message.includes('403')) {
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Authentication error. Please log in again.')
-      } else if (error.message.includes('413')) {
+      } else if (error.response?.status === 413) {
         toast.error('File too large. Please use a smaller image.')
       } else {
-        toast.error(error.message || 'Failed to upload logo')
+        toast.error(errorMessage || 'Failed to upload logo')
       }
     } finally {
       setUploadingLogo(false)
