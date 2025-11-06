@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Building2, Save, CreditCard, Bell, Link as LinkIcon,
-  CheckCircle, AlertCircle, Image as ImageIcon, Mail
+  CheckCircle, AlertCircle, Image as ImageIcon, Mail, Upload
 } from 'lucide-react';
 
 interface OrganizerProfile {
@@ -48,13 +48,16 @@ export default function OrganizerSettingsPage() {
     sms_event_updates: false
   });
 
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
     try {
-      const response = await apiClient.get('/organizers/me');
+      const response = await api.organizer.profile();
       const data = response.data;
       setProfile(data);
       setFormData({
@@ -71,6 +74,50 @@ export default function OrganizerSettingsPage() {
     }
   };
 
+  const handleLogoUpload = async (file: File) => {
+    if (!profile) return;
+
+    setUploadingLogo(true);
+    setError('');
+
+    try {
+      const response = await api.uploads.upload(file, 'organizer_logo', profile.id);
+      const fileUrl = response.data.data.file_url;
+
+      // Update profile with new logo URL
+      await api.organizer.updateProfile({ logo_url: fileUrl });
+
+      setFormData({ ...formData, logo_url: fileUrl });
+      setSuccess('Logo uploaded successfully!');
+      await fetchProfile();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+      setLogoFile(null);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Logo must be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        setError('Logo must be JPEG, PNG, or WebP format');
+        return;
+      }
+
+      setLogoFile(file);
+      handleLogoUpload(file);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -78,7 +125,7 @@ export default function OrganizerSettingsPage() {
     setSuccess('');
 
     try {
-      const response = await apiClient.patch('/organizers/me', formData);
+      const response = await api.organizer.updateProfile(formData);
       setProfile(response.data);
       setSuccess('Profile updated successfully!');
     } catch (err: any) {
@@ -205,46 +252,69 @@ export default function OrganizerSettingsPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-                  <LinkIcon className="w-4 h-4" />
-                  Website URL
-                </label>
-                <Input
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://yourwebsite.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-                  <ImageIcon className="w-4 h-4" />
-                  Logo URL
-                </label>
-                <Input
-                  type="url"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                  placeholder="https://example.com/logo.png"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                <LinkIcon className="w-4 h-4" />
+                Website URL
+              </label>
+              <Input
+                type="url"
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                placeholder="https://yourwebsite.com"
+              />
             </div>
 
-            {formData.logo_url && (
-              <div className="border rounded-lg p-4">
-                <p className="text-sm font-medium mb-2">Logo Preview:</p>
-                <img 
-                  src={formData.logo_url} 
-                  alt="Business Logo" 
-                  className="h-20 w-20 object-contain rounded"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
+            <div>
+              <label className="block text-sm font-medium mb-3 flex items-center gap-1">
+                <ImageIcon className="w-4 h-4" />
+                Business Logo
+              </label>
+
+              {formData.logo_url && (
+                <div className="mb-4 border rounded-lg p-4 flex items-center gap-4">
+                  <img
+                    src={formData.logo_url}
+                    alt="Business Logo"
+                    className="h-20 w-20 object-contain rounded border"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Current Logo</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Upload a new logo to replace it
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-[#EB7D30] transition">
+                <input
+                  type="file"
+                  id="logo-upload"
+                  className="hidden"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  disabled={uploadingLogo}
                 />
+                <label
+                  htmlFor="logo-upload"
+                  className="cursor-pointer flex flex-col items-center"
+                >
+                  <div className="w-12 h-12 bg-[#EB7D30] bg-opacity-10 rounded-full flex items-center justify-center mb-3">
+                    <Upload className="w-6 h-6 text-[#EB7D30]" />
+                  </div>
+                  <p className="font-medium mb-1">
+                    {uploadingLogo ? 'Uploading...' : 'Click to upload logo'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    JPEG, PNG or WebP (Max. 5MB, 400x400px recommended)
+                  </p>
+                </label>
               </div>
-            )}
+            </div>
 
             <div className="pt-4 border-t">
               <Button type="submit" disabled={saving}>

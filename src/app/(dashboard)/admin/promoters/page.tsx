@@ -3,799 +3,600 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { AxiosError } from 'axios';
-
-// ==================== TYPES ====================
-
-interface SocialMediaLinks {
-  instagram?: string;
-  twitter?: string;
-  facebook?: string;
-  tiktok?: string;
-  youtube?: string;
-  linkedin?: string;
-}
-
-interface PromoterApplication {
-  id: string;
-  user_id: string;
-  user_email?: string;
-  user_name?: string;
-  business_name: string;
-  phone_number?: string;
-  social_media_links?: SocialMediaLinks;
-  audience_size?: string;
-  experience_description?: string;
-  why_join?: string;
-  sample_content?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  rejection_reason?: string;
-  created_at: string;
-  approved_at?: string;
-  rejected_at?: string;
-  updated_at: string;
-}
-
-interface ActivePromoter {
-  id: string;
-  user_id: string;
-  user_email?: string;
-  user_name?: string;
-  business_name: string;
-  phone_number?: string;
-  total_tickets_sold: number;
-  total_codes: number;
-  active_codes: number;
-  total_commission_earned: number;
-  total_commission_paid: number;
-  total_commission_pending: number;
-  total_revenue_generated: number;
-  created_at: string;
-  last_sale_at?: string;
-}
-
-interface PromoterStats {
-  total_promoters: number;
-  pending_applications: number;
-  active_promoters: number;
-  total_commission_paid: number;
-  total_commission_pending: number;
-  total_tickets_sold: number;
-  total_revenue_generated: number;
-  average_commission_per_promoter: number;
-}
+import { PromoterStatus, PromoterProfile } from '@/lib/types';
+import { Loader2, Search, CheckCircle, XCircle, AlertTriangle, User } from 'lucide-react';
+import { toast } from 'sonner';
 
 // ==================== COMPONENT ====================
 
 export default function AdminPromotersPage() {
   // State management
-  const [stats, setStats] = useState<PromoterStats | null>(null);
-  const [applications, setApplications] = useState<PromoterApplication[]>([]);
-  const [activePromoters, setActivePromoters] = useState<ActivePromoter[]>([]);
+  const [promoters, setPromoters] = useState<PromoterProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Filter and modal states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'active'>('pending');
-  const [selectedApplication, setSelectedApplication] = useState<PromoterApplication | null>(null);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<PromoterStatus | ''>('');
+
+  // Modal state
+  const [selectedPromoter, setSelectedPromoter] = useState<PromoterProfile | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'suspend' | 'view' | null>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [actionNotes, setActionNotes] = useState('');
 
   // ==================== DATA FETCHING ====================
 
-  const fetchData = useCallback(async () => {
+  const fetchPromoters = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('Fetching promoter data...');
+      console.log('🔍 Fetching promoters...');
+      const response = await api.admin.promoters.pending({});
 
-      const [statsRes, applicationsRes, promotersRes] = await Promise.allSettled([
-        api.admin.promoters.stats(),
-        api.admin.promoters.applications(),
-        api.admin.promoters.active(),
-      ]);
+      console.log('📦 Full response:', response);
+      console.log('📊 Response data:', response.data);
 
-      // Handle stats
-      if (statsRes.status === 'fulfilled') {
-        setStats(statsRes.value.data);
+      // Extract promoters array
+      let promotersList: PromoterProfile[] = [];
+      if (Array.isArray(response.data)) {
+        promotersList = response.data;
+      } else if (response.data?.promoters && Array.isArray(response.data.promoters)) {
+        promotersList = response.data.promoters;
+      } else if (response.data?.items && Array.isArray(response.data.items)) {
+        promotersList = response.data.items;
       }
 
-      // Handle applications
-      if (applicationsRes.status === 'fulfilled') {
-        const responseData = applicationsRes.value.data;
-        if (Array.isArray(responseData)) {
-          setApplications(responseData);
-        } else if (responseData.applications && Array.isArray(responseData.applications)) {
-          setApplications(responseData.applications);
-        } else {
-          setApplications([]);
-        }
-      }
+      console.log('✅ Extracted promoters:', promotersList.length);
+      setPromoters(promotersList);
 
-      // Handle active promoters
-      if (promotersRes.status === 'fulfilled') {
-        const responseData = promotersRes.value.data;
-        if (Array.isArray(responseData)) {
-          setActivePromoters(responseData);
-        } else if (responseData.promoters && Array.isArray(responseData.promoters)) {
-          setActivePromoters(responseData.promoters);
-        } else {
-          setActivePromoters([]);
-        }
+      if (promotersList.length === 0) {
+        console.warn('⚠️ No promoters found in response');
       }
-
     } catch (err) {
       const axiosError = err as AxiosError<any>;
-      
-      console.error('Promoters fetch error:', err);
-      
-      let errorMessage = 'Failed to load promoter data';
-      
-      if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        errorMessage = 'Network error: Unable to connect to the server.';
+
+      console.error('❌ Promoters fetch error:', err);
+      console.error('❌ Error response:', axiosError.response);
+
+      let errorMessage = 'Failed to load promoters';
+
+      if (axiosError.response?.status === 404) {
+        errorMessage = 'Promoters endpoint not found (404). Check your backend is running.';
+      } else if (axiosError.response?.status === 403) {
+        errorMessage = 'Access denied. You may not have admin permissions.';
+      } else if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
+        errorMessage = 'Network error: Unable to connect to the server. Check if backend is running.';
       } else if (axiosError.response) {
-        errorMessage = 
-          axiosError.response?.data?.detail || 
-          axiosError.response?.data?.message || 
+        errorMessage =
+          axiosError.response?.data?.detail ||
+          axiosError.response?.data?.message ||
           `Server error: ${axiosError.response.status}`;
+      } else if (axiosError.request) {
+        errorMessage = 'No response from server. Check your network connection.';
+      } else {
+        errorMessage = axiosError.message || 'Unknown error occurred';
       }
-      
+
       setError(errorMessage);
+      toast.error(errorMessage);
+      setPromoters([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchPromoters();
+  }, [fetchPromoters]);
 
   // ==================== ACTION HANDLERS ====================
 
-  const handleApprove = async (applicationId: string, businessName: string) => {
-    if (!confirm(`Approve promoter application for ${businessName}?`)) return;
+  const openModal = (
+    promoter: PromoterProfile,
+    type: 'approve' | 'reject' | 'suspend' | 'view'
+  ) => {
+    setSelectedPromoter(promoter);
+    setActionType(type);
+    setActionReason('');
+    setActionNotes('');
+  };
+
+  const closeModal = () => {
+    setSelectedPromoter(null);
+    setActionType(null);
+    setActionReason('');
+    setActionNotes('');
+  };
+
+  const handleApprove = async () => {
+    if (!selectedPromoter) return;
 
     try {
-      setActionLoading(applicationId);
-      await api.admin.promoters.approve(applicationId);
-      setSuccess(`${businessName} has been approved as a promoter!`);
-      setSelectedApplication(null);
-      await fetchData();
+      setActionLoading(selectedPromoter.id);
+      await api.admin.promoters.approve(selectedPromoter.id, {
+        notes: actionNotes || undefined
+      });
+
+      setSuccess(`${selectedPromoter.display_name} approved successfully`);
+      toast.success(`${selectedPromoter.display_name} approved as promoter`);
+
+      await fetchPromoters();
+      closeModal();
     } catch (err) {
       const axiosError = err as AxiosError<any>;
-      setError(
-        axiosError.response?.data?.detail || 
-        axiosError.response?.data?.message || 
-        'Failed to approve application'
-      );
+      const errorMessage =
+        axiosError.response?.data?.detail ||
+        axiosError.response?.data?.message ||
+        'Failed to approve promoter';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleReject = async () => {
-    if (!selectedApplication || !rejectionReason.trim()) {
-      setError('Please provide a reason for rejection');
-      return;
-    }
+    if (!selectedPromoter) return;
 
-    if (rejectionReason.length < 10) {
-      setError('Rejection reason must be at least 10 characters');
+    if (!actionReason || actionReason.length < 10) {
+      toast.error('Rejection reason must be at least 10 characters');
       return;
     }
 
     try {
-      setActionLoading(selectedApplication.id);
-      await api.admin.promoters.reject(selectedApplication.id, {
-        reason: rejectionReason
+      setActionLoading(selectedPromoter.id);
+      await api.admin.promoters.reject(selectedPromoter.id, {
+        reason: actionReason
       });
-      setSuccess(`Application for ${selectedApplication.business_name} has been rejected`);
-      setShowRejectModal(false);
-      setSelectedApplication(null);
-      setRejectionReason('');
-      await fetchData();
+
+      setSuccess(`${selectedPromoter.display_name} rejected`);
+      toast.success(`${selectedPromoter.display_name} rejected`);
+
+      await fetchPromoters();
+      closeModal();
     } catch (err) {
       const axiosError = err as AxiosError<any>;
-      setError(
-        axiosError.response?.data?.detail || 
-        axiosError.response?.data?.message || 
-        'Failed to reject application'
-      );
+      const errorMessage =
+        axiosError.response?.data?.detail ||
+        axiosError.response?.data?.message ||
+        'Failed to reject promoter';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleDeactivate = async (promoterId: string, businessName: string) => {
-    if (!confirm(`Deactivate promoter ${businessName}? They will lose access to create new codes.`)) return;
+  const handleSuspend = async () => {
+    if (!selectedPromoter) return;
+
+    if (!actionReason || actionReason.length < 10) {
+      toast.error('Suspension reason must be at least 10 characters');
+      return;
+    }
 
     try {
-      setActionLoading(promoterId);
-      await api.admin.promoters.deactivate(promoterId);
-      setSuccess(`${businessName} has been deactivated`);
-      await fetchData();
+      setActionLoading(selectedPromoter.id);
+      await api.admin.promoters.suspend(selectedPromoter.id, {
+        reason: actionReason
+      });
+
+      setSuccess(`${selectedPromoter.display_name} suspended`);
+      toast.success(`${selectedPromoter.display_name} suspended`);
+
+      await fetchPromoters();
+      closeModal();
     } catch (err) {
       const axiosError = err as AxiosError<any>;
-      setError(
-        axiosError.response?.data?.detail || 
-        axiosError.response?.data?.message || 
-        'Failed to deactivate promoter'
-      );
+      const errorMessage =
+        axiosError.response?.data?.detail ||
+        axiosError.response?.data?.message ||
+        'Failed to suspend promoter';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const openRejectModal = (application: PromoterApplication) => {
-    setSelectedApplication(application);
-    setShowRejectModal(true);
-    setRejectionReason('');
+  // ==================== UTILITY FUNCTIONS ====================
+
+  const getStatusBadge = (status: PromoterStatus) => {
+    const badges: Record<PromoterStatus, string> = {
+      [PromoterStatus.PENDING]: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      [PromoterStatus.APPROVED]: 'bg-green-100 text-green-800 border-green-300',
+      [PromoterStatus.REJECTED]: 'bg-red-100 text-red-800 border-red-300',
+      [PromoterStatus.SUSPENDED]: 'bg-gray-100 text-gray-800 border-gray-300',
+    };
+
+    return badges[status] || 'bg-gray-100 text-gray-800 border-gray-300';
   };
 
-  const closeRejectModal = () => {
-    setShowRejectModal(false);
-    setRejectionReason('');
+  const formatDate = (dateString: string | undefined | null): string => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error);
+      return 'Invalid Date';
+    }
   };
 
-  // ==================== HELPER FUNCTIONS ====================
-
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const parseSocialLinks = (socialLinksJson: string | undefined): Record<string, string> => {
+    if (!socialLinksJson) return {};
+    try {
+      return JSON.parse(socialLinksJson);
+    } catch {
+      return {};
+    }
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+  // ==================== FILTERING ====================
+
+  const filteredPromoters = promoters.filter(promoter => {
+    // Search filter
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      promoter.display_name?.toLowerCase().includes(searchLower) ||
+      promoter.bio?.toLowerCase().includes(searchLower) ||
+      promoter.experience?.toLowerCase().includes(searchLower);
+
+    // Status filter
+    const matchesStatus = !statusFilter || promoter.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Stats
+  const stats = {
+    total: promoters.length,
+    pending: promoters.filter(p => p.status === PromoterStatus.PENDING).length,
+    approved: promoters.filter(p => p.status === PromoterStatus.APPROVED).length,
+    rejected: promoters.filter(p => p.status === PromoterStatus.REJECTED).length,
+    suspended: promoters.filter(p => p.status === PromoterStatus.SUSPENDED).length,
   };
-
-  const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  // ==================== COMPUTED VALUES ====================
-
-  const filteredApplications = applications.filter(app =>
-    (app.business_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     app.user_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     app.user_name?.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const pendingApplications = filteredApplications.filter(app => app.status === 'pending');
-  const approvedApplications = filteredApplications.filter(app => app.status === 'approved');
-  const rejectedApplications = filteredApplications.filter(app => app.status === 'rejected');
-
-  const filteredActivePromoters = activePromoters.filter(promoter =>
-    (promoter.business_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     promoter.user_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-     promoter.user_name?.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
 
   // ==================== RENDER ====================
-
-  if (loading && !stats) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-            <div className="h-96 bg-gray-200 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Promoter Management</h1>
-            <p className="text-gray-600 mt-1">Manage promoter applications and active promoters</p>
-          </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Promoter Management</h1>
+          <p className="text-gray-600 mt-1">Review and manage promoter applications</p>
         </div>
-
-        {/* Alerts */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-red-800">{error}</p>
-              <button onClick={() => setError(null)} className="ml-auto text-red-600 hover:text-red-800">
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <p className="text-green-800">{success}</p>
-              <button onClick={() => setSuccess(null)} className="ml-auto text-green-600 hover:text-green-800">
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Pending Applications</p>
-                  <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.pending_applications}</p>
-                </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Active Promoters</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">{stats.active_promoters}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Tickets Sold</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">{formatNumber(stats.total_tickets_sold)}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm">Total Commission</p>
-                  <p className="text-3xl font-bold text-purple-600 mt-2">{formatCurrency(stats.total_commission_paid)}</p>
-                  {stats.total_commission_pending > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">+{formatCurrency(stats.total_commission_pending)} pending</p>
-                  )}
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Total Promoters</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
           </div>
-        )}
-
-        {/* Search */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search by business name, email, or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <div className="bg-yellow-50 rounded-lg shadow p-4">
+            <p className="text-sm text-yellow-700">Pending Review</p>
+            <p className="text-2xl font-bold text-yellow-900">{stats.pending}</p>
+          </div>
+          <div className="bg-green-50 rounded-lg shadow p-4">
+            <p className="text-sm text-green-700">Approved</p>
+            <p className="text-2xl font-bold text-green-900">{stats.approved}</p>
+          </div>
+          <div className="bg-red-50 rounded-lg shadow p-4">
+            <p className="text-sm text-red-700">Rejected</p>
+            <p className="text-2xl font-bold text-red-900">{stats.rejected}</p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
-            <nav className="flex gap-6 px-6">
-              {[
-                { id: 'pending', label: 'Pending', count: pendingApplications.length },
-                { id: 'approved', label: 'Approved', count: approvedApplications.length },
-                { id: 'rejected', label: 'Rejected', count: rejectedApplications.length },
-                { id: 'active', label: 'Active Promoters', count: activePromoters.length },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.label} ({tab.count})
-                </button>
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, bio, or experience..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as PromoterStatus | '')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Status</option>
+              {Object.values(PromoterStatus).map(status => (
+                <option key={status} value={status}>{status.toUpperCase()}</option>
               ))}
-            </nav>
-          </div>
-
-          <div className="p-6">
-            {/* Pending Applications Tab */}
-            {activeTab === 'pending' && (
-              <div className="space-y-4">
-                {pendingApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-gray-600">No pending applications</p>
-                  </div>
-                ) : (
-                  pendingApplications.map((app) => (
-                    <div key={app.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold text-lg">{app.business_name || 'Unknown Business'}</h3>
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                              Pending Review
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                            {app.user_email && (
-                              <span className="flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                </svg>
-                                {app.user_email}
-                              </span>
-                            )}
-                            {app.phone_number && (
-                              <span>📱 {app.phone_number}</span>
-                            )}
-                            {app.audience_size && (
-                              <span>👥 {app.audience_size} audience</span>
-                            )}
-                            <span>📅 Applied {formatDate(app.created_at)}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setSelectedApplication(app)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            onClick={() => handleApprove(app.id, app.business_name)}
-                            disabled={actionLoading === app.id}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => openRejectModal(app)}
-                            disabled={actionLoading === app.id}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-
-                      {app.experience_description && (
-                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-sm text-gray-700 line-clamp-3">{app.experience_description}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Approved Applications Tab */}
-            {activeTab === 'approved' && (
-              <div className="space-y-4">
-                {approvedApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-gray-600">No approved applications</p>
-                  </div>
-                ) : (
-                  approvedApplications.map((app) => (
-                    <div key={app.id} className="border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg mb-2">{app.business_name}</h3>
-                          <p className="text-sm text-gray-600">{app.user_email}</p>
-                          {app.approved_at && (
-                            <p className="text-xs text-gray-500 mt-1">Approved on {formatDate(app.approved_at)}</p>
-                          )}
-                        </div>
-                        <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
-                          Approved
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Rejected Applications Tab */}
-            {activeTab === 'rejected' && (
-              <div className="space-y-4">
-                {rejectedApplications.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-gray-600">No rejected applications</p>
-                  </div>
-                ) : (
-                  rejectedApplications.map((app) => (
-                    <div key={app.id} className="border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-lg mb-2">{app.business_name}</h3>
-                          <p className="text-sm text-gray-600">{app.user_email}</p>
-                          {app.rejected_at && (
-                            <p className="text-xs text-gray-500 mt-1">Rejected on {formatDate(app.rejected_at)}</p>
-                          )}
-                        </div>
-                        <span className="px-3 py-1 text-sm font-medium rounded-full bg-red-100 text-red-800">
-                          Rejected
-                        </span>
-                      </div>
-                      {app.rejection_reason && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-sm font-medium text-red-900">Rejection Reason:</p>
-                          <p className="text-sm text-red-700 mt-1">{app.rejection_reason}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Active Promoters Tab */}
-            {activeTab === 'active' && (
-              <div className="grid md:grid-cols-2 gap-4">
-                {filteredActivePromoters.length === 0 ? (
-                  <div className="col-span-2 text-center py-12">
-                    <p className="text-gray-600">No active promoters</p>
-                  </div>
-                ) : (
-                  filteredActivePromoters.map((promoter) => (
-                    <div key={promoter.id} className="border border-gray-200 rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="font-bold text-lg">{promoter.business_name || 'Unknown Business'}</h3>
-                          <p className="text-sm text-gray-600">{promoter.user_email}</p>
-                          {promoter.last_sale_at && (
-                            <p className="text-xs text-gray-500 mt-1">Last sale: {formatDate(promoter.last_sale_at)}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleDeactivate(promoter.id, promoter.business_name)}
-                          disabled={actionLoading === promoter.id}
-                          className="px-3 py-1.5 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
-                        >
-                          Deactivate
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-blue-600">{promoter.total_tickets_sold || 0}</p>
-                          <p className="text-xs text-gray-600">Tickets Sold</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-green-600">{promoter.active_codes || 0}</p>
-                          <p className="text-xs text-gray-600">Active Codes</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-purple-600">{formatCurrency(promoter.total_commission_earned || 0)}</p>
-                          <p className="text-xs text-gray-600">Commission</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            </select>
           </div>
         </div>
 
-        {/* View Application Modal */}
-        {selectedApplication && !showRejectModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900">Application Details</h3>
-              </div>
-
-              <div className="p-6 space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">Business Name</label>
-                    <p className="mt-1">{selectedApplication.business_name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">Email</label>
-                    <p className="mt-1">{selectedApplication.user_email}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">Phone</label>
-                    <p className="mt-1">{selectedApplication.phone_number || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700">Audience Size</label>
-                    <p className="mt-1">{selectedApplication.audience_size || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {selectedApplication.social_media_links && Object.keys(selectedApplication.social_media_links).length > 0 && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Social Media</label>
-                    <div className="space-y-2">
-                      {Object.entries(selectedApplication.social_media_links).map(([platform, url]) => 
-                        url && (
-                          <div key={platform} className="flex items-center gap-2">
-                            <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 capitalize">{platform}</span>
-                            <a href={url as string} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate">
-                              {url as string}
-                            </a>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {selectedApplication.experience_description && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Experience</label>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedApplication.experience_description}</p>
-                  </div>
-                )}
-
-                {selectedApplication.why_join && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Why Join</label>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedApplication.why_join}</p>
-                  </div>
-                )}
-
-                {selectedApplication.sample_content && (
-                  <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Sample Content</label>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedApplication.sample_content}</p>
-                  </div>
-                )}
-
-                {selectedApplication.status === 'pending' && (
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      onClick={() => handleApprove(selectedApplication.id, selectedApplication.business_name)}
-                      disabled={actionLoading === selectedApplication.id}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Approve Application
-                    </button>
-                    <button
-                      onClick={() => openRejectModal(selectedApplication)}
-                      disabled={actionLoading === selectedApplication.id}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Reject Application
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setSelectedApplication(null)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-green-800">{success}</p>
+            <button onClick={() => setSuccess(null)} className="text-green-600 hover:text-green-800">
+              ✕
+            </button>
           </div>
         )}
 
-        {/* Reject Modal */}
-        {showRejectModal && selectedApplication && (
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+            <p className="text-red-800">{error}</p>
+            <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Promoters List */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {loading ? (
+            <div className="p-12 text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading promoters...</p>
+            </div>
+          ) : filteredPromoters.length === 0 ? (
+            <div className="p-12 text-center">
+              <AlertTriangle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">
+                {promoters.length === 0 ? 'No promoters found' : 'No promoters match your filters'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredPromoters.map((promoter) => {
+                const socialLinks = parseSocialLinks(promoter.social_links);
+
+                return (
+                  <div key={promoter.id} className="p-6 hover:bg-gray-50 transition">
+                    <div className="flex items-start gap-4">
+                      {/* Avatar */}
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-2xl font-bold">
+                          {promoter.display_name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h4 className="font-semibold text-gray-900 text-lg">
+                            {promoter.display_name}
+                          </h4>
+
+                          {/* Status Badge */}
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusBadge(promoter.status)}`}>
+                            {promoter.status.toUpperCase()}
+                          </span>
+                        </div>
+
+                        {/* Bio */}
+                        {promoter.bio && (
+                          <p className="text-sm text-gray-600 mb-3">{promoter.bio}</p>
+                        )}
+
+                        {/* Experience */}
+                        {promoter.experience && (
+                          <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs font-medium text-gray-700 mb-1">Experience:</p>
+                            <p className="text-sm text-gray-600">{promoter.experience}</p>
+                          </div>
+                        )}
+
+                        {/* Social Links */}
+                        {Object.keys(socialLinks).length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {Object.entries(socialLinks).map(([platform, url]) => (
+                              <a
+                                key={platform}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition"
+                              >
+                                {platform}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Rejection Reason */}
+                        {promoter.rejection_reason && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-sm font-medium text-red-900">Rejection Reason:</p>
+                            <p className="text-sm text-red-700 mt-1">{promoter.rejection_reason}</p>
+                          </div>
+                        )}
+
+                        {/* Dates */}
+                        <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                          <span>Applied: {formatDate(promoter.created_at)}</span>
+                          {promoter.approved_at && (
+                            <span>✓ Approved: {formatDate(promoter.approved_at)}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex-shrink-0 flex flex-col gap-2">
+                        <button
+                          onClick={() => openModal(promoter, 'view')}
+                          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 whitespace-nowrap"
+                        >
+                          <User className="w-4 h-4" />
+                          View Details
+                        </button>
+
+                        {promoter.status === PromoterStatus.PENDING && (
+                          <>
+                            <button
+                              onClick={() => openModal(promoter, 'approve')}
+                              disabled={actionLoading === promoter.id}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => openModal(promoter, 'reject')}
+                              disabled={actionLoading === promoter.id}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {promoter.status === PromoterStatus.APPROVED && (
+                          <button
+                            onClick={() => openModal(promoter, 'suspend')}
+                            disabled={actionLoading === promoter.id}
+                            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                          >
+                            <AlertTriangle className="w-4 h-4" />
+                            Suspend
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Action Modal */}
+        {selectedPromoter && actionType && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900">Reject Application</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Provide a reason for rejecting {selectedApplication.business_name}'s application
-                </p>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {actionType === 'approve' && 'Approve Promoter'}
+                  {actionType === 'reject' && 'Reject Promoter'}
+                  {actionType === 'suspend' && 'Suspend Promoter'}
+                  {actionType === 'view' && 'Promoter Details'}
+                </h3>
               </div>
 
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rejection Reason <span className="text-red-600">*</span>
-                  </label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="e.g., Insufficient social media presence, audience size too small, etc."
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {rejectionReason.length}/10 characters minimum
-                  </p>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Display Name:</p>
+                  <p className="font-semibold">{selectedPromoter.display_name}</p>
+
+                  {selectedPromoter.bio && (
+                    <>
+                      <p className="text-sm text-gray-600 mt-3">Bio:</p>
+                      <p className="text-sm">{selectedPromoter.bio}</p>
+                    </>
+                  )}
+
+                  {selectedPromoter.experience && (
+                    <>
+                      <p className="text-sm text-gray-600 mt-3">Experience:</p>
+                      <p className="text-sm whitespace-pre-wrap">{selectedPromoter.experience}</p>
+                    </>
+                  )}
+
+                  {selectedPromoter.social_links && (
+                    <>
+                      <p className="text-sm text-gray-600 mt-3">Social Links:</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {Object.entries(parseSocialLinks(selectedPromoter.social_links)).map(([platform, url]) => (
+                          <a
+                            key={platform}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                          >
+                            {platform}: {url}
+                          </a>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="flex gap-3">
+                {actionType === 'approve' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Admin Notes (Optional)
+                    </label>
+                    <textarea
+                      value={actionNotes}
+                      onChange={(e) => setActionNotes(e.target.value)}
+                      placeholder="Internal notes about this approval..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                {(actionType === 'reject' || actionType === 'suspend') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason <span className="text-red-600">*</span>
+                    </label>
+                    <textarea
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      placeholder={`Enter ${actionType} reason (minimum 10 characters)...`}
+                      rows={4}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {actionReason.length}/10 characters minimum
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-4">
+                  {actionType !== 'view' && (
+                    <button
+                      onClick={() => {
+                        if (actionType === 'approve') handleApprove();
+                        if (actionType === 'reject') handleReject();
+                        if (actionType === 'suspend') handleSuspend();
+                      }}
+                      disabled={actionLoading === selectedPromoter.id}
+                      className={`flex-1 px-4 py-2 rounded-lg text-white font-medium transition disabled:opacity-50 ${
+                        actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                      }`}
+                    >
+                      {actionLoading === selectedPromoter.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </span>
+                      ) : (
+                        `Confirm ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}`
+                      )}
+                    </button>
+                  )}
                   <button
-                    onClick={closeRejectModal}
-                    disabled={actionLoading === selectedApplication.id}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                    onClick={closeModal}
+                    disabled={actionLoading === selectedPromoter.id}
+                    className={`${actionType === 'view' ? 'flex-1' : ''} px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50`}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    disabled={actionLoading === selectedApplication.id || rejectionReason.length < 10}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
-                  >
-                    {actionLoading === selectedApplication.id ? 'Rejecting...' : 'Confirm Rejection'}
+                    {actionType === 'view' ? 'Close' : 'Cancel'}
                   </button>
                 </div>
               </div>
@@ -805,8 +606,4 @@ export default function AdminPromotersPage() {
       </div>
     </div>
   );
-}
-
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat('en-US').format(num);
 }

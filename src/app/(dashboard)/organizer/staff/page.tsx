@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Users, Plus, UserCheck, UserX, Mail, Calendar, 
-  CheckCircle, XCircle, Shield 
+import {
+  Users, Plus, UserCheck, UserX, Mail, Calendar,
+  CheckCircle, XCircle, Shield
 } from 'lucide-react';
 
 interface Event {
@@ -61,9 +61,7 @@ export default function StaffManagementPage() {
 
   const fetchEvents = async () => {
     try {
-      const response = await apiClient.get('/events/my-events', {
-        params: { page_size: 100 }
-      });
+      const response = await api.events.myEvents({ page_size: 100 });
       const eventList = response.data.data;
       setEvents(eventList);
       if (eventList.length > 0) {
@@ -78,9 +76,7 @@ export default function StaffManagementPage() {
 
   const fetchEventStaff = async (eventId: string) => {
     try {
-      const response = await apiClient.get(`/staff/events/${eventId}/staff`, {
-        params: { include_inactive: true }
-      });
+      const response = await api.staff.list(eventId, true);
       setStaff(response.data.staff || []);
     } catch (err) {
       console.error('Failed to load staff:', err);
@@ -99,11 +95,11 @@ export default function StaffManagementPage() {
     }
 
     try {
-      await apiClient.post(`/staff/events/${selectedEventId}/staff`, {
+      await api.staff.add(selectedEventId, {
         email: formData.email,
         role: formData.role
       });
-      
+
       setSuccess('Staff member added successfully!');
       setFormData({ email: '', role: 'Staff' });
       setShowAddForm(false);
@@ -119,7 +115,7 @@ export default function StaffManagementPage() {
     }
 
     try {
-      await apiClient.delete(`/staff/events/${selectedEventId}/staff/${staffId}`);
+      await api.staff.remove(selectedEventId, staffId);
       setSuccess('Staff member removed successfully');
       fetchEventStaff(selectedEventId);
     } catch (err: any) {
@@ -129,7 +125,7 @@ export default function StaffManagementPage() {
 
   const handleToggleStatus = async (staffId: string, currentStatus: boolean) => {
     try {
-      await apiClient.patch(`/staff/events/${selectedEventId}/staff/${staffId}`, {
+      await api.staff.update(selectedEventId, staffId, {
         is_active: !currentStatus
       });
       setSuccess(`Staff member ${currentStatus ? 'deactivated' : 'activated'} successfully`);

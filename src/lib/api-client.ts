@@ -245,7 +245,7 @@ export const api = {
     },
 
     promoters: {
-      // NEW: Promoter approval workflow
+      // Promoter approval workflow
       pending: (params?: any) => apiClient.get('/api/v1/admin/promoters/pending', { params }),
       approve: (promoterId: string, data?: { notes?: string }) =>
         apiClient.post(`/api/v1/admin/promoters/${promoterId}/approve`, data || {}),
@@ -253,15 +253,14 @@ export const api = {
         apiClient.post(`/api/v1/admin/promoters/${promoterId}/reject`, data),
       suspend: (promoterId: string, data: { reason: string; duration_days?: number }) =>
         apiClient.post(`/api/v1/admin/promoters/${promoterId}/suspend`, data),
-
-      // Legacy endpoints (keeping for backwards compatibility)
-      stats: () => apiClient.get('/api/v1/admin/promoters/stats'),
-      applications: () => apiClient.get('/api/v1/admin/promoters/applications'),
-      active: () => apiClient.get('/api/v1/admin/promoters/active'),
     },
   },
 
   organizer: {
+    // Organizer Profile
+    profile: () => apiClient.get('/api/v1/organizers/me'),
+    updateProfile: (data: any) => apiClient.patch('/api/v1/organizers/me', data),
+
     // Promoter Request Management (Organizer side)
     promoterRequests: {
       list: (eventId?: string) =>
@@ -279,6 +278,35 @@ export const api = {
       approvedPromoters: (eventId: string) =>
         apiClient.get(`/api/v1/promoter-requests/organizers/events/${eventId}/approved-promoters`),
     },
+  },
+
+  staff: {
+    list: (eventId: string, includeInactive?: boolean) =>
+      apiClient.get(`/api/v1/staff/events/${eventId}/staff`, { params: { include_inactive: includeInactive } }),
+    add: (eventId: string, data: { email: string; role: string }) =>
+      apiClient.post(`/api/v1/staff/events/${eventId}/staff`, data),
+    update: (eventId: string, staffId: string, data: any) =>
+      apiClient.patch(`/api/v1/staff/events/${eventId}/staff/${staffId}`, data),
+    remove: (eventId: string, staffId: string) =>
+      apiClient.delete(`/api/v1/staff/events/${eventId}/staff/${staffId}`),
+  },
+
+  uploads: {
+    upload: (file: File, uploadType: string, entityId: string) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_type', uploadType);
+      formData.append('entity_id', entityId);
+      return apiClient.post('/api/v1/uploads/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    getFile: (fileId: string) => apiClient.get(`/api/v1/uploads/files/${fileId}`),
+    getEntityFiles: (entityId: string, uploadType?: string) =>
+      apiClient.get(`/api/v1/uploads/entity/${entityId}/files`, { params: { upload_type: uploadType } }),
+    deleteFile: (fileId: string) => apiClient.delete(`/api/v1/uploads/files/${fileId}`),
+    myUploads: (uploadType?: string, limit?: number) =>
+      apiClient.get('/api/v1/uploads/my-uploads', { params: { upload_type: uploadType, limit } }),
   },
 };
 
