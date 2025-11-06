@@ -15,10 +15,10 @@ function SidebarPanel({ menuItems, user, logout, onClose, isMobile = false }: an
   const pathname = usePathname();
   const getRoleLabel = () => {
     switch (user?.role) {
-      case 'organizer': return 'Organizer';
-      case 'promoter': return 'Promoter';
-      case 'event_staff': return 'Event Staff';
-      case 'admin': return 'Admin';
+      case 'ORGANIZER': return 'Organizer';
+      case 'PROMOTER': return 'Promoter';
+      case 'EVENT_STAFF': return 'Event Staff';
+      case 'ADMIN': return 'Admin';
       default: return 'Attendee';
     }
   };
@@ -131,20 +131,20 @@ export default function Sidebar() {
     { name: 'Scanner', href: '/staff/scanner', icon: UserCheck },
   ];
   const adminMenuItems = [
-    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Organizers', href: '/admin/organizers', icon: Shield },
-    { name: 'Promoters', href: '/admin/promoters', icon: TrendingUp },
     { name: 'Events', href: '/admin/events', icon: Calendar },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { name: 'Audit Logs', href: '/admin/audit-logs', icon: FileText },
   ];
 
   const getMenuItems = () => {
     switch (user?.role) {
-      case 'organizer': return organizerMenuItems;
-      case 'promoter': return promoterMenuItems;
-      case 'event_staff': return staffMenuItems;
-      case 'admin': return adminMenuItems;
+      case 'ORGANIZER': return organizerMenuItems;
+      case 'PROMOTER': return promoterMenuItems;
+      case 'EVENT_STAFF': return staffMenuItems;
+      case 'ADMIN': return adminMenuItems;
       default: return attendeeMenuItems;
     }
   };

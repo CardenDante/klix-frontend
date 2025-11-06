@@ -1,81 +1,68 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api-client';
-import { AxiosError } from 'axios';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+  Calendar,
+  Activity,
+  AlertCircle,
+  Building,
+  Tag,
+  Award,
+  BarChart3,
+  PieChart,
+  RefreshCw
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-// ==================== TYPES ====================
-
-interface AdminOverview {
+interface AnalyticsOverview {
   total_users: number;
+  total_organizers: number;
   total_events: number;
-  total_revenue: number;
   total_tickets_sold: number;
-  active_organizers: number;
-  pending_organizers: number;
-  active_promoters: number;
+  total_revenue: number;
+  platform_earnings: number;
+  user_growth_rate?: number;
+  revenue_growth_rate?: number;
 }
 
-interface AdminSummary {
-  users: {
-    total: number;
-    active: number;
-    verified: number;
-    growth_rate: number;
-  };
-  events: {
-    total: number;
-    published: number;
-    completed: number;
-    cancelled: number;
-  };
-  revenue: {
-    total: number;
-    this_month: number;
-    last_month: number;
-    growth_rate: number;
-  };
-  tickets: {
-    total_sold: number;
-    this_month: number;
-    last_month: number;
-    growth_rate: number;
-  };
-}
-
-interface UserGrowthData {
+interface UserGrowth {
   date: string;
-  total_users: number;
   new_users: number;
-  active_users: number;
+  total_users: number;
 }
 
 interface RevenueData {
   date: string;
   revenue: number;
-  platform_fees: number;
-  net_revenue: number;
-  transactions: number;
+  platform_earnings: number;
+  organizer_earnings: number;
 }
 
 interface TopOrganizer {
   organizer_id: string;
   business_name: string;
-  total_events: number;
   total_revenue: number;
-  tickets_sold: number;
-  average_rating?: number;
+  total_events: number;
+  total_tickets_sold: number;
+  platform_earnings: number;
 }
 
 interface TopEvent {
   event_id: string;
-  event_name: string;
-  event_slug: string;
-  organizer_name: string;
+  title: string;
+  category: string;
   tickets_sold: number;
   revenue: number;
-  start_datetime: string;
-  category: string;
+  organizer_name: string;
 }
 
 interface CategoryStats {
@@ -83,675 +70,455 @@ interface CategoryStats {
   event_count: number;
   tickets_sold: number;
   revenue: number;
-  percentage_of_total: number;
 }
 
 interface SystemHealth {
-  database_status: 'healthy' | 'degraded' | 'down';
-  cache_status: 'healthy' | 'degraded' | 'down';
-  api_response_time_ms: number;
-  error_rate_percentage: number;
-  uptime_percentage: number;
-  last_checked: string;
+  status: string;
+  api_response_time: number;
+  database_status: string;
+  cache_hit_rate: number;
+  active_users_24h: number;
 }
 
-// ==================== COMPONENT ====================
-
-export default function AdminAnalytics() {
-  // State management
+export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Data state
-  const [overview, setOverview] = useState<AdminOverview | null>(null);
-  const [summary, setSummary] = useState<AdminSummary | null>(null);
-  const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
+  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [userGrowth, setUserGrowth] = useState<UserGrowth[]>([]);
   const [revenue, setRevenue] = useState<RevenueData[]>([]);
   const [topOrganizers, setTopOrganizers] = useState<TopOrganizer[]>([]);
   const [topEvents, setTopEvents] = useState<TopEvent[]>([]);
   const [categories, setCategories] = useState<CategoryStats[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
 
-  // Active tab state
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'revenue' | 'events'>('overview');
+  useEffect(() => {
+    fetchAllAnalytics();
+  }, []);
 
-  // ==================== DATA FETCHING ====================
-
-  const fetchAllData = useCallback(async () => {
+  const fetchAllAnalytics = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Fetch all data in parallel
-      const [
-        overviewRes,
-        summaryRes,
-        userGrowthRes,
-        revenueRes,
-        topOrganizersRes,
-        topEventsRes,
-        categoriesRes,
-        systemHealthRes,
-      ] = await Promise.allSettled([
-        api.admin.analytics.overview(),
-        api.admin.analytics.summary(),
-        api.admin.analytics.userGrowth(),
-        api.admin.analytics.revenue(),
-        api.admin.analytics.topOrganizers({ limit: 10 }),
-        api.admin.analytics.topEvents({ limit: 10 }),
-        api.admin.analytics.categories(),
-        api.admin.analytics.systemHealth(),
+      await Promise.all([
+        fetchOverview(),
+        fetchUserGrowth(),
+        fetchRevenue(),
+        fetchTopOrganizers(),
+        fetchTopEvents(),
+        fetchCategories(),
+        fetchSystemHealth(),
       ]);
-
-      // Handle overview
-      if (overviewRes.status === 'fulfilled') {
-        setOverview(overviewRes.value.data);
-      }
-
-      // Handle summary
-      if (summaryRes.status === 'fulfilled') {
-        setSummary(summaryRes.value.data);
-      }
-
-      // Handle user growth
-      if (userGrowthRes.status === 'fulfilled') {
-        setUserGrowth(userGrowthRes.value.data);
-      }
-
-      // Handle revenue
-      if (revenueRes.status === 'fulfilled') {
-        setRevenue(revenueRes.value.data);
-      }
-
-      // Handle top organizers
-      if (topOrganizersRes.status === 'fulfilled') {
-        setTopOrganizers(topOrganizersRes.value.data);
-      }
-
-      // Handle top events
-      if (topEventsRes.status === 'fulfilled') {
-        setTopEvents(topEventsRes.value.data);
-      }
-
-      // Handle categories
-      if (categoriesRes.status === 'fulfilled') {
-        setCategories(categoriesRes.value.data);
-      }
-
-      // Handle system health
-      if (systemHealthRes.status === 'fulfilled') {
-        setSystemHealth(systemHealthRes.value.data);
-      }
-
-    } catch (err) {
-      const axiosError = err as AxiosError;
-      setError(axiosError.message || 'Failed to load analytics data');
-      console.error('Error fetching analytics:', err);
+    } catch (err: any) {
+      toast.error('Failed to load analytics');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const refreshData = async () => {
-    setRefreshing(true);
-    await fetchAllData();
-    setRefreshing(false);
   };
 
-  const clearCache = async () => {
+  const fetchOverview = async () => {
     try {
-      await api.admin.analytics.clearCache();
-      alert('Cache cleared successfully!');
-      await fetchAllData();
-    } catch (err) {
-      console.error('Error clearing cache:', err);
-      alert('Failed to clear cache');
+      const response = await api.admin.analytics.overview();
+      setOverview(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch overview:', err);
     }
   };
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
-
-  // ==================== UTILITY FUNCTIONS ====================
-
-  const formatNumber = (num: number | undefined | null): string => {
-    if (num === null || num === undefined) return '0';
-    return num.toLocaleString();
+  const fetchUserGrowth = async () => {
+    try {
+      const response = await api.admin.analytics.userGrowth();
+      setUserGrowth(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch user growth:', err);
+    }
   };
 
-  const formatCurrency = (amount: number | undefined | null): string => {
-    if (amount === null || amount === undefined) return 'KSh 0';
-    return `KSh ${amount.toLocaleString()}`;
+  const fetchRevenue = async () => {
+    try {
+      const response = await api.admin.analytics.revenue();
+      setRevenue(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch revenue:', err);
+    }
   };
 
-  const formatPercentage = (value: number | undefined | null): string => {
-    if (value === null || value === undefined) return '0%';
+  const fetchTopOrganizers = async () => {
+    try {
+      const response = await api.admin.analytics.topOrganizers({ limit: 10 });
+      setTopOrganizers(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch top organizers:', err);
+    }
+  };
+
+  const fetchTopEvents = async () => {
+    try {
+      const response = await api.admin.analytics.topEvents({ limit: 10 });
+      setTopEvents(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch top events:', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.admin.analytics.categories();
+      setCategories(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  const fetchSystemHealth = async () => {
+    try {
+      const response = await api.admin.analytics.systemHealth();
+      setSystemHealth(response.data);
+    } catch (err: any) {
+      console.error('Failed to fetch system health:', err);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  const formatPercentage = (value: number) => {
     return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const getHealthColor = (status: string | undefined): string => {
-    if (!status) return 'text-gray-500';
-    switch (status) {
-      case 'healthy': return 'text-green-600';
-      case 'degraded': return 'text-yellow-600';
-      case 'down': return 'text-red-600';
-      default: return 'text-gray-500';
-    }
-  };
-
-  const getHealthBg = (status: string | undefined): string => {
-    if (!status) return 'bg-gray-50';
-    switch (status) {
-      case 'healthy': return 'bg-green-50';
-      case 'degraded': return 'bg-yellow-50';
-      case 'down': return 'bg-red-50';
-      default: return 'bg-gray-50';
-    }
-  };
-
-  // ==================== RENDER ====================
-
-  if (loading && !overview && !summary) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !overview && !summary) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
-          <div className="text-red-600 text-center mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 text-center mb-2">Error Loading Analytics</h2>
-          <p className="text-gray-600 text-center mb-6">{error}</p>
-          <button
-            onClick={fetchAllData}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
-          >
-            Try Again
-          </button>
+          <Activity className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading analytics...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Analytics</h1>
-            <p className="text-gray-600 mt-1">Platform performance and insights</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={clearCache}
-              disabled={refreshing}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
-            >
-              Clear Cache
-            </button>
-            <button
-              onClick={refreshData}
-              disabled={refreshing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
+          <p className="text-muted-foreground mt-2">
+            Platform performance metrics and insights
+          </p>
         </div>
-
-        {/* System Health Banner */}
-        {systemHealth && (
-          <div className={`rounded-lg p-4 ${getHealthBg(systemHealth.database_status)}`}>
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${systemHealth.database_status === 'healthy' ? 'bg-green-500' : systemHealth.database_status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                <span className={`font-semibold ${getHealthColor(systemHealth.database_status)}`}>
-                  System Status: {systemHealth.database_status === 'healthy' ? 'Healthy' : systemHealth.database_status === 'degraded' ? 'Degraded Performance' : 'Down'}
-                </span>
-              </div>
-              <div className="flex gap-6 text-sm">
-                <span>Response: {systemHealth.api_response_time_ms}ms</span>
-                <span>Error Rate: {systemHealth.error_rate_percentage?.toFixed(2) ?? 0}%</span>
-                <span>Uptime: {systemHealth.uptime_percentage?.toFixed(2) ?? 0}%</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="border-b border-gray-200">
-            <nav className="flex">
-              {['overview', 'users', 'revenue', 'events'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab as any)}
-                  className={`px-6 py-3 font-medium text-sm capitalize ${
-                    activeTab === tab
-                      ? 'border-b-2 border-blue-600 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="space-y-6">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <>
-              {/* Quick Stats Cards */}
-              {overview && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Total Users</p>
-                        <p className="text-3xl font-bold text-gray-900">{formatNumber(overview.total_users ?? 0)}</p>
-                      </div>
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Total Events</p>
-                        <p className="text-3xl font-bold text-gray-900">{formatNumber(overview.total_events ?? 0)}</p>
-                      </div>
-                      <div className="p-3 bg-purple-100 rounded-lg">
-                        <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Total Revenue</p>
-                        <p className="text-3xl font-bold text-gray-900">{formatCurrency(overview.total_revenue ?? 0)}</p>
-                      </div>
-                      <div className="p-3 bg-green-100 rounded-lg">
-                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Tickets Sold</p>
-                        <p className="text-3xl font-bold text-gray-900">{formatNumber(overview.total_tickets_sold ?? 0)}</p>
-                      </div>
-                      <div className="p-3 bg-yellow-100 rounded-lg">
-                        <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Organizers & Promoters */}
-              {overview && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Organizers</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Active</span>
-                        <span className="font-semibold text-lg">{formatNumber(overview.active_organizers ?? 0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Pending Approval</span>
-                        <span className="font-semibold text-lg text-orange-600">{formatNumber(overview.pending_organizers ?? 0)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Promoters</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Active</span>
-                        <span className="font-semibold text-lg">{formatNumber(overview.active_promoters ?? 0)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Users Tab */}
-          {activeTab === 'users' && summary && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Total Users</h3>
-                  <p className="text-4xl font-bold text-blue-600 mb-2">{formatNumber(summary.users?.total ?? 0)}</p>
-                  <p className="text-sm text-gray-600">
-                    Growth: <span className={(summary.users?.growth_rate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatPercentage(summary.users?.growth_rate ?? 0)}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Active Users</h3>
-                  <p className="text-4xl font-bold text-green-600 mb-2">{formatNumber(summary.users?.active ?? 0)}</p>
-                  <p className="text-sm text-gray-600">Currently active</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Verified Users</h3>
-                  <p className="text-4xl font-bold text-purple-600 mb-2">{formatNumber(summary.users?.verified ?? 0)}</p>
-                  <p className="text-sm text-gray-600">Email verified</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Verification Rate</h3>
-                  <p className="text-4xl font-bold text-indigo-600 mb-2">
-                    {summary.users?.total ? ((summary.users.verified / summary.users.total) * 100).toFixed(1) : 0}%
-                  </p>
-                  <p className="text-sm text-gray-600">Of all users</p>
-                </div>
-              </div>
-
-              {/* User Growth Chart Data Table */}
-              {userGrowth.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">User Growth Over Time</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total Users</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">New Users</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Active Users</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userGrowth.map((data, index) => (
-                          <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm">{formatDate(data.date)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold">{formatNumber(data.total_users)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-green-600">{formatNumber(data.new_users)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-blue-600">{formatNumber(data.active_users)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Revenue Tab */}
-          {activeTab === 'revenue' && summary && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Total Revenue</h3>
-                  <p className="text-4xl font-bold text-green-600 mb-2">{formatCurrency(summary.revenue?.total ?? 0)}</p>
-                  <p className="text-sm text-gray-600">
-                    Growth: <span className={(summary.revenue?.growth_rate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatPercentage(summary.revenue?.growth_rate ?? 0)}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">This Month</h3>
-                  <p className="text-4xl font-bold text-blue-600 mb-2">{formatCurrency(summary.revenue?.this_month ?? 0)}</p>
-                  <p className="text-sm text-gray-600">Current month revenue</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Last Month</h3>
-                  <p className="text-4xl font-bold text-purple-600 mb-2">{formatCurrency(summary.revenue?.last_month ?? 0)}</p>
-                  <p className="text-sm text-gray-600">Previous month</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Tickets Sold</h3>
-                  <p className="text-4xl font-bold text-yellow-600 mb-2">{formatNumber(summary.tickets?.total_sold ?? 0)}</p>
-                  <p className="text-sm text-gray-600">
-                    Growth: <span className={(summary.tickets?.growth_rate ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatPercentage(summary.tickets?.growth_rate ?? 0)}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Revenue Table */}
-              {revenue.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Revenue Breakdown</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Revenue</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Platform Fees</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Net Revenue</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Transactions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {revenue.map((data, index) => (
-                          <tr key={index} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4 text-sm">{formatDate(data.date)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold">{formatCurrency(data.revenue)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-600">{formatCurrency(data.platform_fees)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-green-600">{formatCurrency(data.net_revenue)}</td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(data.transactions)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Top Organizers */}
-              {topOrganizers.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Top Organizers by Revenue</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Organizer</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Events</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Revenue</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Tickets Sold</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {topOrganizers.map((organizer, index) => (
-                          <tr key={organizer.organizer_id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm">
-                                  {index + 1}
-                                </div>
-                                <span className="text-sm font-medium">{organizer.business_name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(organizer.total_events)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold text-green-600">
-                              {formatCurrency(organizer.total_revenue)}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(organizer.tickets_sold)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Events Tab */}
-          {activeTab === 'events' && summary && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Total Events</h3>
-                  <p className="text-4xl font-bold text-purple-600 mb-2">{formatNumber(summary.events?.total ?? 0)}</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Published</h3>
-                  <p className="text-4xl font-bold text-green-600 mb-2">{formatNumber(summary.events?.published ?? 0)}</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Completed</h3>
-                  <p className="text-4xl font-bold text-blue-600 mb-2">{formatNumber(summary.events?.completed ?? 0)}</p>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Cancelled</h3>
-                  <p className="text-4xl font-bold text-red-600 mb-2">{formatNumber(summary.events?.cancelled ?? 0)}</p>
-                </div>
-              </div>
-
-              {/* Top Events */}
-              {topEvents.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Top Events by Revenue</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Event</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Organizer</th>
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Category</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Tickets Sold</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {topEvents.map((event, index) => (
-                          <tr key={event.event_id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-semibold text-sm">
-                                  {index + 1}
-                                </div>
-                                <span className="text-sm font-medium">{event.event_name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-sm">{event.organizer_name}</td>
-                            <td className="py-3 px-4 text-sm">{formatDate(event.start_datetime)}</td>
-                            <td className="py-3 px-4 text-sm text-right">
-                              <span className="px-2 py-1 bg-gray-100 rounded text-xs">{event.category}</span>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(event.tickets_sold)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold text-green-600">
-                              {formatCurrency(event.revenue)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Category Statistics */}
-              {categories.length > 0 && (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-gray-900 font-semibold mb-4">Performance by Category</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Category</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Events</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Tickets Sold</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Revenue</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">% of Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {categories.map((category) => (
-                          <tr key={category.category} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <span className="text-sm font-medium capitalize">{category.category.replace('_', ' ')}</span>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(category.event_count)}</td>
-                            <td className="py-3 px-4 text-sm text-right">{formatNumber(category.tickets_sold)}</td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold">
-                              {formatCurrency(category.revenue)}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-blue-600 rounded-full"
-                                    style={{ width: `${category.percentage_of_total}%` }}
-                                  ></div>
-                                </div>
-                                <span>{category.percentage_of_total.toFixed(1)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <Button onClick={fetchAllAnalytics} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
+
+      {/* Overview Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatNumber(overview?.total_users || 0)}
+            </div>
+            {overview?.user_growth_rate !== undefined && (
+              <p className={`text-xs flex items-center gap-1 mt-1 ${
+                overview.user_growth_rate >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {overview.user_growth_rate >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {formatPercentage(overview.user_growth_rate)} from last period
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(overview?.total_revenue || 0)}
+            </div>
+            {overview?.revenue_growth_rate !== undefined && (
+              <p className={`text-xs flex items-center gap-1 mt-1 ${
+                overview.revenue_growth_rate >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {overview.revenue_growth_rate >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {formatPercentage(overview.revenue_growth_rate)} from last period
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Platform Earnings</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(overview?.platform_earnings || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              From {formatNumber(overview?.total_tickets_sold || 0)} tickets sold
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatNumber(overview?.total_events || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              By {formatNumber(overview?.total_organizers || 0)} organizers
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="organizers" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="organizers">Top Organizers</TabsTrigger>
+          <TabsTrigger value="events">Top Events</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="system">System Health</TabsTrigger>
+        </TabsList>
+
+        {/* Top Organizers */}
+        <TabsContent value="organizers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Performing Organizers</CardTitle>
+              <CardDescription>Organizers with highest revenue</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topOrganizers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No data available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topOrganizers.map((org, index) => (
+                    <div key={org.organizer_id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            <Building className="h-4 w-4 text-muted-foreground" />
+                            {org.business_name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatNumber(org.total_events)} events • {formatNumber(org.total_tickets_sold)} tickets sold
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          {formatCurrency(org.total_revenue)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Platform: {formatCurrency(org.platform_earnings)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Top Events */}
+        <TabsContent value="events" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Performing Events</CardTitle>
+              <CardDescription>Events with highest ticket sales</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {topEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No data available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topEvents.map((event, index) => (
+                    <div key={event.event_id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <div className="font-medium">{event.title}</div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Badge variant="secondary">{event.category}</Badge>
+                            <span>by {event.organizer_name}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          {formatNumber(event.tickets_sold)} tickets
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatCurrency(event.revenue)} revenue
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Categories */}
+        <TabsContent value="categories" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Category Performance</CardTitle>
+              <CardDescription>Event categories by popularity and revenue</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {categories.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No data available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {categories.map((cat, index) => (
+                    <div key={cat.category} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <Tag className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <div className="font-medium">{cat.category}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatNumber(cat.event_count)} events
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">
+                          {formatCurrency(cat.revenue)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatNumber(cat.tickets_sold)} tickets
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* System Health */}
+        <TabsContent value="system" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Health</CardTitle>
+              <CardDescription>Platform performance and status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!systemHealth ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No data available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">System Status</span>
+                        <Badge variant={systemHealth.status === 'healthy' ? 'default' : 'destructive'}>
+                          {systemHealth.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          systemHealth.status === 'healthy' ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                        }`} />
+                        <span className="text-sm text-muted-foreground">
+                          {systemHealth.status === 'healthy' ? 'All systems operational' : 'Issues detected'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
+                      <div className="text-sm font-medium mb-2">API Response Time</div>
+                      <div className="text-2xl font-bold">
+                        {systemHealth.api_response_time}ms
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Average response time
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
+                      <div className="text-sm font-medium mb-2">Database Status</div>
+                      <Badge variant={systemHealth.database_status === 'connected' ? 'default' : 'destructive'}>
+                        {systemHealth.database_status}
+                      </Badge>
+                    </div>
+
+                    <div className="p-4 border rounded-lg">
+                      <div className="text-sm font-medium mb-2">Cache Hit Rate</div>
+                      <div className="text-2xl font-bold">
+                        {(systemHealth.cache_hit_rate * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Performance optimization
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg md:col-span-2">
+                      <div className="text-sm font-medium mb-2">Active Users (24h)</div>
+                      <div className="text-2xl font-bold">
+                        {formatNumber(systemHealth.active_users_24h)}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Users active in the last 24 hours
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

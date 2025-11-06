@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"c:\\Users\\chach\\Documents\\klix-frontend\\src\\app\\(dashboard)\\admin\"\" 2>&1 || echo \"Admin directory not found or is empty \")",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
