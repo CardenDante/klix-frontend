@@ -31,8 +31,8 @@ export default function DashboardPage() {
     // Route based on user role and application status
     switch (user.role) {
       case UserRole.ADMIN:
-        console.log('👑 [REDIRECT] Admin → /admin/analytics');
-        router.push('/admin/analytics');
+        console.log('👑 [REDIRECT] Admin → /admin');
+        router.push('/admin');
         break;
 
       case UserRole.ORGANIZER:
