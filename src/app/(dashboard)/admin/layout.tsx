@@ -4,26 +4,27 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Activity } from 'lucide-react';
+import { UserRole } from '@/lib/types';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (!user) {
         router.push('/login');
-      } else if (user.role !== 'ADMIN') {
+      } else if (user.role !== UserRole.ADMIN) {
         router.push('/dashboard');
       }
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -34,7 +35,7 @@ export default function AdminLayout({
     );
   }
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user || user.role !== UserRole.ADMIN) {
     return null;
   }
 

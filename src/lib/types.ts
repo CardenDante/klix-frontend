@@ -24,12 +24,12 @@ export enum EventStatus {
 }
 
 export enum UserRole {
-  GUEST = 'guest',
-  ATTENDEE = 'attendee',
-  PROMOTER = 'promoter',
-  ORGANIZER = 'organizer',
-  EVENT_STAFF = 'event_staff',
-  ADMIN = 'admin',
+  GUEST = 'GUEST',
+  ATTENDEE = 'ATTENDEE',
+  PROMOTER = 'PROMOTER',
+  ORGANIZER = 'ORGANIZER',
+  EVENT_STAFF = 'EVENT_STAFF',
+  ADMIN = 'ADMIN',
 }
 
 export enum OrganizerStatus {

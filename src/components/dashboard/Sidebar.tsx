@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
+import {
   LayoutDashboard, Calendar, Ticket, Settings, LogOut, MoreHorizontal, X, Menu,
-  Users, BarChart3, DollarSign, Plus, Gift, Code, TrendingUp, Shield, UserCheck, FileText 
+  Users, BarChart3, DollarSign, Plus, Gift, Code, TrendingUp, Shield, UserCheck, FileText
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { UserRole } from '@/lib/types';
 import Image from 'next/image';
 
 // --- Reusable Sidebar Panel Component ---
@@ -15,10 +16,10 @@ function SidebarPanel({ menuItems, user, logout, onClose, isMobile = false }: an
   const pathname = usePathname();
   const getRoleLabel = () => {
     switch (user?.role) {
-      case 'ORGANIZER': return 'Organizer';
-      case 'PROMOTER': return 'Promoter';
-      case 'EVENT_STAFF': return 'Event Staff';
-      case 'ADMIN': return 'Admin';
+      case UserRole.ORGANIZER: return 'Organizer';
+      case UserRole.PROMOTER: return 'Promoter';
+      case UserRole.EVENT_STAFF: return 'Event Staff';
+      case UserRole.ADMIN: return 'Admin';
       default: return 'Attendee';
     }
   };
@@ -141,10 +142,10 @@ export default function Sidebar() {
 
   const getMenuItems = () => {
     switch (user?.role) {
-      case 'ORGANIZER': return organizerMenuItems;
-      case 'PROMOTER': return promoterMenuItems;
-      case 'EVENT_STAFF': return staffMenuItems;
-      case 'ADMIN': return adminMenuItems;
+      case UserRole.ORGANIZER: return organizerMenuItems;
+      case UserRole.PROMOTER: return promoterMenuItems;
+      case UserRole.EVENT_STAFF: return staffMenuItems;
+      case UserRole.ADMIN: return adminMenuItems;
       default: return attendeeMenuItems;
     }
   };
