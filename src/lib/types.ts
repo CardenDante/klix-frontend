@@ -52,6 +52,20 @@ export enum PromoterCodeType {
   COMMISSION = 'commission',
 }
 
+export enum PromoterStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SUSPENDED = 'suspended',
+}
+
+export enum PromoterEventApprovalStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  REVOKED = 'revoked',
+}
+
 export enum SearchSortBy {
   RELEVANCE = 'relevance',
   DATE_ASC = 'date_asc',
@@ -273,6 +287,70 @@ export interface TicketPurchaseRequest {
 
 // ==================== PROMOTER TYPES ====================
 
+// Promoter Profile
+export interface PromoterProfile {
+  id: string;
+  user_id: string;
+  display_name: string;
+  bio?: string;
+  social_links?: string;
+  experience?: string;
+  status: PromoterStatus;
+  approved_at?: string;
+  approved_by?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromoterApplicationCreate {
+  display_name: string;
+  bio?: string;
+  social_links?: string;
+  experience?: string;
+}
+
+export interface PromoterProfileUpdate {
+  display_name?: string;
+  bio?: string;
+  social_links?: string;
+  experience?: string;
+}
+
+// Promoter Event Approval
+export interface PromoterEventApproval {
+  id: string;
+  promoter_id: string;
+  event_id: string;
+  organizer_id: string;
+  message?: string;
+  status: PromoterEventApprovalStatus;
+  commission_percentage?: number;
+  discount_percentage?: number;
+  response_message?: string;
+  approved_at?: string;
+  rejected_at?: string;
+  revoked_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromoterEventRequest {
+  event_id: string;
+  message?: string;
+}
+
+export interface OrganizerPromoterApproval {
+  commission_percentage?: number;
+  discount_percentage?: number;
+  response_message?: string;
+}
+
+export interface OrganizerPromoterRejection {
+  response_message?: string;
+}
+
+// Promoter Codes
 export interface PromoterCode {
   id: string;
   code: string;

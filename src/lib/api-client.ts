@@ -157,16 +157,32 @@ export const api = {
   },
 
   promoter: {
+    // Promoter Profile Application
+    apply: (data: any) => apiClient.post('/api/v1/promoters/apply', data),
+    getProfile: () => apiClient.get('/api/v1/promoters/me'),
+    updateProfile: (data: any) => apiClient.patch('/api/v1/promoters/me', data),
+
+    // Promoter Code Management
     createCode: (data: any) => apiClient.post('/api/v1/promoters/codes', data),
     myCodes: (params?: any) => apiClient.get('/api/v1/promoters/my-codes', { params }),
     codeAnalytics: (codeId: string) => apiClient.get(`/api/v1/promoters/code/${codeId}/analytics`),
     deactivateCode: (codeId: string) => apiClient.post(`/api/v1/promoters/code/${codeId}/deactivate`),
     leaderboard: (params?: any) => apiClient.get('/api/v1/promoters/leaderboard', { params }),
     shareLink: (codeId: string, data: any) => apiClient.post(`/api/v1/promoters/codes/${codeId}/share`, data),
+
+    // Commission & Earnings
     earnings: () => apiClient.get('/api/v1/promoters/earnings'),
     withdraw: (data: any) => apiClient.post('/api/v1/promoters/withdraw', data),
     withdrawals: (limit?: number) => apiClient.get('/api/v1/promoters/withdrawals', { params: { limit } }),
     insights: () => apiClient.get('/api/v1/promoters/insights'),
+
+    // Event Promotion Requests
+    requestToPromoteEvent: (data: { event_id: string; message?: string }) =>
+      apiClient.post('/api/v1/promoter-requests/events/request', data),
+    myRequests: (status?: string) =>
+      apiClient.get('/api/v1/promoter-requests/my-requests', { params: { status_filter: status } }),
+    approvedEvents: () =>
+      apiClient.get('/api/v1/promoter-requests/approved-events'),
   },
 
   payments: {
@@ -229,15 +245,39 @@ export const api = {
     },
 
     promoters: {
+      // NEW: Promoter approval workflow
+      pending: (params?: any) => apiClient.get('/api/v1/admin/promoters/pending', { params }),
+      approve: (promoterId: string, data?: { notes?: string }) =>
+        apiClient.post(`/api/v1/admin/promoters/${promoterId}/approve`, data || {}),
+      reject: (promoterId: string, data: { reason: string }) =>
+        apiClient.post(`/api/v1/admin/promoters/${promoterId}/reject`, data),
+      suspend: (promoterId: string, data: { reason: string; duration_days?: number }) =>
+        apiClient.post(`/api/v1/admin/promoters/${promoterId}/suspend`, data),
+
+      // Legacy endpoints (keeping for backwards compatibility)
       stats: () => apiClient.get('/api/v1/admin/promoters/stats'),
       applications: () => apiClient.get('/api/v1/admin/promoters/applications'),
       active: () => apiClient.get('/api/v1/admin/promoters/active'),
-      approve: (applicationId: string) => 
-        apiClient.post(`/api/v1/admin/promoters/applications/${applicationId}/approve`),
-      reject: (applicationId: string, data: { reason: string }) => 
-        apiClient.post(`/api/v1/admin/promoters/applications/${applicationId}/reject`, data),
-      deactivate: (promoterId: string) => 
-        apiClient.post(`/api/v1/admin/promoters/${promoterId}/deactivate`),
+    },
+  },
+
+  organizer: {
+    // Promoter Request Management (Organizer side)
+    promoterRequests: {
+      list: (eventId?: string) =>
+        apiClient.get('/api/v1/promoter-requests/organizers/promoter-requests', {
+          params: { event_id: eventId }
+        }),
+      approve: (approvalId: string, data: {
+        commission_percentage?: number;
+        discount_percentage?: number;
+        response_message?: string
+      }) =>
+        apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/approve`, data),
+      reject: (approvalId: string, data?: { response_message?: string }) =>
+        apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/reject`, data || {}),
+      approvedPromoters: (eventId: string) =>
+        apiClient.get(`/api/v1/promoter-requests/organizers/events/${eventId}/approved-promoters`),
     },
   },
 };
