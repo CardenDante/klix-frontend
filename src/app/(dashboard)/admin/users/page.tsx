@@ -32,9 +32,8 @@ interface User {
   id: string;
   firebase_uid: string;
   email: string;
-  first_name?: string;
+  first_name?: string;  // Backend uses first_name/last_name (recent change)
   last_name?: string;
-  full_name?: string;  // Backend returns this instead of first_name/last_name
   phone_number?: string;
   role: 'GUEST' | 'ATTENDEE' | 'PROMOTER' | 'ORGANIZER' | 'EVENT_STAFF' | 'ADMIN';
   is_active: boolean;
@@ -100,7 +99,6 @@ export default function UsersPage() {
       if (usersData.length > 0) {
         console.log('👥 [USERS] First user:', usersData[0]);
         console.log('👥 [USERS] First user name fields:', {
-          full_name: usersData[0].full_name,
           first_name: usersData[0].first_name,
           last_name: usersData[0].last_name,
           email: usersData[0].email
@@ -322,10 +320,9 @@ export default function UsersPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium">
-                          {user.full_name ||
-                           (user.first_name || user.last_name
-                             ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-                             : user.email.split('@')[0])}
+                          {user.first_name || user.last_name
+                            ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+                            : user.email.split('@')[0]}
                         </div>
                         <div className="text-sm text-muted-foreground flex items-center gap-1">
                           <Mail className="h-3 w-3" />

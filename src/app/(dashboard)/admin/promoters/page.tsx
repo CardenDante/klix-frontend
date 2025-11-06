@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api-client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,34 +20,26 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  DollarSign,
-  Calendar,
   Mail,
   Phone,
-  Building,
-  Activity
+  Activity,
+  TrendingUp,
+  Users as UsersIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Organizer {
+interface Promoter {
   id: string;
   user_id: string;
-  business_name: string;
-  business_type?: string;
-  business_registration_number?: string;
-  phone_number?: string;
-  email?: string;
+  display_name: string;  // Backend field
+  bio?: string;  // Backend field
+  social_links?: string;  // Backend field (JSON string)
+  experience?: string;  // Backend field
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
   created_at: string;
+  updated_at?: string;
   approved_at?: string;
-  rejected_at?: string;
-  suspended_at?: string;
   rejection_reason?: string;
-  suspension_reason?: string;
-  approved_by?: string;
-  total_events?: number;
-  total_revenue?: number;
-  platform_earnings?: number;
   user?: {
     email: string;
     first_name?: string;
@@ -58,73 +50,53 @@ interface Organizer {
 
 type ActionType = 'approve' | 'reject' | 'suspend' | null;
 
-export default function OrganizersPage() {
-  const [organizers, setOrganizers] = useState<Organizer[]>([]);
+export default function PromotersPage() {
+  const [promoters, setPromoters] = useState<Promoter[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
-  const [selectedOrganizer, setSelectedOrganizer] = useState<Organizer | null>(null);
+  const [selectedPromoter, setSelectedPromoter] = useState<Promoter | null>(null);
   const [actionType, setActionType] = useState<ActionType>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionNotes, setActionNotes] = useState('');
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    fetchOrganizers();
+    fetchPromoters();
   }, [activeTab]);
 
-  const fetchOrganizers = async () => {
+  const fetchPromoters = async () => {
     try {
       setLoading(true);
-      let response;
 
-      // Backend now properly handles status filtering
+      // Only fetch pending promoters for now (backend may only have pending endpoint)
       if (activeTab === 'pending') {
-        response = await api.admin.organizers.pending();
+        const response = await api.admin.promoters.pending();
+        console.log('🎯 [PROMOTERS] Response:', response.data);
+
+        const promotersData = Array.isArray(response.data)
+          ? response.data
+          : (response.data?.promoters || response.data?.data || []);
+
+        console.log('🎯 [PROMOTERS] Processed:', promotersData.length, 'promoters');
+        setPromoters(promotersData);
       } else {
-        // Send UPPERCASE status as backend expects
-        response = await api.admin.organizers.list({ status: activeTab.toUpperCase() });
+        // For other tabs, show empty for now
+        // TODO: Backend may need to add list endpoint with status filter
+        setPromoters([]);
       }
-
-      console.log('📊 [ORGANIZERS] Raw response:', response);
-      console.log('📊 [ORGANIZERS] Response.data:', response.data);
-      console.log('📊 [ORGANIZERS] Type:', typeof response.data, 'IsArray:', Array.isArray(response.data));
-
-      // Handle different response structures
-      let organizersData = Array.isArray(response.data)
-        ? response.data
-        : (response.data?.organizers || response.data?.data || []);
-
-      // get_all_organizers returns {organizer: {...}, total_events: X, ...}
-      // get_pending_organizers returns direct organizer objects
-      if (organizersData.length > 0 && organizersData[0]?.organizer) {
-        console.log('📊 [ORGANIZERS] Detected wrapped format, extracting organizers');
-        organizersData = organizersData.map((item: any) => ({
-          ...item.organizer,
-          total_events: item.total_events,
-          total_revenue: item.total_revenue,
-          platform_earnings: item.platform_earnings,
-        }));
-      }
-
-      console.log('📊 [ORGANIZERS] Processed:', organizersData.length, 'organizers for tab:', activeTab);
-      if (organizersData.length > 0) {
-        console.log('📊 [ORGANIZERS] First organizer:', organizersData[0]);
-      }
-
-      setOrganizers(organizersData);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || 'Failed to fetch organizers';
+      const errorMessage = err.response?.data?.detail || 'Failed to fetch promoters';
       toast.error(errorMessage);
-      console.error('📊 [ORGANIZERS] Error:', err);
-      setOrganizers([]);
+      console.error('🎯 [PROMOTERS] Error:', err);
+      setPromoters([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAction = async () => {
-    if (!selectedOrganizer || !actionType) return;
+    if (!selectedPromoter || !actionType) return;
 
     if ((actionType === 'reject' || actionType === 'suspend') && !actionReason.trim()) {
       toast.error('Please provide a reason');
@@ -136,60 +108,52 @@ export default function OrganizersPage() {
 
       switch (actionType) {
         case 'approve':
-          await api.admin.organizers.approve(selectedOrganizer.id, {
+          await api.admin.promoters.approve(selectedPromoter.id, {
             notes: actionNotes || undefined,
           });
-          toast.success(`${selectedOrganizer.business_name} has been approved`);
+          toast.success(`Promoter has been approved`);
           break;
 
         case 'reject':
-          await api.admin.organizers.reject(selectedOrganizer.id, {
+          await api.admin.promoters.reject(selectedPromoter.id, {
             reason: actionReason,
           });
-          toast.success(`${selectedOrganizer.business_name} has been rejected`);
+          toast.success(`Promoter has been rejected`);
           break;
 
         case 'suspend':
-          await api.admin.organizers.suspend(selectedOrganizer.id, {
+          await api.admin.promoters.suspend(selectedPromoter.id, {
             reason: actionReason,
           });
-          toast.success(`${selectedOrganizer.business_name} has been suspended`);
+          toast.success(`Promoter has been suspended`);
           break;
       }
 
-      setSelectedOrganizer(null);
+      setSelectedPromoter(null);
       setActionType(null);
       setActionReason('');
       setActionNotes('');
-      fetchOrganizers();
+      fetchPromoters();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || `Failed to ${actionType} organizer`;
+      const errorMessage = err.response?.data?.detail || `Failed to ${actionType} promoter`;
       toast.error(errorMessage);
     } finally {
       setProcessing(false);
     }
   };
 
-  const openDialog = (organizer: Organizer, action: ActionType) => {
-    setSelectedOrganizer(organizer);
+  const openDialog = (promoter: Promoter, action: ActionType) => {
+    setSelectedPromoter(promoter);
     setActionType(action);
     setActionReason('');
     setActionNotes('');
   };
 
   const closeDialog = () => {
-    setSelectedOrganizer(null);
+    setSelectedPromoter(null);
     setActionType(null);
     setActionReason('');
     setActionNotes('');
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -219,19 +183,28 @@ export default function OrganizersPage() {
     );
   };
 
-  const filteredOrganizers = organizers.filter((org) =>
-    org.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPromoters = promoters.filter((promoter) =>
+    promoter.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    promoter.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (promoter.user?.first_name && promoter.user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (promoter.user?.last_name && promoter.user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const getPromoterName = (promoter: Promoter) => {
+    if (promoter.display_name) return promoter.display_name;
+    if (promoter.user?.first_name || promoter.user?.last_name) {
+      return `${promoter.user.first_name || ''} ${promoter.user.last_name || ''}`.trim();
+    }
+    return promoter.user?.email?.split('@')[0] || 'Unknown';
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Organizer Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Promoter Management</h1>
         <p className="text-muted-foreground mt-2">
-          Review and manage organizer applications
+          Review and manage promoter applications
         </p>
       </div>
 
@@ -240,13 +213,13 @@ export default function OrganizersPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by business name or email..."
+            placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        <Button onClick={fetchOrganizers} variant="outline">
+        <Button onClick={fetchPromoters} variant="outline">
           <Activity className="h-4 w-4 mr-2" />
           Refresh
         </Button>
@@ -266,15 +239,15 @@ export default function OrganizersPage() {
             <Card>
               <CardContent className="flex items-center justify-center py-12">
                 <Activity className="w-6 h-6 animate-spin mr-2" />
-                <span>Loading organizers...</span>
+                <span>Loading promoters...</span>
               </CardContent>
             </Card>
-          ) : filteredOrganizers.length === 0 ? (
+          ) : filteredPromoters.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">
-                  {searchTerm ? 'No organizers found matching your search' : 'No organizers found'}
+                  {searchTerm ? 'No promoters found matching your search' : 'No promoters found'}
                 </p>
               </CardContent>
             </Card>
@@ -283,28 +256,26 @@ export default function OrganizersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Business Name</TableHead>
+                    <TableHead>Promoter</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead>Experience</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Applied</TableHead>
-                    {activeTab === 'approved' && (
-                      <>
-                        <TableHead>Events</TableHead>
-                        <TableHead>Revenue</TableHead>
-                      </>
-                    )}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrganizers.map((organizer) => (
-                    <TableRow key={organizer.id}>
+                  {filteredPromoters.map((promoter) => (
+                    <TableRow key={promoter.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{organizer.business_name}</div>
-                          {organizer.business_type && (
-                            <div className="text-sm text-muted-foreground">
-                              {organizer.business_type}
+                          <div className="font-medium flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                            {getPromoterName(promoter)}
+                          </div>
+                          {promoter.bio && (
+                            <div className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                              {promoter.bio}
                             </div>
                           )}
                         </div>
@@ -313,38 +284,31 @@ export default function OrganizersPage() {
                         <div className="space-y-1 text-sm">
                           <div className="flex items-center gap-2">
                             <Mail className="h-3 w-3 text-muted-foreground" />
-                            {organizer.user?.email || organizer.email}
+                            {promoter.user?.email}
                           </div>
-                          {(organizer.user?.phone_number || organizer.phone_number) && (
+                          {promoter.user?.phone_number && (
                             <div className="flex items-center gap-2">
                               <Phone className="h-3 w-3 text-muted-foreground" />
-                              {organizer.user?.phone_number || organizer.phone_number}
+                              {promoter.user.phone_number}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(organizer.status)}</TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {formatDate(organizer.created_at)}
+                          {promoter.experience ? (
+                            <span className="line-clamp-2">{promoter.experience}</span>
+                          ) : (
+                            <span className="text-muted-foreground">Not specified</span>
+                          )}
                         </div>
                       </TableCell>
-                      {activeTab === 'approved' && (
-                        <>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {organizer.total_events || 0}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              {formatCurrency(organizer.total_revenue || 0)}
-                            </div>
-                          </TableCell>
-                        </>
-                      )}
+                      <TableCell>{getStatusBadge(promoter.status)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {formatDate(promoter.created_at)}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           {activeTab === 'pending' && (
@@ -352,7 +316,7 @@ export default function OrganizersPage() {
                               <Button
                                 size="sm"
                                 variant="default"
-                                onClick={() => openDialog(organizer, 'approve')}
+                                onClick={() => openDialog(promoter, 'approve')}
                               >
                                 <UserCheck className="h-4 w-4 mr-1" />
                                 Approve
@@ -360,7 +324,7 @@ export default function OrganizersPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => openDialog(organizer, 'reject')}
+                                onClick={() => openDialog(promoter, 'reject')}
                               >
                                 <UserX className="h-4 w-4 mr-1" />
                                 Reject
@@ -371,7 +335,7 @@ export default function OrganizersPage() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => openDialog(organizer, 'suspend')}
+                              onClick={() => openDialog(promoter, 'suspend')}
                             >
                               <Ban className="h-4 w-4 mr-1" />
                               Suspend
@@ -379,7 +343,7 @@ export default function OrganizersPage() {
                           )}
                           {(activeTab === 'rejected' || activeTab === 'suspended') && (
                             <div className="text-sm text-muted-foreground">
-                              {organizer.rejection_reason || organizer.suspension_reason}
+                              {promoter.rejection_reason}
                             </div>
                           )}
                         </div>
@@ -398,12 +362,12 @@ export default function OrganizersPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionType === 'approve' && 'Approve Organizer'}
-              {actionType === 'reject' && 'Reject Organizer'}
-              {actionType === 'suspend' && 'Suspend Organizer'}
+              {actionType === 'approve' && 'Approve Promoter'}
+              {actionType === 'reject' && 'Reject Promoter'}
+              {actionType === 'suspend' && 'Suspend Promoter'}
             </DialogTitle>
             <DialogDescription>
-              {selectedOrganizer?.business_name}
+              {selectedPromoter && getPromoterName(selectedPromoter)}
             </DialogDescription>
           </DialogHeader>
 
@@ -428,7 +392,7 @@ export default function OrganizersPage() {
                 </Label>
                 <Textarea
                   id="reason"
-                  placeholder={`Explain why you are ${actionType}ing this organizer...`}
+                  placeholder={`Explain why you are ${actionType}ing this promoter...`}
                   value={actionReason}
                   onChange={(e) => setActionReason(e.target.value)}
                   rows={4}
@@ -442,15 +406,15 @@ export default function OrganizersPage() {
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 {actionType === 'approve' && (
                   <>
-                    <li>Change organizer status to APPROVED</li>
-                    <li>Upgrade user role to ORGANIZER</li>
+                    <li>Change promoter status to APPROVED</li>
+                    <li>Upgrade user role to PROMOTER</li>
                     <li>Send approval confirmation email</li>
-                    <li>Allow them to create events</li>
+                    <li>Allow them to create promo codes</li>
                   </>
                 )}
                 {actionType === 'reject' && (
                   <>
-                    <li>Change organizer status to REJECTED</li>
+                    <li>Change promoter status to REJECTED</li>
                     <li>Send rejection notification email</li>
                     <li>User will remain as ATTENDEE</li>
                     <li>Record rejection reason in audit log</li>
@@ -458,8 +422,8 @@ export default function OrganizersPage() {
                 )}
                 {actionType === 'suspend' && (
                   <>
-                    <li>Change organizer status to SUSPENDED</li>
-                    <li>Unpublish all their events</li>
+                    <li>Change promoter status to SUSPENDED</li>
+                    <li>Deactivate all their promo codes</li>
                     <li>Send suspension notification email</li>
                     <li>Record suspension reason in audit log</li>
                   </>

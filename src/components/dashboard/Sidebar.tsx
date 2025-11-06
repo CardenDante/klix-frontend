@@ -135,6 +135,7 @@ export default function Sidebar() {
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Organizers', href: '/admin/organizers', icon: Shield },
+    { name: 'Promoters', href: '/admin/promoters', icon: TrendingUp },
     { name: 'Events', href: '/admin/events', icon: Calendar },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: FileText },
