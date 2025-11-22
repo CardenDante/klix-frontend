@@ -43,13 +43,25 @@ interface PromoterDashboard {
   }>;
 }
 
+interface PromoterInsights {
+  conversion_rate: number;
+  average_order_value: number;
+  best_performing_code: string | null;
+  total_revenue_generated: number;
+  commission_rate_avg: number;
+  total_clicks: number;
+  total_conversions: number;
+}
+
 export default function PromoterDashboardPage() {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<PromoterDashboard | null>(null);
+  const [insights, setInsights] = useState<PromoterInsights | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboard();
+    fetchInsights();
   }, []);
 
   const fetchDashboard = async () => {
@@ -60,6 +72,15 @@ export default function PromoterDashboardPage() {
       console.error('Failed to load dashboard:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInsights = async () => {
+    try {
+      const response = await api.promoter.insights();
+      setInsights(response.data.data);
+    } catch (err) {
+      console.error('Failed to load insights:', err);
     }
   };
 
@@ -180,6 +201,80 @@ export default function PromoterDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Advanced Performance Insights - New Section */}
+      {insights && (
+        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              <span>Advanced Performance Insights</span>
+              <Badge variant="secondary" className="ml-2">Real-time</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-sm text-gray-600 mb-1">Conversion Rate</p>
+                <p className="text-3xl font-bold text-blue-700">
+                  {insights.conversion_rate.toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">clicks to sales</p>
+                <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all"
+                    style={{ width: `${Math.min(insights.conversion_rate, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-sm text-gray-600 mb-1">Total Clicks</p>
+                <p className="text-3xl font-bold text-purple-700">
+                  {insights.total_clicks.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">link clicks tracked</p>
+              </div>
+
+              <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-sm text-gray-600 mb-1">Conversions</p>
+                <p className="text-3xl font-bold text-green-700">
+                  {insights.total_conversions.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">completed sales</p>
+              </div>
+
+              <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <p className="text-sm text-gray-600 mb-1">Avg Commission</p>
+                <p className="text-3xl font-bold text-orange-700">
+                  {insights.commission_rate_avg.toFixed(1)}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">across all codes</p>
+              </div>
+            </div>
+
+            {insights.best_performing_code && (
+              <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
+                      <Award className="w-4 h-4 text-yellow-600" />
+                      Best Performing Code
+                    </p>
+                    <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white text-lg px-4 py-2 font-mono">
+                      {insights.best_performing_code}
+                    </Badge>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Your top converter!</p>
+                    <p className="text-xs text-gray-500 mt-1">Keep promoting this code</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Commission Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

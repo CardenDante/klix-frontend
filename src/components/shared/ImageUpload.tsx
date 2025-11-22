@@ -72,9 +72,9 @@ export default function ImageUpload({
         },
       });
 
-      const imageUrl = response.data.url;
+      const imageUrl = response.data.data.file_url;
       console.log('✅ [UPLOAD] Success:', imageUrl);
-      
+
       onChange(imageUrl);
       setPreview(imageUrl);
       toast.success('Image uploaded successfully!');

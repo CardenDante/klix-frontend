@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {
-  Building2, Save, CreditCard, Bell, Link as LinkIcon,
-  CheckCircle, AlertCircle, Image as ImageIcon, Mail, Upload
+  Building2, Save, CreditCard, Link as LinkIcon,
+  CheckCircle, AlertCircle, Image as ImageIcon, Upload
 } from 'lucide-react';
 
 interface OrganizerProfile {
@@ -38,14 +38,6 @@ export default function OrganizerSettingsPage() {
     description: '',
     website: '',
     logo_url: ''
-  });
-
-  const [notifications, setNotifications] = useState({
-    email_new_sale: true,
-    email_daily_summary: true,
-    email_event_reminder: true,
-    sms_new_sale: false,
-    sms_event_updates: false
   });
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -133,11 +125,6 @@ export default function OrganizerSettingsPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleUpdateNotifications = async () => {
-    setSuccess('Notification preferences updated!');
-    // Note: This would need a backend endpoint to save notification preferences
   };
 
   if (loading) {
@@ -268,21 +255,21 @@ export default function OrganizerSettingsPage() {
             <div>
               <label className="block text-sm font-medium mb-3 flex items-center gap-1">
                 <ImageIcon className="w-4 h-4" />
-                Business Logo
+                Profile
               </label>
 
               {formData.logo_url && (
                 <div className="mb-4 border rounded-lg p-4 flex items-center gap-4">
                   <img
                     src={formData.logo_url}
-                    alt="Business Logo"
+                    alt="Profile Logo"
                     className="h-20 w-20 object-contain rounded border"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Current Logo</p>
+                    <p className="text-sm font-medium">Current Profile Logo</p>
                     <p className="text-xs text-gray-500 mt-1">
                       Upload a new logo to replace it
                     </p>
@@ -352,99 +339,6 @@ export default function OrganizerSettingsPage() {
             <span className="text-green-700 font-medium">
               M-Pesa STK Push enabled for instant payments
             </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notification Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notification Preferences
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h4 className="font-semibold mb-3 flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email Notifications
-            </h4>
-            <div className="space-y-3">
-              <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div>
-                  <p className="font-medium">New Ticket Sales</p>
-                  <p className="text-sm text-gray-600">Get notified when someone buys a ticket</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications.email_new_sale}
-                  onChange={(e) => setNotifications({ ...notifications, email_new_sale: e.target.checked })}
-                  className="w-5 h-5 text-[#EB7D30] rounded focus:ring-[#EB7D30]"
-                />
-              </label>
-              <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div>
-                  <p className="font-medium">Daily Sales Summary</p>
-                  <p className="text-sm text-gray-600">Receive a daily summary of your sales</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications.email_daily_summary}
-                  onChange={(e) => setNotifications({ ...notifications, email_daily_summary: e.target.checked })}
-                  className="w-5 h-5 text-[#EB7D30] rounded focus:ring-[#EB7D30]"
-                />
-              </label>
-              <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div>
-                  <p className="font-medium">Event Reminders</p>
-                  <p className="text-sm text-gray-600">Get reminders before your events start</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications.email_event_reminder}
-                  onChange={(e) => setNotifications({ ...notifications, email_event_reminder: e.target.checked })}
-                  className="w-5 h-5 text-[#EB7D30] rounded focus:ring-[#EB7D30]"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t">
-            <h4 className="font-semibold mb-3">SMS Notifications</h4>
-            <div className="space-y-3">
-              <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div>
-                  <p className="font-medium">New Sales (SMS)</p>
-                  <p className="text-sm text-gray-600">SMS alerts for ticket sales</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications.sms_new_sale}
-                  onChange={(e) => setNotifications({ ...notifications, sms_new_sale: e.target.checked })}
-                  className="w-5 h-5 text-[#EB7D30] rounded focus:ring-[#EB7D30]"
-                />
-              </label>
-              <label className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                <div>
-                  <p className="font-medium">Event Updates (SMS)</p>
-                  <p className="text-sm text-gray-600">Important event updates via SMS</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifications.sms_event_updates}
-                  onChange={(e) => setNotifications({ ...notifications, sms_event_updates: e.target.checked })}
-                  className="w-5 h-5 text-[#EB7D30] rounded focus:ring-[#EB7D30]"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t">
-            <Button onClick={handleUpdateNotifications}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Notification Preferences
-            </Button>
           </div>
         </CardContent>
       </Card>

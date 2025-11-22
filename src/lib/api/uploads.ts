@@ -2,10 +2,19 @@
 import apiClient from '../api-client';
 
 export interface UploadResponse {
-  url: string;
-  filename: string;
-  size: number;
-  content_type: string;
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    file_name: string;
+    file_path: string;
+    file_url: string;
+    file_size: number;
+    mime_type: string;
+    width: number | null;
+    height: number | null;
+    uploaded_at: string;
+  };
 }
 
 export const uploadsApi = {
@@ -34,7 +43,7 @@ export const uploadsApi = {
       },
     });
 
-    return response.data;
+    return response.data.data;
   },
 
   /**
