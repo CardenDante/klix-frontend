@@ -6,6 +6,19 @@ import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Helper to get full image URL
+const getImageUrl = (path: string | undefined): string => {
+  if (!path) return '';
+  // If already a full URL, return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  // If relative path, prepend backend URL
+  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
@@ -17,8 +30,8 @@ interface ImageUploadProps {
   maxSizeMB?: number;
 }
 
-export default function ImageUpload({ 
-  value, 
+export default function ImageUpload({
+  value,
   onChange,
   uploadType,
   entityId,
@@ -28,7 +41,7 @@ export default function ImageUpload({
   maxSizeMB = 5
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string>(value || '');
+  const [preview, setPreview] = useState<string>(getImageUrl(value));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +89,7 @@ export default function ImageUpload({
       console.log('✅ [UPLOAD] Success:', imageUrl);
 
       onChange(imageUrl);
-      setPreview(imageUrl);
+      setPreview(getImageUrl(imageUrl));
       toast.success('Image uploaded successfully!');
     } catch (error: any) {
       console.error('❌ [UPLOAD] Failed:', error);

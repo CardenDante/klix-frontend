@@ -73,8 +73,30 @@ export default function CreateEventPage() {
         return;
       }
 
+      // Convert datetime-local format to ISO format without timezone (backend expects naive datetime)
+      // datetime-local gives us: "2025-11-23T14:30"
+      // We need: "2025-11-23T14:30:00" (no Z suffix for timezone-naive)
+      const formatDateTime = (dateTimeLocal: string) => {
+        if (!dateTimeLocal) return '';
+        // Append seconds if not present, but don't add timezone
+        return dateTimeLocal.includes(':') && dateTimeLocal.split(':').length === 2
+          ? `${dateTimeLocal}:00`
+          : dateTimeLocal;
+      };
+
+      const eventData = {
+        ...formData,
+        start_datetime: formatDateTime(formData.start_datetime),
+        end_datetime: formatDateTime(formData.end_datetime),
+        description: formData.description?.trim() || undefined,
+        latitude: formData.latitude || undefined,
+        longitude: formData.longitude || undefined,
+        banner_image_url: formData.banner_image_url || undefined,
+        additional_images: formData.additional_images?.length ? formData.additional_images : undefined,
+      };
+
       // Create event
-      const eventResponse = await organizersApi.createEvent(formData);
+      const eventResponse = await organizersApi.createEvent(eventData);
       const eventId = eventResponse.data.id;
 
       // Create ticket types
@@ -89,10 +111,28 @@ export default function CreateEventPage() {
         }
       }
 
-      // Redirect to event page
-      router.push(`/organizer/events/${eventId}`);
+      // Redirect to events list with success message
+      router.push('/organizer/events?created=true');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Your organizer account must be approved before creating events');
+      console.error('Event creation error:', err.response?.data);
+      const errorDetail = err.response?.data?.detail;
+
+      // Handle validation errors (422)
+      if (err.response?.status === 422) {
+        if (typeof errorDetail === 'string') {
+          setError(errorDetail);
+        } else if (Array.isArray(errorDetail)) {
+          // Pydantic validation errors
+          const messages = errorDetail.map((e: any) =>
+            `${e.loc?.join(' → ') || 'Field'}: ${e.msg}`
+          ).join(', ');
+          setError(messages);
+        } else {
+          setError('Please check all fields and try again');
+        }
+      } else {
+        setError(errorDetail || 'Failed to create event. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

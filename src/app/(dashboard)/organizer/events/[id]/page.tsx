@@ -65,11 +65,14 @@ export default function EventDetailsPage() {
 
   const fetchEventDetails = async () => {
     try {
+      // The auth token should automatically be added by apiClient interceptor
+      // This endpoint allows organizers to see their own draft events
       const response = await apiClient.get(`/api/v1/events/${eventId}`);
       setEvent(response.data);
       setFormData(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load event');
+      console.error('Failed to fetch event:', err);
+      setError(err.response?.data?.detail || 'Failed to load event. Make sure you are logged in.');
     } finally {
       setLoading(false);
     }

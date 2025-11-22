@@ -2,18 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Plus, Search, Calendar, MapPin, Ticket, Edit, Trash2, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import { organizersApi } from '@/lib/api/organizers';
 import { Event } from '@/lib/api/events';
 
 export default function MyEventsPage() {
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     loadEvents();
+    // Check if redirected after creating event
+    if (searchParams.get('created') === 'true') {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+    }
   }, []);
 
   const loadEvents = async () => {
@@ -85,6 +93,13 @@ export default function MyEventsPage() {
 
   return (
     <div className="p-8">
+      {/* Success Message */}
+      {showSuccess && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add a banner image and publish it.</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>

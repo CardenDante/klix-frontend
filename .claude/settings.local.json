@@ -18,7 +18,9 @@
       "Bash(sudo service docker:*)",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(PGPASSWORD=klix_password psql:*)",
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "ask": []
