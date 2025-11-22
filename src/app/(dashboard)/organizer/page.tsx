@@ -201,7 +201,11 @@ export default function OrganizerDashboard() {
                       >
                         <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
                             {event.banner_image_url ? (
-                                <img src={event.banner_image_url} alt={event.title} className="w-full h-full object-cover" />
+                                <img
+                                  src={event.banner_image_url.startsWith('http') ? event.banner_image_url : `http://localhost:8000${event.banner_image_url}`}
+                                  alt={event.title}
+                                  className="w-full h-full object-cover"
+                                />
                             ) : (
                                 <Calendar className="w-12 h-12 text-primary" />
                             )}

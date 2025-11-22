@@ -6,9 +6,7 @@ import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-// Helper to get full image URL
+// Helper to get full image URL from backend
 const getImageUrl = (path: string | undefined): string => {
   if (!path) return '';
   // If already a full URL, return as-is
