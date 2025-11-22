@@ -35,7 +35,7 @@ interface Event {
   end_datetime: string;
   banner_image_url: string;
   organizer: Organizer;
-  ticket_types: TicketType[];
+  ticket_types?: TicketType[];
 }
 
 // --- Skeleton Loader Component ---
@@ -80,11 +80,14 @@ export default function EventDetailPage() {
         setLoading(true);
         const response = await api.events.getBySlug(slug as string);
         setEvent(response.data);
-        // Initialize quantities
-        const initialQuantities = response.data.ticket_types.reduce((acc: any, tt: TicketType) => {
-          acc[tt.id] = 0;
-          return acc;
-        }, {});
+        // Initialize quantities - check if ticket_types exists and is an array
+        const ticketTypes = response.data.ticket_types || [];
+        const initialQuantities = Array.isArray(ticketTypes)
+          ? ticketTypes.reduce((acc: any, tt: TicketType) => {
+              acc[tt.id] = 0;
+              return acc;
+            }, {})
+          : {};
         setTicketQuantities(initialQuantities);
       } catch (error) {
         console.error("Failed to fetch event details:", error);
@@ -108,7 +111,7 @@ export default function EventDetailPage() {
     });
   };
 
-  const totalCost = event?.ticket_types.reduce((total, tt) => {
+  const totalCost = event?.ticket_types?.reduce((total, tt) => {
     return total + (ticketQuantities[tt.id] || 0) * tt.price;
   }, 0) || 0;
 
@@ -201,7 +204,7 @@ export default function EventDetailPage() {
               <div className="p-6">
                 <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-6">Get Your Tickets</h3>
                 <div className="space-y-4">
-                  {event.ticket_types.map((tt) => (
+                  {event.ticket_types && event.ticket_types.length > 0 ? event.ticket_types.map((tt) => (
                     <div key={tt.id} className="p-4 rounded-lg border">
                       <div className="flex justify-between items-start">
                         <div>
@@ -223,7 +226,11 @@ export default function EventDetailPage() {
                         )}
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No tickets available at this time.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

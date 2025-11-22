@@ -5,17 +5,7 @@ import { Upload, X, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
-
-// Helper to get full image URL from backend
-const getImageUrl = (path: string | undefined): string => {
-  if (!path) return '';
-  // If already a full URL, return as-is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-  // If relative path, prepend backend URL
-  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-};
+import { getImageUrl } from '@/lib/utils';
 
 interface ImageUploadProps {
   value?: string;

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, Ticket, Calendar, BarChart3, ArrowRight, Loader2, PlusCircle, MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { getImageUrl } from '@/lib/utils';
 
 // --- INTERFACES ---
 interface SalesData {
@@ -202,7 +203,7 @@ export default function OrganizerDashboard() {
                         <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
                             {event.banner_image_url ? (
                                 <img
-                                  src={event.banner_image_url.startsWith('http') ? event.banner_image_url : `http://localhost:8000${event.banner_image_url}`}
+                                  src={getImageUrl(event.banner_image_url)}
                                   alt={event.title}
                                   className="w-full h-full object-cover"
                                 />

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Event } from '@/lib/api/events';
 import { MapPin, Calendar, Ticket, Share2, Bookmark } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 
 interface EventCardProps {
   event: Event;
@@ -50,7 +51,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
       <div className="relative h-48 md:h-56 overflow-hidden bg-gray-100">
         {event.banner_image_url ? (
           <img
-            src={event.banner_image_url}
+            src={getImageUrl(event.banner_image_url)}
             alt={event.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
