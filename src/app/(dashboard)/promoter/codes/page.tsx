@@ -7,16 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Code, Plus, Search, Share2, BarChart, Power, 
+import {
+  Code, Plus, Search, Share2, BarChart, Power,
   Twitter, Facebook, Instagram, MessageCircle, Copy,
-  CheckCircle, ExternalLink, Ticket, DollarSign
+  CheckCircle, ExternalLink, Ticket, DollarSign, AlertCircle
 } from 'lucide-react';
 
-interface Event {
-  id: string;
-  title: string;
-  start_datetime: string;
+interface ApprovedEvent {
+  approval_id: string;
+  event_id: string;
+  event_name: string;
+  event_slug: string;
+  event_date: string;
+  commission_percentage: number | null;
+  discount_percentage: number | null;
+  approval_status: string;
+  approved_at: string;
 }
 
 interface PromoCode {
@@ -40,7 +46,7 @@ interface PromoCode {
 
 export default function PromoterCodesPage() {
   const [codes, setCodes] = useState<PromoCode[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
+  const [approvedEvents, setApprovedEvents] = useState<ApprovedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,13 +57,13 @@ export default function PromoterCodesPage() {
   const [formData, setFormData] = useState({
     event_id: '',
     code_type: 'commission' as 'discount' | 'commission',
-    discount_percentage: '',
-    commission_percentage: ''
   });
+
+  const [selectedEvent, setSelectedEvent] = useState<ApprovedEvent | null>(null);
 
   useEffect(() => {
     fetchCodes();
-    fetchEvents();
+    fetchApprovedEvents();
   }, []);
 
   const fetchCodes = async () => {
@@ -71,13 +77,26 @@ export default function PromoterCodesPage() {
     }
   };
 
-  const fetchEvents = async () => {
+  const fetchApprovedEvents = async () => {
     try {
-      const response = await api.events.list({ page_size: 100 });
-      setEvents(response.data.data || []);
+      // Fetch events promoter is approved for
+      const response = await api.get('/api/v1/promoter-requests/my-approved-events');
+      setApprovedEvents(response.data.data || []);
     } catch (err) {
-      console.error('Failed to load events:', err);
+      console.error('Failed to load approved events:', err);
+      setError('Failed to load approved events. Make sure you have organizer approval first.');
     }
+  };
+
+  const handleEventSelect = (eventId: string) => {
+    const event = approvedEvents.find(e => e.event_id === eventId);
+    setSelectedEvent(event || null);
+    setFormData({
+      ...formData,
+      event_id: eventId,
+      // Determine code type based on what organizer approved
+      code_type: event?.commission_percentage ? 'commission' : 'discount'
+    });
   };
 
   const handleCreateCode = async (e: React.FormEvent) => {
@@ -85,16 +104,16 @@ export default function PromoterCodesPage() {
     setError('');
     setSuccess('');
 
-    const payload: any = {
+    if (!selectedEvent) {
+      setError('Please select an event');
+      return;
+    }
+
+    const payload = {
       event_id: formData.event_id,
       code_type: formData.code_type
+      // NO commission_percentage or discount_percentage - set by organizer!
     };
-
-    if (formData.code_type === 'discount') {
-      payload.discount_percentage = parseFloat(formData.discount_percentage);
-    } else {
-      payload.commission_percentage = parseFloat(formData.commission_percentage);
-    }
 
     try {
       await api.promoter.createCode(payload);
@@ -103,9 +122,8 @@ export default function PromoterCodesPage() {
       setFormData({
         event_id: '',
         code_type: 'commission',
-        discount_percentage: '',
-        commission_percentage: ''
       });
+      setSelectedEvent(null);
       fetchCodes();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to create code');
@@ -145,7 +163,7 @@ export default function PromoterCodesPage() {
 
   const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
 
-  const filteredCodes = codes.filter(code => 
+  const filteredCodes = codes.filter(code =>
     code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     code.event_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -171,7 +189,10 @@ export default function PromoterCodesPage() {
           </h1>
           <p className="text-gray-600 mt-1">Create and manage your promotional codes</p>
         </div>
-        <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+        <Button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          disabled={approvedEvents.length === 0}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create New Code
         </Button>
@@ -180,6 +201,7 @@ export default function PromoterCodesPage() {
       {/* Alerts */}
       {error && (
         <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -190,8 +212,21 @@ export default function PromoterCodesPage() {
         </Alert>
       )}
 
+      {/* No Approved Events Warning */}
+      {approvedEvents.length === 0 && (
+        <Alert>
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription>
+            You haven't been approved by any organizers yet.
+            <a href="/promoter/request-approval" className="underline ml-1">
+              Request approval to promote an event
+            </a>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Create Form */}
-      {showCreateForm && (
+      {showCreateForm && approvedEvents.length > 0 && (
         <Card className="border-[#EB7D30]">
           <CardHeader>
             <CardTitle>Create New Promo Code</CardTitle>
@@ -199,85 +234,62 @@ export default function PromoterCodesPage() {
           <CardContent>
             <form onSubmit={handleCreateCode} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Select Event</label>
+                <label className="block text-sm font-medium mb-1">
+                  Select Event (You're Approved For)
+                </label>
                 <select
                   className="w-full px-3 py-2 border rounded-lg"
                   value={formData.event_id}
-                  onChange={(e) => setFormData({ ...formData, event_id: e.target.value })}
+                  onChange={(e) => handleEventSelect(e.target.value)}
                   required
                 >
                   <option value="">Choose an event...</option>
-                  {events.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.title} - {new Date(event.start_datetime).toLocaleDateString()}
+                  {approvedEvents.map((event) => (
+                    <option key={event.event_id} value={event.event_id}>
+                      {event.event_name} - {new Date(event.event_date).toLocaleDateString()}
+                      {event.commission_percentage && ` (${event.commission_percentage}% commission)`}
+                      {event.discount_percentage && ` (${event.discount_percentage}% discount)`}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Only shows events where organizer has approved you
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Code Type</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    className={`p-4 border-2 rounded-lg transition ${
-                      formData.code_type === 'discount'
-                        ? 'border-[#EB7D30] bg-orange-50'
-                        : 'border-gray-200'
-                    }`}
-                    onClick={() => setFormData({ ...formData, code_type: 'discount' })}
-                  >
-                    <h4 className="font-semibold mb-1">Discount Code</h4>
-                    <p className="text-sm text-gray-600">Give customers a discount</p>
-                  </button>
-                  <button
-                    type="button"
-                    className={`p-4 border-2 rounded-lg transition ${
-                      formData.code_type === 'commission'
-                        ? 'border-[#EB7D30] bg-orange-50'
-                        : 'border-gray-200'
-                    }`}
-                    onClick={() => setFormData({ ...formData, code_type: 'commission' })}
-                  >
-                    <h4 className="font-semibold mb-1">Commission Code</h4>
-                    <p className="text-sm text-gray-600">Earn commission on sales</p>
-                  </button>
-                </div>
-              </div>
-
-              {formData.code_type === 'discount' && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Discount Percentage</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.discount_percentage}
-                    onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
-                    placeholder="e.g., 10"
-                    required
-                  />
-                </div>
-              )}
-
-              {formData.code_type === 'commission' && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Commission Percentage</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.commission_percentage}
-                    onChange={(e) => setFormData({ ...formData, commission_percentage: e.target.value })}
-                    placeholder="e.g., 5"
-                    required
-                  />
+              {selectedEvent && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold mb-2">Organizer-Set Rates (Read-Only)</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedEvent.commission_percentage && (
+                      <div>
+                        <p className="text-sm text-gray-600">Commission Rate</p>
+                        <p className="text-2xl font-bold text-green-700">
+                          {selectedEvent.commission_percentage}%
+                        </p>
+                      </div>
+                    )}
+                    {selectedEvent.discount_percentage && (
+                      <div>
+                        <p className="text-sm text-gray-600">Discount Rate</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {selectedEvent.discount_percentage}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    These rates were set by the organizer and cannot be changed.
+                  </p>
                 </div>
               )}
 
               <div className="flex gap-2">
-                <Button type="submit">Create Code</Button>
-                <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
+                <Button type="submit" disabled={!selectedEvent}>Create Code</Button>
+                <Button type="button" variant="outline" onClick={() => {
+                  setShowCreateForm(false);
+                  setSelectedEvent(null);
+                }}>
                   Cancel
                 </Button>
               </div>
@@ -386,7 +398,7 @@ export default function PromoterCodesPage() {
               <p className="text-gray-600 mb-4">
                 {codes.length === 0 ? 'No promo codes yet' : 'No codes found matching your search'}
               </p>
-              {codes.length === 0 && (
+              {codes.length === 0 && approvedEvents.length > 0 && (
                 <Button onClick={() => setShowCreateForm(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Your First Code
@@ -408,7 +420,7 @@ export default function PromoterCodesPage() {
               <p className="text-sm text-gray-600">
                 Share your promo code on social media to reach more people!
               </p>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"

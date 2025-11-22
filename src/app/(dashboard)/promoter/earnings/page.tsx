@@ -7,36 +7,41 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  DollarSign, TrendingUp, Clock, CheckCircle, 
-  XCircle, Send, Wallet, Calendar, ArrowDownToLine
+import {
+  DollarSign, TrendingUp, Clock, CheckCircle,
+  XCircle, Send, Wallet, Calendar, ArrowDownToLine, AlertCircle
 } from 'lucide-react';
 
-interface CommissionBreakdown {
+interface CommissionByEvent {
+  event_id: string;
+  event_name: string;
+  event_date: string;
   total_commission: number;
-  commission_by_status: Record<string, number>;
-  commission_by_event: Array<{
-    event_name: string;
-    event_date: string;
-    event_status: string;
-    commission: number;
-  }>;
-  commission_by_month: Array<{
-    month: string;
-    commission: number;
-  }>;
-  available_for_payout: number;
-  pending_payout: number;
+  withdrawn: number;
+  available: number;
+  transaction_count: number;
+}
+
+interface CommissionBreakdown {
+  total_earned: number;
+  available_balance: number;
+  pending_commission: number;
+  withdrawn_total: number;
+  current_month_earnings: number;
+  last_month_earnings: number;
+  commission_by_event: CommissionByEvent[];
 }
 
 interface Withdrawal {
   id: string;
+  event_id: string;
   amount: number;
-  mpesa_phone: string;
+  payment_details: string;
   status: string;
+  payment_reference: string | null;
+  payment_notes: string | null;
   requested_at: string;
-  processed_at: string | null;
-  mpesa_receipt: string | null;
+  confirmed_at: string | null;
 }
 
 export default function PromoterEarningsPage() {
@@ -48,9 +53,12 @@ export default function PromoterEarningsPage() {
   const [success, setSuccess] = useState('');
 
   const [withdrawData, setWithdrawData] = useState({
+    event_id: '',
     amount: '',
-    mpesa_phone: ''
+    payment_details: ''
   });
+
+  const [selectedEvent, setSelectedEvent] = useState<CommissionByEvent | null>(null);
 
   useEffect(() => {
     fetchEarnings();
@@ -77,19 +85,41 @@ export default function PromoterEarningsPage() {
     }
   };
 
+  const handleEventSelect = (eventId: string) => {
+    const event = breakdown?.commission_by_event.find(e => e.event_id === eventId);
+    setSelectedEvent(event || null);
+    setWithdrawData({
+      ...withdrawData,
+      event_id: eventId,
+      amount: event?.available.toString() || ''
+    });
+  };
+
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
+    if (!selectedEvent) {
+      setError('Please select an event');
+      return;
+    }
+
+    if (parseFloat(withdrawData.amount) > selectedEvent.available) {
+      setError(`Maximum available: KSh ${selectedEvent.available.toLocaleString()}`);
+      return;
+    }
+
     try {
       await api.promoter.withdraw({
+        event_id: withdrawData.event_id,
         amount: parseFloat(withdrawData.amount),
-        mpesa_phone: withdrawData.mpesa_phone
+        payment_details: withdrawData.payment_details
       });
-      setSuccess('Withdrawal request submitted! Funds will be sent to your M-Pesa shortly.');
+      setSuccess('Withdrawal request sent to organizer! They will pay you directly and confirm payment.');
       setShowWithdrawForm(false);
-      setWithdrawData({ amount: '', mpesa_phone: '' });
+      setWithdrawData({ event_id: '', amount: '', payment_details: '' });
+      setSelectedEvent(null);
       fetchEarnings();
       fetchWithdrawals();
     } catch (err: any) {
@@ -101,12 +131,12 @@ export default function PromoterEarningsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'completed':
-        return <Badge className="bg-green-500">Completed</Badge>;
+      case 'confirmed':
+        return <Badge className="bg-green-500">Paid</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-500">Pending</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -134,7 +164,7 @@ export default function PromoterEarningsPage() {
         <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Comfortaa' }}>
           Earnings & Withdrawals
         </h1>
-        <p className="text-gray-600 mt-1">Manage your commission and request payouts</p>
+        <p className="text-gray-600 mt-1">Request payments from organizers</p>
       </div>
 
       {/* Alerts */}
@@ -151,6 +181,15 @@ export default function PromoterEarningsPage() {
         </Alert>
       )}
 
+      {/* Info Alert */}
+      <Alert>
+        <AlertCircle className="w-4 h-4" />
+        <AlertDescription>
+          <strong>How it works:</strong> Request payment for a specific event. The organizer will pay you manually
+          (M-Pesa, bank transfer, etc.) and then confirm the payment in the system.
+        </AlertDescription>
+      </Alert>
+
       {/* Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-green-200 bg-green-50">
@@ -159,15 +198,15 @@ export default function PromoterEarningsPage() {
               <div className="flex-1">
                 <p className="text-sm text-green-700 font-medium">Available to Withdraw</p>
                 <p className="text-3xl font-bold text-green-900 mt-2">
-                  {formatCurrency(breakdown.available_for_payout)}
+                  {formatCurrency(breakdown.available_balance)}
                 </p>
-                <Button 
+                <Button
                   className="mt-4 bg-green-600 hover:bg-green-700"
                   onClick={() => setShowWithdrawForm(true)}
-                  disabled={breakdown.available_for_payout <= 0}
+                  disabled={breakdown.available_balance <= 0}
                 >
                   <ArrowDownToLine className="w-4 h-4 mr-2" />
-                  Withdraw Now
+                  Request Payment
                 </Button>
               </div>
               <div className="p-3 bg-green-200 rounded-full">
@@ -181,12 +220,12 @@ export default function PromoterEarningsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm text-yellow-700 font-medium">Pending (Future Events)</p>
+                <p className="text-sm text-yellow-700 font-medium">Pending Organizer Confirmation</p>
                 <p className="text-3xl font-bold text-yellow-900 mt-2">
-                  {formatCurrency(breakdown.pending_payout)}
+                  {formatCurrency(breakdown.pending_commission)}
                 </p>
                 <p className="text-xs text-yellow-700 mt-2">
-                  Available after events complete
+                  Waiting for organizer to confirm payment
                 </p>
               </div>
               <div className="p-3 bg-yellow-200 rounded-full">
@@ -202,7 +241,7 @@ export default function PromoterEarningsPage() {
               <div className="flex-1">
                 <p className="text-sm text-blue-700 font-medium">Total Earned</p>
                 <p className="text-3xl font-bold text-blue-900 mt-2">
-                  {formatCurrency(breakdown.total_commission)}
+                  {formatCurrency(breakdown.total_earned)}
                 </p>
                 <p className="text-xs text-blue-700 mt-2">
                   All-time commission
@@ -222,61 +261,108 @@ export default function PromoterEarningsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Send className="w-5 h-5" />
-              Request Withdrawal
+              Request Payment from Organizer
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleWithdraw} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
+                  Select Event <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full px-3 py-2 border rounded-lg"
+                  value={withdrawData.event_id}
+                  onChange={(e) => handleEventSelect(e.target.value)}
+                  required
+                >
+                  <option value="">Choose an event...</option>
+                  {breakdown.commission_by_event
+                    .filter(event => event.available > 0)
+                    .map((event) => (
+                      <option key={event.event_id} value={event.event_id}>
+                        {event.event_name} - {formatCurrency(event.available)} available
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Only shows events with available commission
+                </p>
+              </div>
+
+              {selectedEvent && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold mb-2">{selectedEvent.event_name}</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">Total Earned</p>
+                      <p className="font-bold">{formatCurrency(selectedEvent.total_commission)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Already Withdrawn</p>
+                      <p className="font-bold">{formatCurrency(selectedEvent.withdrawn)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Available</p>
+                      <p className="font-bold text-green-700">{formatCurrency(selectedEvent.available)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
                   Amount (KSh) <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="number"
-                  min="1"
-                  max={breakdown.available_for_payout}
+                  min="100"
+                  max={selectedEvent?.available || 0}
                   value={withdrawData.amount}
                   onChange={(e) => setWithdrawData({ ...withdrawData, amount: e.target.value })}
-                  placeholder="Enter amount to withdraw"
+                  placeholder="Enter amount"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Maximum: {formatCurrency(breakdown.available_for_payout)}
+                  Maximum: {selectedEvent ? formatCurrency(selectedEvent.available) : 'Select event first'}
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  M-Pesa Phone Number <span className="text-red-500">*</span>
+                  Payment Details <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  type="tel"
-                  value={withdrawData.mpesa_phone}
-                  onChange={(e) => setWithdrawData({ ...withdrawData, mpesa_phone: e.target.value })}
-                  placeholder="+254712345678"
+                  type="text"
+                  value={withdrawData.payment_details}
+                  onChange={(e) => setWithdrawData({ ...withdrawData, payment_details: e.target.value })}
+                  placeholder="M-Pesa: +254712345678 or Bank: KCB 1234567890"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Funds will be sent to this number via M-Pesa
+                  How should the organizer pay you? (M-Pesa number, bank account, etc.)
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900 font-medium mb-2">Processing Information:</p>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Withdrawals are processed within 24 hours</li>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm text-orange-900 font-medium mb-2">Important:</p>
+                <ul className="text-sm text-orange-800 space-y-1">
+                  <li>• The organizer will pay you OUTSIDE the system</li>
+                  <li>• They will then confirm the payment here</li>
+                  <li>• Commission will be deducted after confirmation</li>
                   <li>• Minimum withdrawal: KSh 100</li>
-                  <li>• M-Pesa charges may apply</li>
-                  <li>• You'll receive an SMS confirmation</li>
                 </ul>
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit">
+                <Button type="submit" disabled={!selectedEvent}>
                   <Send className="w-4 h-4 mr-2" />
-                  Submit Request
+                  Send Request
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowWithdrawForm(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setShowWithdrawForm(false);
+                  setSelectedEvent(null);
+                }}>
                   Cancel
                 </Button>
               </div>
@@ -297,16 +383,25 @@ export default function PromoterEarningsPage() {
                 <div className="flex-1">
                   <h4 className="font-semibold">{event.event_name}</h4>
                   <p className="text-sm text-gray-600">
-                    {new Date(event.event_date).toLocaleDateString()} • {event.event_status}
+                    {new Date(event.event_date).toLocaleDateString()} • {event.transaction_count} transactions
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xl font-bold text-[#EB7D30]">{formatCurrency(event.commission)}</p>
-                  {event.event_status === 'completed' ? (
-                    <Badge className="bg-green-500 mt-1">Available</Badge>
-                  ) : (
-                    <Badge className="bg-yellow-500 mt-1">Pending</Badge>
-                  )}
+                  <p className="text-xl font-bold text-[#EB7D30]">{formatCurrency(event.total_commission)}</p>
+                  <div className="flex gap-2 mt-1">
+                    {event.withdrawn > 0 && (
+                      <Badge className="bg-gray-500">
+                        Withdrawn: {formatCurrency(event.withdrawn)}
+                      </Badge>
+                    )}
+                    {event.available > 0 ? (
+                      <Badge className="bg-green-500">
+                        Available: {formatCurrency(event.available)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Fully Withdrawn</Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -317,43 +412,10 @@ export default function PromoterEarningsPage() {
         </CardContent>
       </Card>
 
-      {/* Monthly Trend */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Monthly Commission Trend
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {breakdown.commission_by_month.slice(-6).map((month, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div className="w-24 text-sm text-gray-600">{month.month}</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-6">
-                      <div
-                        className="bg-[#EB7D30] h-6 rounded-full flex items-center justify-end pr-2"
-                        style={{ 
-                          width: `${(month.commission / Math.max(...breakdown.commission_by_month.map(m => m.commission))) * 100}%` 
-                        }}
-                      >
-                        <span className="text-xs text-white font-semibold">{formatCurrency(month.commission)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Withdrawal History */}
       <Card>
         <CardHeader>
-          <CardTitle>Withdrawal History</CardTitle>
+          <CardTitle>Withdrawal Requests History</CardTitle>
         </CardHeader>
         <CardContent>
           {withdrawals.length > 0 ? (
@@ -366,15 +428,28 @@ export default function PromoterEarningsPage() {
                       {getStatusBadge(withdrawal.status)}
                     </div>
                     <p className="text-sm text-gray-600">
-                      To: {withdrawal.mpesa_phone} • Requested: {new Date(withdrawal.requested_at).toLocaleString()}
+                      Payment Details: {withdrawal.payment_details}
                     </p>
-                    {withdrawal.mpesa_receipt && (
+                    <p className="text-sm text-gray-600">
+                      Requested: {new Date(withdrawal.requested_at).toLocaleString()}
+                    </p>
+                    {withdrawal.payment_reference && (
                       <p className="text-sm text-green-600 mt-1">
-                        Receipt: {withdrawal.mpesa_receipt}
+                        <strong>Payment Reference:</strong> {withdrawal.payment_reference}
+                      </p>
+                    )}
+                    {withdrawal.payment_notes && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        <strong>Notes:</strong> {withdrawal.payment_notes}
+                      </p>
+                    )}
+                    {withdrawal.confirmed_at && (
+                      <p className="text-sm text-green-600 mt-1">
+                        Confirmed: {new Date(withdrawal.confirmed_at).toLocaleString()}
                       </p>
                     )}
                   </div>
-                  {withdrawal.status === 'completed' ? (
+                  {withdrawal.status === 'confirmed' ? (
                     <CheckCircle className="w-8 h-8 text-green-500" />
                   ) : withdrawal.status === 'pending' ? (
                     <Clock className="w-8 h-8 text-yellow-500" />
@@ -385,7 +460,7 @@ export default function PromoterEarningsPage() {
               ))}
             </div>
           ) : (
-            <p className="text-center text-gray-500 py-8">No withdrawal history yet</p>
+            <p className="text-center text-gray-500 py-8">No withdrawal requests yet</p>
           )}
         </CardContent>
       </Card>
