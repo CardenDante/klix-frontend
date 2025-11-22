@@ -119,7 +119,7 @@ export default function ImageUpload({
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-sm text-gray-600 font-body">Uploading and optimizing...</p>
+              <p className="text-sm text-gray-600 font-body">Uploading image...</p>
               <p className="text-xs text-gray-500 font-body">This may take a few seconds</p>
             </div>
           ) : (
@@ -202,7 +202,7 @@ export default function ImageUpload({
       <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 font-body">
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <p>
-          Images are automatically optimized and converted to JPEG format for best performance.
+          Images are uploaded in their original format and quality. Supported formats: JPEG, PNG, WebP.
         </p>
       </div>
     </div>
