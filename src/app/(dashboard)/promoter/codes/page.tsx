@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,9 +62,7 @@ export default function PromoterCodesPage() {
 
   const fetchCodes = async () => {
     try {
-      const response = await apiClient.get('/promoters/my-codes', {
-        params: { page_size: 100 }
-      });
+      const response = await api.promoter.myCodes({ page_size: 100 });
       setCodes(response.data.data || []);
     } catch (err) {
       console.error('Failed to load codes:', err);
@@ -75,9 +73,7 @@ export default function PromoterCodesPage() {
 
   const fetchEvents = async () => {
     try {
-      const response = await apiClient.get('/events', {
-        params: { page_size: 100 }
-      });
+      const response = await api.events.list({ page_size: 100 });
       setEvents(response.data.data || []);
     } catch (err) {
       console.error('Failed to load events:', err);
@@ -101,7 +97,7 @@ export default function PromoterCodesPage() {
     }
 
     try {
-      await apiClient.post('/promoters/codes', payload);
+      await api.promoter.createCode(payload);
       setSuccess('Promo code created successfully!');
       setShowCreateForm(false);
       setFormData({
@@ -118,7 +114,7 @@ export default function PromoterCodesPage() {
 
   const handleDeactivate = async (codeId: string) => {
     try {
-      await apiClient.post(`/promoters/code/${codeId}/deactivate`);
+      await api.promoter.deactivateCode(codeId);
       setSuccess('Code deactivated successfully');
       fetchCodes();
     } catch (err: any) {

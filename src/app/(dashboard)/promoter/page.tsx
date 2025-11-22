@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +54,7 @@ export default function PromoterDashboardPage() {
 
   const fetchDashboard = async () => {
     try {
-      const response = await apiClient.get('/analytics/promoter/dashboard');
+      const response = await api.analytics.promoter.dashboard();
       setDashboard(response.data);
     } catch (err) {
       console.error('Failed to load dashboard:', err);

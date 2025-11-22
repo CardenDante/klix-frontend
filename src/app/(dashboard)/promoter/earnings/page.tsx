@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +59,7 @@ export default function PromoterEarningsPage() {
 
   const fetchEarnings = async () => {
     try {
-      const response = await apiClient.get('/promoters/earnings');
+      const response = await api.promoter.earnings();
       setBreakdown(response.data);
     } catch (err) {
       console.error('Failed to load earnings:', err);
@@ -70,9 +70,7 @@ export default function PromoterEarningsPage() {
 
   const fetchWithdrawals = async () => {
     try {
-      const response = await apiClient.get('/promoters/withdrawals', {
-        params: { limit: 50 }
-      });
+      const response = await api.promoter.withdrawals(50);
       setWithdrawals(response.data.withdrawals || []);
     } catch (err) {
       console.error('Failed to load withdrawals:', err);
@@ -85,7 +83,7 @@ export default function PromoterEarningsPage() {
     setSuccess('');
 
     try {
-      await apiClient.post('/promoters/withdraw', {
+      await api.promoter.withdraw({
         amount: parseFloat(withdrawData.amount),
         mpesa_phone: withdrawData.mpesa_phone
       });

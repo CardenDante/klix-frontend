@@ -8,7 +8,17 @@
       "Bash(npx tsc:*)",
       "Bash(python3:*)",
       "Bash(git pull:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker system prune:*)",
+      "Bash(sudo service docker:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []

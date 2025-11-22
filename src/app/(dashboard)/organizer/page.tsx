@@ -77,8 +77,8 @@ export default function OrganizerDashboard() {
   if (!stats || stats.total_events_count === 0) {
     return <EmptyState />;
   }
-  
-  const salesChartData = stats.sales_over_time.map(item => ({
+
+  const salesChartData = (stats.sales_over_time || []).map(item => ({
     name: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     Revenue: item.revenue
   }));
@@ -101,30 +101,30 @@ export default function OrganizerDashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-            title="Total Revenue" 
-            value={`KSh ${stats.total_revenue.toLocaleString()}`} 
+        <StatCard
+            title="Total Revenue"
+            value={`KSh ${(stats.total_revenue || 0).toLocaleString()}`}
             icon={DollarSign}
             iconColor="text-green-600"
             bgColor="bg-green-100"
         />
-        <StatCard 
-            title="Tickets Sold" 
-            value={stats.total_tickets_sold.toLocaleString()} 
+        <StatCard
+            title="Tickets Sold"
+            value={(stats.total_tickets_sold || 0).toLocaleString()}
             icon={Ticket}
             iconColor="text-blue-600"
             bgColor="bg-blue-100"
         />
-        <StatCard 
-            title="Upcoming Events" 
-            value={stats.upcoming_events_count.toString()} 
+        <StatCard
+            title="Upcoming Events"
+            value={(stats.upcoming_events_count || 0).toString()}
             icon={Calendar}
             iconColor="text-orange-600"
             bgColor="bg-orange-100"
         />
-        <StatCard 
-            title="Total Events" 
-            value={stats.total_events_count.toString()} 
+        <StatCard
+            title="Total Events"
+            value={(stats.total_events_count || 0).toString()}
             icon={BarChart3}
             iconColor="text-purple-600"
             bgColor="bg-purple-100"
@@ -161,13 +161,13 @@ export default function OrganizerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.top_events.slice(0, 5).map((event, index) => (
+              {(stats.top_events || []).slice(0, 5).map((event, index) => (
                 <div key={event.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-gray-400 w-5">#{index + 1}</span>
                     <p className="text-sm font-semibold text-gray-800 truncate">{event.title}</p>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{event.tickets_sold.toLocaleString()}</p>
+                  <p className="text-sm font-bold text-gray-900">{(event.tickets_sold || 0).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -191,9 +191,9 @@ export default function OrganizerDashboard() {
               </div>
           </CardHeader>
           <CardContent>
-              {stats.upcoming_events.length > 0 ? (
+              {(stats.upcoming_events || []).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {stats.upcoming_events.slice(0, 3).map((event) => (
+                    {(stats.upcoming_events || []).slice(0, 3).map((event) => (
                       <div 
                         key={event.id} 
                         className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"

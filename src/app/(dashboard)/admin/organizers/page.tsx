@@ -34,7 +34,11 @@ interface Organizer {
   user_id: string;
   business_name: string;
   business_type?: string;
+  business_registration?: string;
   business_registration_number?: string;
+  description?: string;
+  website?: string;
+  logo_url?: string;
   phone_number?: string;
   email?: string;
   status: 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -56,7 +60,7 @@ interface Organizer {
   };
 }
 
-type ActionType = 'approve' | 'reject' | 'suspend' | null;
+type ActionType = 'approve' | 'reject' | 'suspend' | 'view' | null;
 
 export default function OrganizersPage() {
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
@@ -192,12 +196,21 @@ export default function OrganizersPage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A';
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -351,6 +364,13 @@ export default function OrganizersPage() {
                             <>
                               <Button
                                 size="sm"
+                                variant="outline"
+                                onClick={() => openDialog(organizer, 'view')}
+                              >
+                                View Details
+                              </Button>
+                              <Button
+                                size="sm"
                                 variant="default"
                                 onClick={() => openDialog(organizer, 'approve')}
                               >
@@ -395,9 +415,10 @@ export default function OrganizersPage() {
 
       {/* Action Dialog */}
       <Dialog open={!!actionType} onOpenChange={closeDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
+              {actionType === 'view' && 'Application Details'}
               {actionType === 'approve' && 'Approve Organizer'}
               {actionType === 'reject' && 'Reject Organizer'}
               {actionType === 'suspend' && 'Suspend Organizer'}
@@ -408,6 +429,76 @@ export default function OrganizersPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Application Details */}
+            {selectedOrganizer && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Application Details</h3>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 font-medium">Business Name</p>
+                    <p className="text-gray-900">{selectedOrganizer.business_name}</p>
+                  </div>
+
+                  {selectedOrganizer.business_registration && (
+                    <div>
+                      <p className="text-gray-500 font-medium">Registration Number</p>
+                      <p className="text-gray-900">{selectedOrganizer.business_registration}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-gray-500 font-medium">Email</p>
+                    <p className="text-gray-900">{selectedOrganizer.user?.email || selectedOrganizer.email}</p>
+                  </div>
+
+                  {(selectedOrganizer.user?.phone_number || selectedOrganizer.phone_number) && (
+                    <div>
+                      <p className="text-gray-500 font-medium">Phone</p>
+                      <p className="text-gray-900">{selectedOrganizer.user?.phone_number || selectedOrganizer.phone_number}</p>
+                    </div>
+                  )}
+
+                  {selectedOrganizer.website && (
+                    <div className="col-span-2">
+                      <p className="text-gray-500 font-medium">Website</p>
+                      <a
+                        href={selectedOrganizer.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {selectedOrganizer.website}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {selectedOrganizer.description && (
+                  <div>
+                    <p className="text-gray-500 font-medium text-sm">Description</p>
+                    <p className="text-gray-900 text-sm whitespace-pre-wrap">{selectedOrganizer.description}</p>
+                  </div>
+                )}
+
+                {selectedOrganizer.logo_url && (
+                  <div>
+                    <p className="text-gray-500 font-medium text-sm mb-2">Logo</p>
+                    <img
+                      src={selectedOrganizer.logo_url}
+                      alt="Business Logo"
+                      className="w-24 h-24 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-gray-500 font-medium text-sm">Applied On</p>
+                  <p className="text-gray-900 text-sm">{formatDate(selectedOrganizer.created_at)}</p>
+                </div>
+              </div>
+            )}
+
             {actionType === 'approve' && (
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
@@ -437,60 +528,68 @@ export default function OrganizersPage() {
               </div>
             )}
 
-            <div className="bg-muted p-3 rounded-lg text-sm">
-              <p className="font-medium mb-1">This action will:</p>
-              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                {actionType === 'approve' && (
-                  <>
-                    <li>Change organizer status to APPROVED</li>
-                    <li>Upgrade user role to ORGANIZER</li>
-                    <li>Send approval confirmation email</li>
-                    <li>Allow them to create events</li>
-                  </>
-                )}
-                {actionType === 'reject' && (
-                  <>
-                    <li>Change organizer status to REJECTED</li>
-                    <li>Send rejection notification email</li>
-                    <li>User will remain as ATTENDEE</li>
-                    <li>Record rejection reason in audit log</li>
-                  </>
-                )}
-                {actionType === 'suspend' && (
-                  <>
-                    <li>Change organizer status to SUSPENDED</li>
-                    <li>Unpublish all their events</li>
-                    <li>Send suspension notification email</li>
-                    <li>Record suspension reason in audit log</li>
-                  </>
-                )}
-              </ul>
-            </div>
+            {actionType !== 'view' && (
+              <div className="bg-muted p-3 rounded-lg text-sm">
+                <p className="font-medium mb-1">This action will:</p>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                  {actionType === 'approve' && (
+                    <>
+                      <li>Change organizer status to APPROVED</li>
+                      <li>Upgrade user role to ORGANIZER</li>
+                      <li>Send approval confirmation email</li>
+                      <li>Allow them to create events</li>
+                    </>
+                  )}
+                  {actionType === 'reject' && (
+                    <>
+                      <li>Change organizer status to REJECTED</li>
+                      <li>Send rejection notification email</li>
+                      <li>User will remain as ATTENDEE</li>
+                      <li>Record rejection reason in audit log</li>
+                    </>
+                  )}
+                  {actionType === 'suspend' && (
+                    <>
+                      <li>Change organizer status to SUSPENDED</li>
+                      <li>Unpublish all their events</li>
+                      <li>Send suspension notification email</li>
+                      <li>Record suspension reason in audit log</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} disabled={processing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAction}
-              disabled={processing || ((actionType === 'reject' || actionType === 'suspend') && !actionReason.trim())}
-              variant={actionType === 'approve' ? 'default' : 'destructive'}
-            >
-              {processing ? (
-                <>
-                  <Activity className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {actionType === 'approve' && <UserCheck className="w-4 h-4 mr-2" />}
-                  {actionType === 'reject' && <UserX className="w-4 h-4 mr-2" />}
-                  {actionType === 'suspend' && <Ban className="w-4 h-4 mr-2" />}
-                  Confirm {actionType}
-                </>
-              )}
-            </Button>
+            {actionType === 'view' ? (
+              <Button onClick={closeDialog}>Close</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeDialog} disabled={processing}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAction}
+                  disabled={processing || ((actionType === 'reject' || actionType === 'suspend') && !actionReason.trim())}
+                  variant={actionType === 'approve' ? 'default' : 'destructive'}
+                >
+                  {processing ? (
+                    <>
+                      <Activity className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      {actionType === 'approve' && <UserCheck className="w-4 h-4 mr-2" />}
+                      {actionType === 'reject' && <UserX className="w-4 h-4 mr-2" />}
+                      {actionType === 'suspend' && <Ban className="w-4 h-4 mr-2" />}
+                      Confirm {actionType}
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

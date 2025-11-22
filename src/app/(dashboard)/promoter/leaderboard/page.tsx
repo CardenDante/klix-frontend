@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import  apiClient  from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,9 +41,7 @@ export default function PromoterLeaderboardPage() {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/analytics/promoter/leaderboard', {
-        params: { period, limit }
-      });
+      const response = await api.analytics.promoter.leaderboard({ period, limit });
       setLeaderboard(response.data);
     } catch (err) {
       console.error('Failed to load leaderboard:', err);

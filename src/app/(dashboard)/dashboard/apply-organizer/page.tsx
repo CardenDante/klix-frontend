@@ -26,7 +26,7 @@ interface FormData {
 export default function ApplyOrganizerPage() {
   const router = useRouter()
   const { user, isAuthenticated } = useAuth()
-  const { organizerProfile, hasApplication, loading: orgLoading } = useOrganizer()
+  const { organizerProfile, hasApplication, loading: orgLoading, refetch } = useOrganizer()
 
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
@@ -177,7 +177,10 @@ export default function ApplyOrganizerPage() {
 
       // Clear draft
       localStorage.removeItem('organizer_application_draft')
-      
+
+      // Refetch organizer profile to update state
+      await refetch()
+
       toast.success('Application submitted successfully!')
       router.push('/dashboard/application-status')
     } catch (error: any) {
