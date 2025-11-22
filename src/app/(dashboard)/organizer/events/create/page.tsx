@@ -1,18 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, MapPin, Image as ImageIcon, Ticket, Check } from 'lucide-react';
 import { organizersApi, EventCreateData } from '@/lib/api/organizers';
 import { eventsApi } from '@/lib/api/events';
-import ImageUpload from '@/components/shared/ImageUpload';
 
 export default function CreateEventPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [tempEventId, setTempEventId] = useState('');
 
   const [formData, setFormData] = useState<EventCreateData>({
     title: '',
@@ -31,11 +29,6 @@ export default function CreateEventPage() {
   const [ticketTypes, setTicketTypes] = useState([
     { name: 'General Admission', description: '', price: '', quantity_total: '' },
   ]);
-
-  // Generate temporary event ID for file uploads
-  useEffect(() => {
-    setTempEventId(crypto.randomUUID());
-  }, []);
 
   const steps = [
     { number: 1, title: 'Basic Info', icon: Calendar },
@@ -80,8 +73,30 @@ export default function CreateEventPage() {
         return;
       }
 
+      // Convert datetime-local format to ISO format without timezone (backend expects naive datetime)
+      // datetime-local gives us: "2025-11-23T14:30"
+      // We need: "2025-11-23T14:30:00" (no Z suffix for timezone-naive)
+      const formatDateTime = (dateTimeLocal: string) => {
+        if (!dateTimeLocal) return '';
+        // Append seconds if not present, but don't add timezone
+        return dateTimeLocal.includes(':') && dateTimeLocal.split(':').length === 2
+          ? `${dateTimeLocal}:00`
+          : dateTimeLocal;
+      };
+
+      const eventData = {
+        ...formData,
+        start_datetime: formatDateTime(formData.start_datetime),
+        end_datetime: formatDateTime(formData.end_datetime),
+        description: formData.description?.trim() || undefined,
+        latitude: formData.latitude || undefined,
+        longitude: formData.longitude || undefined,
+        banner_image_url: formData.banner_image_url || undefined,
+        additional_images: formData.additional_images?.length ? formData.additional_images : undefined,
+      };
+
       // Create event
-      const eventResponse = await organizersApi.createEvent(formData);
+      const eventResponse = await organizersApi.createEvent(eventData);
       const eventId = eventResponse.data.id;
 
       // Create ticket types
@@ -96,10 +111,28 @@ export default function CreateEventPage() {
         }
       }
 
-      // Redirect to event page
-      router.push(`/organizer/events/${eventId}`);
+      // Redirect to events list with success message
+      router.push('/organizer/events?created=true');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Your organizer account must be approved before creating events');
+      console.error('Event creation error:', err.response?.data);
+      const errorDetail = err.response?.data?.detail;
+
+      // Handle validation errors (422)
+      if (err.response?.status === 422) {
+        if (typeof errorDetail === 'string') {
+          setError(errorDetail);
+        } else if (Array.isArray(errorDetail)) {
+          // Pydantic validation errors
+          const messages = errorDetail.map((e: any) =>
+            `${e.loc?.join(' → ') || 'Field'}: ${e.msg}`
+          ).join(', ');
+          setError(messages);
+        } else {
+          setError('Please check all fields and try again');
+        }
+      } else {
+        setError(errorDetail || 'Failed to create event. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -297,24 +330,25 @@ export default function CreateEventPage() {
             </div>
           )}
 
-          {/* Step 3: Media - UPDATED WITH IMAGE UPLOAD */}
+          {/* Step 3: Media */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <ImageUpload
-                value={formData.banner_image_url}
-                onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
-                uploadType="event_banner"
-                entityId={tempEventId}
-                label="Event Banner Image"
-                aspectRatio="16:9"
-                recommendedSize="1920x1080px"
-                maxSizeMB={5}
-              />
-              
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 font-body">
-                  💡 <strong>Tip:</strong> A high-quality banner image helps attract more attendees. 
-                  Use an image that represents your event well!
+              <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                <ImageIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 font-comfortaa">
+                  Banner Image (Optional)
+                </h3>
+                <p className="text-sm text-gray-700 mb-4 font-body">
+                  You can add a banner image after creating your event. A high-quality banner helps attract more attendees!
+                </p>
+                <p className="text-xs text-gray-600 font-body">
+                  💡 <strong>Recommended:</strong> 1920x1080px (16:9 ratio) • Max 5MB • JPEG, PNG, or WebP
+                </p>
+              </div>
+
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800 font-body">
+                  ✅ <strong>Next Step:</strong> After creating your event, you'll be able to edit it and upload a banner image.
                 </p>
               </div>
             </div>

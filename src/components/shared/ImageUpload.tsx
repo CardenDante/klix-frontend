@@ -6,6 +6,17 @@ import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 
+// Helper to get full image URL from backend
+const getImageUrl = (path: string | undefined): string => {
+  if (!path) return '';
+  // If already a full URL, return as-is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  // If relative path, prepend backend URL
+  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
@@ -17,8 +28,8 @@ interface ImageUploadProps {
   maxSizeMB?: number;
 }
 
-export default function ImageUpload({ 
-  value, 
+export default function ImageUpload({
+  value,
   onChange,
   uploadType,
   entityId,
@@ -28,7 +39,7 @@ export default function ImageUpload({
   maxSizeMB = 5
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string>(value || '');
+  const [preview, setPreview] = useState<string>(getImageUrl(value));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +87,7 @@ export default function ImageUpload({
       console.log('✅ [UPLOAD] Success:', imageUrl);
 
       onChange(imageUrl);
-      setPreview(imageUrl);
+      setPreview(getImageUrl(imageUrl));
       toast.success('Image uploaded successfully!');
     } catch (error: any) {
       console.error('❌ [UPLOAD] Failed:', error);
@@ -119,7 +130,7 @@ export default function ImageUpload({
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
-              <p className="text-sm text-gray-600 font-body">Uploading and optimizing...</p>
+              <p className="text-sm text-gray-600 font-body">Uploading image...</p>
               <p className="text-xs text-gray-500 font-body">This may take a few seconds</p>
             </div>
           ) : (
@@ -202,7 +213,7 @@ export default function ImageUpload({
       <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 font-body">
         <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <p>
-          Images are automatically optimized and converted to JPEG format for best performance.
+          Images are uploaded in their original format and quality. Supported formats: JPEG, PNG, WebP.
         </p>
       </div>
     </div>
