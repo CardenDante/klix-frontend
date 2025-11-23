@@ -33,6 +33,25 @@ interface UpcomingEventData {
   banner_image_url?: string;
 }
 
+// Backend response format (what API actually returns)
+interface BackendDashboardStats {
+  organizer_id: string;
+  organizer_name: string;
+  total_events: number; // Backend uses this
+  active_events: number;
+  completed_events: number;
+  draft_events: number;
+  total_revenue: number;
+  total_tickets_sold: number;
+  upcoming_events: UpcomingEventData[];
+  top_events: TopEventData[];
+  revenue_this_month: number;
+  revenue_last_month: number;
+  tickets_sold_this_month: number;
+  tickets_sold_last_month: number;
+}
+
+// Frontend format (normalized)
 interface DashboardStats {
   total_revenue: number;
   total_tickets_sold: number;
@@ -56,46 +75,56 @@ export default function OrganizerDashboard() {
       try {
         setLoading(true);
 
-        // Try fetching dashboard stats
+        // ALWAYS fetch events directly first (analytics endpoint is unreliable)
+        console.log('🔄 [DASHBOARD] Fetching events directly...');
+        const eventsResponse = await organizersApi.getMyEvents();
+        console.log('📊 [DASHBOARD] My events response:', eventsResponse.data);
+
+        const events = eventsResponse.data.data || eventsResponse.data || [];
+        setFallbackEvents(events);
+
+        console.log(`✅ [DASHBOARD] Found ${events.length} events`);
+
+        // Try to get analytics data, but don't fail if it doesn't work
+        let analyticsData: BackendDashboardStats | null = null;
         try {
-          const response = await organizersApi.getDashboard();
-
-          // Debug logging
-          console.log('📊 [DASHBOARD] Full response:', response);
-          console.log('📊 [DASHBOARD] Response data:', response.data);
-          console.log('📊 [DASHBOARD] Total events:', response.data?.total_events_count);
-          console.log('📊 [DASHBOARD] Upcoming events:', response.data?.upcoming_events);
-
-          setStats(response.data);
+          const analyticsResponse = await organizersApi.getDashboard();
+          analyticsData = analyticsResponse.data;
+          console.log('📊 [DASHBOARD] Analytics data:', analyticsData);
         } catch (analyticsError: any) {
-          console.error("❌ [DASHBOARD] Analytics failed:", analyticsError);
-
-          // Fallback: fetch events directly
-          console.log('🔄 [DASHBOARD] Trying fallback: fetching events directly');
-          try {
-            const eventsResponse = await organizersApi.getMyEvents();
-            console.log('📊 [DASHBOARD] My events response:', eventsResponse.data);
-
-            const events = eventsResponse.data.data || eventsResponse.data || [];
-            setFallbackEvents(events);
-
-            // Create basic stats from events
-            const basicStats: DashboardStats = {
-              total_revenue: 0,
-              total_tickets_sold: 0,
-              upcoming_events_count: events.filter((e: any) => new Date(e.start_datetime) > new Date()).length,
-              total_events_count: events.length,
-              sales_over_time: [],
-              top_events: [],
-              upcoming_events: events.filter((e: any) => new Date(e.start_datetime) > new Date()).slice(0, 3)
-            };
-            console.log('📊 [DASHBOARD] Created basic stats:', basicStats);
-            setStats(basicStats);
-          } catch (eventsError) {
-            console.error("❌ [DASHBOARD] Failed to fetch events too:", eventsError);
-            toast.error("Could not load your dashboard data. Please try again.");
-          }
+          console.warn("⚠️ [DASHBOARD] Analytics endpoint failed, using events data only:", analyticsError);
         }
+
+        // Build stats from BOTH sources (prioritize events data for counts)
+        const upcomingEvents = events.filter((e: any) => new Date(e.start_datetime) > new Date());
+
+        const normalizedStats: DashboardStats = {
+          // Use events data for counts (it's more reliable)
+          total_events_count: events.length,
+          upcoming_events_count: upcomingEvents.length,
+          upcoming_events: upcomingEvents.slice(0, 3).map((e: any) => ({
+            id: e.id,
+            slug: e.slug,
+            title: e.title,
+            start_datetime: e.start_datetime,
+            location: e.location,
+            banner_image_url: e.banner_image_url
+          })),
+
+          // Use analytics data for revenue/sales (fallback to 0)
+          total_revenue: analyticsData?.total_revenue || 0,
+          total_tickets_sold: analyticsData?.total_tickets_sold || 0,
+          top_events: analyticsData?.top_events || [],
+          sales_over_time: []
+        };
+
+        console.log('✅ [DASHBOARD] Final normalized stats:', normalizedStats);
+        setStats(normalizedStats);
+
+      } catch (error: any) {
+        console.error("❌ [DASHBOARD] Failed to fetch data:", error);
+        console.error("❌ [DASHBOARD] Error details:", error.response?.data);
+        toast.error("Could not load your dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
