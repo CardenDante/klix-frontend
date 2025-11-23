@@ -96,13 +96,27 @@ export default function OrganizerDashboard() {
         }
 
         // Build stats from BOTH sources (prioritize events data for counts)
-        const upcomingEvents = events.filter((e: any) => new Date(e.start_datetime) > new Date());
+        // Filter upcoming events: start_datetime is in the FUTURE
+        const now = new Date();
+        console.log('⏰ [DASHBOARD] Current time:', now.toISOString());
+
+        const upcomingEvents = events.filter((e: any) => {
+          const eventStart = new Date(e.start_datetime);
+          const isUpcoming = eventStart > now;
+          console.log(`📅 [DASHBOARD] Event "${e.title}": ${e.start_datetime} → ${eventStart.toISOString()} → Upcoming: ${isUpcoming}`);
+          return isUpcoming;
+        });
+
+        console.log(`📊 [DASHBOARD] Total events: ${events.length}, Upcoming: ${upcomingEvents.length}`);
+
+        // If no upcoming events but we have events, show ALL events (they might be past events)
+        const displayEvents = upcomingEvents.length > 0 ? upcomingEvents : events;
 
         const normalizedStats: DashboardStats = {
           // Use events data for counts (it's more reliable)
           total_events_count: events.length,
           upcoming_events_count: upcomingEvents.length,
-          upcoming_events: upcomingEvents.slice(0, 3).map((e: any) => ({
+          upcoming_events: displayEvents.slice(0, 3).map((e: any) => ({
             id: e.id,
             slug: e.slug,
             title: e.title,
@@ -258,8 +272,14 @@ export default function OrganizerDashboard() {
           <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="font-comfortaa">Upcoming Events</CardTitle>
-                  <CardDescription className="font-body">Your next few scheduled events.</CardDescription>
+                  <CardTitle className="font-comfortaa">
+                    {stats.upcoming_events_count > 0 ? 'Upcoming Events' : 'Recent Events'}
+                  </CardTitle>
+                  <CardDescription className="font-body">
+                    {stats.upcoming_events_count > 0
+                      ? `${stats.upcoming_events_count} event${stats.upcoming_events_count !== 1 ? 's' : ''} coming up`
+                      : 'Your events (add new dates for upcoming events)'}
+                  </CardDescription>
                 </div>
                 <Button variant="ghost" size="sm" asChild>
                     <Link href="/organizer/events">
@@ -271,13 +291,16 @@ export default function OrganizerDashboard() {
           <CardContent>
               {(stats.upcoming_events || []).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {(stats.upcoming_events || []).slice(0, 3).map((event) => (
-                      <div 
-                        key={event.id} 
-                        className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                    {(stats.upcoming_events || []).slice(0, 3).map((event) => {
+                      const eventDate = new Date(event.start_datetime);
+                      const isPast = eventDate < new Date();
+                      return (
+                      <div
+                        key={event.id}
+                        className={`border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${isPast ? 'opacity-75' : ''}`}
                         onClick={() => router.push(`/organizer/events/${event.id}`)}
                       >
-                        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center relative">
                             {event.banner_image_url ? (
                                 <img
                                   src={getImageUrl(event.banner_image_url)}
@@ -287,16 +310,31 @@ export default function OrganizerDashboard() {
                             ) : (
                                 <Calendar className="w-12 h-12 text-primary" />
                             )}
+                            {isPast && (
+                              <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs px-2 py-1 rounded">
+                                Past Event
+                              </div>
+                            )}
                         </div>
                         <div className="p-4">
                             <h4 className="font-semibold font-comfortaa truncate">{event.title}</h4>
                             <div className="text-xs text-gray-600 space-y-1 mt-2 font-body">
-                                <p className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(event.start_datetime).toLocaleDateString()}</p>
+                                <p className="flex items-center gap-1.5">
+                                  <Clock className="w-3 h-3" />
+                                  {eventDate.toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
                                 <p className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {event.location}</p>
                             </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                 </div>
               ) : (
                 <p className="text-center text-gray-500 py-8 font-body">You have no upcoming events.</p>

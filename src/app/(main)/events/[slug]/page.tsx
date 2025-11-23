@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
@@ -69,17 +69,24 @@ export default function EventDetailPage() {
   const router = useRouter();
   const { slug } = useParams();
   const { isAuthenticated } = useAuth();
-  
+
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [ticketQuantities, setTicketQuantities] = useState<{ [key: string]: number }>({});
+  const [isFollowing, setIsFollowing] = useState(false);
   
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         setLoading(true);
         const response = await api.events.getBySlug(slug as string);
+
+        console.log('🎫 [EVENT PREVIEW] Full response:', response.data);
+        console.log('🎫 [EVENT PREVIEW] Ticket types:', response.data.ticket_types);
+        console.log('🎫 [EVENT PREVIEW] Ticket types count:', response.data.ticket_types?.length || 0);
+
         setEvent(response.data);
+
         // Initialize quantities - check if ticket_types exists and is an array
         const ticketTypes = response.data.ticket_types || [];
         const initialQuantities = Array.isArray(ticketTypes)
@@ -88,9 +95,11 @@ export default function EventDetailPage() {
               return acc;
             }, {})
           : {};
+
+        console.log('🎫 [EVENT PREVIEW] Initial quantities:', initialQuantities);
         setTicketQuantities(initialQuantities);
       } catch (error) {
-        console.error("Failed to fetch event details:", error);
+        console.error("❌ [EVENT PREVIEW] Failed to fetch event details:", error);
         // Optionally redirect to a 404 page
       } finally {
         setLoading(false);
@@ -125,6 +134,20 @@ export default function EventDetailPage() {
     // Logic to proceed to checkout
     console.log("Proceeding to checkout with:", ticketQuantities);
     // router.push('/checkout');
+  };
+
+  const handleFollowOrganizer = () => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/events/${slug}`);
+      return;
+    }
+
+    // Toggle follow state
+    setIsFollowing(!isFollowing);
+
+    // TODO: Call API to follow/unfollow organizer
+    // Example: api.organizers.follow(event.organizer.id)
+    console.log(`${isFollowing ? 'Unfollowed' : 'Followed'} organizer:`, event?.organizer.business_name);
   };
 
   if (loading) {
@@ -183,16 +206,24 @@ export default function EventDetailPage() {
               <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>
               <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
                 <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                  <Image 
+                  <Image
                     src={event.organizer.profile_image_url || '/logo.png'}
                     alt={event.organizer.business_name}
                     fill
                     className="object-cover"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="font-bold text-lg text-gray-800">{event.organizer.business_name}</p>
-                  <Button variant="outline" size="sm" className="mt-1">Follow</Button>
+                  <Button
+                    variant={isFollowing ? "default" : "outline"}
+                    size="sm"
+                    className="mt-1"
+                    onClick={handleFollowOrganizer}
+                  >
+                    <Heart className={`w-4 h-4 mr-1 ${isFollowing ? 'fill-current' : ''}`} />
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -227,8 +258,15 @@ export default function EventDetailPage() {
                       </div>
                     </div>
                   )) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No tickets available at this time.</p>
+                    <div className="text-center py-8">
+                      <TicketIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-700 font-semibold mb-2">Tickets Not Yet Available</p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        The organizer hasn't added ticket types yet. Check back soon!
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Tip: Organizers can add tickets from their dashboard
+                      </p>
                     </div>
                   )}
                 </div>
