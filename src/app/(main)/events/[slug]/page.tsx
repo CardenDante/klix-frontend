@@ -79,22 +79,38 @@ export default function EventDetailPage() {
     const fetchEvent = async () => {
       try {
         setLoading(true);
-        const response = await api.events.getBySlug(slug as string);
 
-        console.log('🎫 [EVENT PREVIEW] Full response:', response.data);
-        console.log('🎫 [EVENT PREVIEW] Ticket types:', response.data.ticket_types);
-        console.log('🎫 [EVENT PREVIEW] Ticket types count:', response.data.ticket_types?.length || 0);
+        // Step 1: Fetch event details
+        const eventResponse = await api.events.getBySlug(slug as string);
+        console.log('🎫 [EVENT PREVIEW] Event response:', eventResponse.data);
 
-        setEvent(response.data);
+        const eventData = eventResponse.data;
 
-        // Initialize quantities - check if ticket_types exists and is an array
-        const ticketTypes = response.data.ticket_types || [];
-        const initialQuantities = Array.isArray(ticketTypes)
-          ? ticketTypes.reduce((acc: any, tt: TicketType) => {
-              acc[tt.id] = 0;
-              return acc;
-            }, {})
-          : {};
+        // Step 2: Fetch ticket types separately (backend doesn't include them in event detail)
+        let ticketTypes: TicketType[] = [];
+        try {
+          const ticketTypesResponse = await api.tickets.types.list(eventData.id);
+          ticketTypes = ticketTypesResponse.data || [];
+          console.log('🎫 [EVENT PREVIEW] Ticket types response:', ticketTypes);
+          console.log('🎫 [EVENT PREVIEW] Ticket types count:', ticketTypes.length);
+        } catch (ticketError) {
+          console.warn('⚠️ [EVENT PREVIEW] Failed to fetch ticket types:', ticketError);
+          // Continue even if ticket types fail - will show "no tickets" message
+        }
+
+        // Combine event data with ticket types
+        const completeEvent = {
+          ...eventData,
+          ticket_types: ticketTypes
+        };
+
+        setEvent(completeEvent);
+
+        // Initialize quantities
+        const initialQuantities = ticketTypes.reduce((acc: any, tt: TicketType) => {
+          acc[tt.id] = 0;
+          return acc;
+        }, {});
 
         console.log('🎫 [EVENT PREVIEW] Initial quantities:', initialQuantities);
         setTicketQuantities(initialQuantities);
