@@ -1,45 +1,146 @@
-'use client';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import EventPreviewClient from './EventPreviewClient';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Heart } from 'lucide-react';
-import { format } from 'date-fns';
-import { useAuth } from '@/hooks/useAuth';
-import Image from 'next/image';
-import { getImageUrl } from '@/lib/utils';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// --- Define Types ---
-interface TicketType {
-  id: string;
-  name: string;
-  price: number;
-  quantity_available: number;
-  is_sold_out: boolean;
+// Helper to get full image URL
+function getFullImageUrl(path: string | undefined): string {
+  if (!path) return `${API_BASE_URL}/static/default-event.jpg`;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  const safeBackendUrl = API_BASE_URL.replace(':3000', ':8000');
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${safeBackendUrl}${normalizedPath}`;
 }
 
-interface Organizer {
-  id: string;
-  business_name: string;
-  profile_image_url: string | null;
+// Fetch event data for metadata and page
+async function getEventData(slug: string) {
+  try {
+    // Fetch event details
+    const eventResponse = await fetch(`${API_BASE_URL}/api/v1/events/slug/${slug}`, {
+      cache: 'no-store', // Always fetch fresh data for metadata
+    });
+
+    if (!eventResponse.ok) {
+      return null;
+    }
+
+    const eventData = await eventResponse.json();
+
+    // Fetch ticket types separately
+    let ticketTypes: any[] = [];
+    try {
+      const ticketTypesResponse = await fetch(
+        `${API_BASE_URL}/api/v1/tickets/events/${eventData.id}/ticket-types`,
+        { cache: 'no-store' }
+      );
+
+      if (ticketTypesResponse.ok) {
+        ticketTypes = await ticketTypesResponse.json();
+      }
+    } catch (error) {
+      console.error('Failed to fetch ticket types for metadata:', error);
+    }
+
+    return { event: eventData, ticketTypes: ticketTypes || [] };
+  } catch (error) {
+    console.error('Failed to fetch event for metadata:', error);
+    return null;
+  }
 }
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  start_datetime: string;
-  end_datetime: string;
-  banner_image_url: string;
-  organizer: Organizer;
-  ticket_types?: TicketType[];
+// Generate dynamic metadata for SEO and Open Graph
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const data = await getEventData(params.slug);
+
+  if (!data || !data.event) {
+    return {
+      title: 'Event Not Found - Klix',
+      description: 'The event you are looking for could not be found.',
+    };
+  }
+
+  const { event } = data;
+  const eventDate = new Date(event.start_datetime);
+  const formattedDate = eventDate.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // Generate SEO-friendly description
+  const description = event.description
+    ? event.description.slice(0, 160)
+    : `Join us for ${event.title} on ${formattedDate} at ${event.location}. Get your tickets now!`;
+
+  // Generate keywords
+  const keywords = [
+    event.title,
+    event.category.replace('_', ' '),
+    event.location,
+    'event tickets',
+    'Kenya events',
+    event.organizer?.business_name || '',
+    'buy tickets online',
+    'event booking',
+  ].filter(Boolean);
+
+  // Get full image URL for OG
+  const imageUrl = getFullImageUrl(event.banner_image_url);
+
+  // Site URL for canonical and OG
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const eventUrl = `${siteUrl}/events/${params.slug}`;
+
+  return {
+    title: `${event.title} - Klix Events`,
+    description,
+    keywords: keywords.join(', '),
+
+    // Open Graph for Facebook, LinkedIn, etc.
+    openGraph: {
+      title: event.title,
+      description,
+      url: eventUrl,
+      siteName: 'Klix',
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: event.title,
+        },
+      ],
+      locale: 'en_KE',
+      type: 'website',
+    },
+
+    // Twitter Card
+    twitter: {
+      card: 'summary_large_image',
+      title: event.title,
+      description,
+      images: [imageUrl],
+    },
+
+    // Additional metadata
+    alternates: {
+      canonical: eventUrl,
+    },
+
+    // Structured data hints
+    other: {
+      'event:start_time': event.start_datetime,
+      'event:end_time': event.end_datetime,
+      'event:location': event.location,
+    },
+  };
 }
 
-// --- Skeleton Loader Component ---
+// Skeleton Loader Component
 const EventDetailSkeleton = () => (
   <div>
     <div className="h-[50vh] bg-gray-200 animate-wave"></div>
@@ -65,251 +166,15 @@ const EventDetailSkeleton = () => (
   </div>
 );
 
+// Server Component - Main Page
+export default async function EventDetailPage({ params }: { params: { slug: string } }) {
+  const data = await getEventData(params.slug);
 
-export default function EventDetailPage() {
-  const router = useRouter();
-  const { slug } = useParams();
-  const { isAuthenticated } = useAuth();
-
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [ticketQuantities, setTicketQuantities] = useState<{ [key: string]: number }>({});
-  const [isFollowing, setIsFollowing] = useState(false);
-  
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        setLoading(true);
-
-        // Step 1: Fetch event details
-        const eventResponse = await api.events.getBySlug(slug as string);
-        console.log('🎫 [EVENT PREVIEW] Event response:', eventResponse.data);
-
-        const eventData = eventResponse.data;
-
-        // Step 2: Fetch ticket types separately (backend doesn't include them in event detail)
-        let ticketTypes: TicketType[] = [];
-        try {
-          console.log('🎫 [EVENT PREVIEW] Fetching ticket types for event ID:', eventData.id);
-          const ticketTypesResponse = await api.tickets.types.list(eventData.id);
-          console.log('🎫 [EVENT PREVIEW] Raw ticket types response:', ticketTypesResponse);
-          console.log('🎫 [EVENT PREVIEW] Response data:', ticketTypesResponse.data);
-
-          ticketTypes = ticketTypesResponse.data || [];
-          console.log('🎫 [EVENT PREVIEW] Ticket types array:', ticketTypes);
-          console.log('🎫 [EVENT PREVIEW] Ticket types count:', ticketTypes.length);
-        } catch (ticketError: any) {
-          console.error('❌ [EVENT PREVIEW] Failed to fetch ticket types:', ticketError);
-          console.error('❌ [EVENT PREVIEW] Error response:', ticketError.response?.data);
-          console.error('❌ [EVENT PREVIEW] Error status:', ticketError.response?.status);
-          // Continue even if ticket types fail - will show "no tickets" message
-        }
-
-        // Combine event data with ticket types
-        const completeEvent = {
-          ...eventData,
-          ticket_types: ticketTypes
-        };
-
-        setEvent(completeEvent);
-
-        // Initialize quantities
-        const initialQuantities = ticketTypes.reduce((acc: any, tt: TicketType) => {
-          acc[tt.id] = 0;
-          return acc;
-        }, {});
-
-        console.log('🎫 [EVENT PREVIEW] Initial quantities:', initialQuantities);
-        setTicketQuantities(initialQuantities);
-      } catch (error) {
-        console.error("❌ [EVENT PREVIEW] Failed to fetch event details:", error);
-        // Optionally redirect to a 404 page
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (slug) {
-      fetchEvent();
-    }
-  }, [slug]);
-
-  const handleQuantityChange = (ticketTypeId: string, delta: number) => {
-    setTicketQuantities(prev => {
-      const newQuantity = (prev[ticketTypeId] || 0) + delta;
-      return {
-        ...prev,
-        [ticketTypeId]: Math.max(0, newQuantity) // Ensure quantity doesn't go below 0
-      };
-    });
-  };
-
-  const totalCost = event?.ticket_types?.reduce((total, tt) => {
-    return total + (ticketQuantities[tt.id] || 0) * tt.price;
-  }, 0) || 0;
-
-  const totalTickets = Object.values(ticketQuantities).reduce((total, qty) => total + qty, 0);
-
-  const handleGetTickets = () => {
-    if (!isAuthenticated) {
-        router.push(`/login?redirect=/events/${slug}`);
-        return;
-    }
-    // Logic to proceed to checkout
-    console.log("Proceeding to checkout with:", ticketQuantities);
-    // router.push('/checkout');
-  };
-
-  const handleFollowOrganizer = () => {
-    if (!isAuthenticated) {
-      router.push(`/login?redirect=/events/${slug}`);
-      return;
-    }
-
-    // Toggle follow state
-    setIsFollowing(!isFollowing);
-
-    // TODO: Call API to follow/unfollow organizer
-    // Example: api.organizers.follow(event.organizer.id)
-    console.log(`${isFollowing ? 'Unfollowed' : 'Followed'} organizer:`, event?.organizer.business_name);
-  };
-
-  if (loading) {
-    return <EventDetailSkeleton />;
+  if (!data || !data.event) {
+    notFound();
   }
 
-  if (!event) {
-    return <div className="text-center py-40">Event not found.</div>;
-  }
+  const { event, ticketTypes } = data;
 
-  const startDate = new Date(event.start_datetime);
-  const endDate = new Date(event.end_datetime);
-
-  return (
-    <div className="bg-gray-50">
-      {/* --- Hero Section --- */}
-      <section className="relative h-[50vh] min-h-[300px] text-white">
-        <div className="absolute inset-0">
-          <Image
-            src={getImageUrl(event.banner_image_url) || '/hero/hero2.jpg'}
-            alt={event.title}
-            fill
-            className="object-cover"
-            priority
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-end pb-12">
-          <Badge variant="outline" className="mb-4 text-white border-white/50 bg-white/10 w-fit capitalize">{event.category.replace('_', ' ')}</Badge>
-          <h1 className="text-4xl lg:text-6xl font-bold font-heading">{event.title}</h1>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-lg">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              <span>{format(startDate, 'E, MMM dd, yyyy')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              <span>{event.location}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* --- Main Content --- */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid lg:grid-cols-3 gap-x-12 gap-y-8">
-          
-          {/* Left Column: Details */}
-          <div className="lg:col-span-2">
-            <div className="prose prose-lg max-w-none">
-              <h2 className="text-3xl font-bold font-comfortaa text-gray-900">About this Event</h2>
-              <p className="font-body">{event.description}</p>
-            </div>
-            
-            <div className="mt-12">
-              <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>
-              <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                  <Image
-                    src={getImageUrl(event.organizer.profile_image_url) || '/logo.png'}
-                    alt={event.organizer.business_name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-lg text-gray-800">{event.organizer.business_name}</p>
-                  <Button
-                    variant={isFollowing ? "default" : "outline"}
-                    size="sm"
-                    className="mt-1"
-                    onClick={handleFollowOrganizer}
-                  >
-                    <Heart className={`w-4 h-4 mr-1 ${isFollowing ? 'fill-current' : ''}`} />
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Sticky Ticket Box */}
-          <div className="relative">
-            <div className="lg:sticky lg:top-28 bg-white rounded-2xl shadow-2xl border">
-              <div className="p-6">
-                <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-6">Get Your Tickets</h3>
-                <div className="space-y-4">
-                  {event.ticket_types && event.ticket_types.length > 0 ? event.ticket_types.map((tt) => (
-                    <div key={tt.id} className="p-4 rounded-lg border">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-bold text-gray-800">{tt.name}</p>
-                          <p className="text-primary font-semibold">KSh {tt.price.toLocaleString()}</p>
-                        </div>
-                        {tt.is_sold_out ? (
-                          <Badge variant="destructive">Sold Out</Badge>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleQuantityChange(tt.id, -1)} disabled={ticketQuantities[tt.id] === 0}>
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="w-8 text-center font-bold text-lg">{ticketQuantities[tt.id]}</span>
-                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleQuantityChange(tt.id, 1)}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="text-center py-8">
-                      <TicketIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                      <p className="text-gray-700 font-semibold mb-2">Tickets Not Yet Available</p>
-                      <p className="text-sm text-gray-500 mb-4">
-                        The organizer hasn't added ticket types yet. Check back soon!
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        Tip: Organizers can add tickets from their dashboard
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {totalTickets > 0 && (
-                <div className="border-t p-6 bg-gray-50/50 rounded-b-2xl">
-                    <div className="flex justify-between items-center mb-4">
-                        <p className="font-semibold text-gray-700">Total</p>
-                        <p className="text-2xl font-bold text-gray-900">KSh {totalCost.toLocaleString()}</p>
-                    </div>
-                    <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-white font-bold" onClick={handleGetTickets}>
-                        Checkout ({totalTickets} {totalTickets === 1 ? 'Ticket' : 'Tickets'})
-                    </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  return <EventPreviewClient event={event} ticketTypes={ticketTypes} />;
 }
