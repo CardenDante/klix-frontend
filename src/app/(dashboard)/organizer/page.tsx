@@ -49,16 +49,53 @@ export default function OrganizerDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fallbackEvents, setFallbackEvents] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await organizersApi.getDashboard();
-        setStats(response.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        toast.error("Could not load your dashboard data. Please try again.");
+
+        // Try fetching dashboard stats
+        try {
+          const response = await organizersApi.getDashboard();
+
+          // Debug logging
+          console.log('📊 [DASHBOARD] Full response:', response);
+          console.log('📊 [DASHBOARD] Response data:', response.data);
+          console.log('📊 [DASHBOARD] Total events:', response.data?.total_events_count);
+          console.log('📊 [DASHBOARD] Upcoming events:', response.data?.upcoming_events);
+
+          setStats(response.data);
+        } catch (analyticsError: any) {
+          console.error("❌ [DASHBOARD] Analytics failed:", analyticsError);
+
+          // Fallback: fetch events directly
+          console.log('🔄 [DASHBOARD] Trying fallback: fetching events directly');
+          try {
+            const eventsResponse = await organizersApi.getMyEvents();
+            console.log('📊 [DASHBOARD] My events response:', eventsResponse.data);
+
+            const events = eventsResponse.data.data || eventsResponse.data || [];
+            setFallbackEvents(events);
+
+            // Create basic stats from events
+            const basicStats: DashboardStats = {
+              total_revenue: 0,
+              total_tickets_sold: 0,
+              upcoming_events_count: events.filter((e: any) => new Date(e.start_datetime) > new Date()).length,
+              total_events_count: events.length,
+              sales_over_time: [],
+              top_events: [],
+              upcoming_events: events.filter((e: any) => new Date(e.start_datetime) > new Date()).slice(0, 3)
+            };
+            console.log('📊 [DASHBOARD] Created basic stats:', basicStats);
+            setStats(basicStats);
+          } catch (eventsError) {
+            console.error("❌ [DASHBOARD] Failed to fetch events too:", eventsError);
+            toast.error("Could not load your dashboard data. Please try again.");
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -75,7 +112,18 @@ export default function OrganizerDashboard() {
     );
   }
 
-  if (!stats || stats.total_events_count === 0) {
+  // Debug: log the stats to see what we have
+  console.log('📊 [DASHBOARD] Current stats state:', stats);
+  console.log('📊 [DASHBOARD] Should show empty state?', !stats || stats.total_events_count === 0);
+
+  if (!stats) {
+    console.warn('⚠️ [DASHBOARD] Stats is null, showing empty state');
+    return <EmptyState />;
+  }
+
+  // Only show empty state if we're sure there are no events
+  if (stats.total_events_count === 0) {
+    console.warn('⚠️ [DASHBOARD] Total events count is 0, showing empty state');
     return <EmptyState />;
   }
 
@@ -226,6 +274,34 @@ export default function OrganizerDashboard() {
               )}
           </CardContent>
       </Card>
+
+      {/* DEBUG PANEL - Remove after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="mt-8 border-red-300 bg-red-50/50">
+          <CardHeader>
+            <CardTitle className="text-red-700 font-comfortaa">🐛 Debug Information</CardTitle>
+            <CardDescription className="text-red-600">This panel shows raw data from the API</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4 text-sm font-mono">
+              <div>
+                <p className="font-bold text-red-700 mb-2">Stats Object:</p>
+                <pre className="bg-white p-4 rounded overflow-auto max-h-96 text-xs">
+                  {JSON.stringify(stats, null, 2)}
+                </pre>
+              </div>
+              {fallbackEvents.length > 0 && (
+                <div>
+                  <p className="font-bold text-red-700 mb-2">Fallback Events ({fallbackEvents.length}):</p>
+                  <pre className="bg-white p-4 rounded overflow-auto max-h-96 text-xs">
+                    {JSON.stringify(fallbackEvents, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
