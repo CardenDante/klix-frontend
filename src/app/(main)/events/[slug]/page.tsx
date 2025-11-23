@@ -9,6 +9,7 @@ import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Hear
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
+import { getImageUrl } from '@/lib/utils';
 
 // --- Define Types ---
 interface TicketType {
@@ -89,12 +90,18 @@ export default function EventDetailPage() {
         // Step 2: Fetch ticket types separately (backend doesn't include them in event detail)
         let ticketTypes: TicketType[] = [];
         try {
+          console.log('🎫 [EVENT PREVIEW] Fetching ticket types for event ID:', eventData.id);
           const ticketTypesResponse = await api.tickets.types.list(eventData.id);
+          console.log('🎫 [EVENT PREVIEW] Raw ticket types response:', ticketTypesResponse);
+          console.log('🎫 [EVENT PREVIEW] Response data:', ticketTypesResponse.data);
+
           ticketTypes = ticketTypesResponse.data || [];
-          console.log('🎫 [EVENT PREVIEW] Ticket types response:', ticketTypes);
+          console.log('🎫 [EVENT PREVIEW] Ticket types array:', ticketTypes);
           console.log('🎫 [EVENT PREVIEW] Ticket types count:', ticketTypes.length);
-        } catch (ticketError) {
-          console.warn('⚠️ [EVENT PREVIEW] Failed to fetch ticket types:', ticketError);
+        } catch (ticketError: any) {
+          console.error('❌ [EVENT PREVIEW] Failed to fetch ticket types:', ticketError);
+          console.error('❌ [EVENT PREVIEW] Error response:', ticketError.response?.data);
+          console.error('❌ [EVENT PREVIEW] Error status:', ticketError.response?.status);
           // Continue even if ticket types fail - will show "no tickets" message
         }
 
@@ -182,8 +189,8 @@ export default function EventDetailPage() {
       {/* --- Hero Section --- */}
       <section className="relative h-[50vh] min-h-[300px] text-white">
         <div className="absolute inset-0">
-          <Image 
-            src={event.banner_image_url || '/hero/hero2.jpg'}
+          <Image
+            src={getImageUrl(event.banner_image_url) || '/hero/hero2.jpg'}
             alt={event.title}
             fill
             className="object-cover"
@@ -223,7 +230,7 @@ export default function EventDetailPage() {
               <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
                 <div className="relative w-16 h-16 rounded-full overflow-hidden">
                   <Image
-                    src={event.organizer.profile_image_url || '/logo.png'}
+                    src={getImageUrl(event.organizer.profile_image_url) || '/logo.png'}
                     alt={event.organizer.business_name}
                     fill
                     className="object-cover"

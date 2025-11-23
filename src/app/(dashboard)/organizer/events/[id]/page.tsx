@@ -10,10 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import ImageUpload from '@/components/shared/ImageUpload';
-import { 
-  ArrowLeft, Save, Trash2, Eye, EyeOff, Calendar, MapPin, 
-  DollarSign, Users, Plus, Edit, Ticket 
+import {
+  ArrowLeft, Save, Trash2, Eye, EyeOff, Calendar, MapPin,
+  DollarSign, Users, Plus, Edit, Ticket
 } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 
 interface TicketType {
   id: string;
@@ -321,9 +322,9 @@ export default function EventDetailsPage() {
               {event.banner_image_url && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image</h3>
-                  <img 
-                    src={event.banner_image_url} 
-                    alt="Event banner" 
+                  <img
+                    src={getImageUrl(event.banner_image_url)}
+                    alt="Event banner"
                     className="w-full h-64 object-cover rounded-lg"
                   />
                 </div>

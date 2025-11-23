@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Plus, Search, Calendar, MapPin, Ticket, Edit, Trash2, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import { organizersApi } from '@/lib/api/organizers';
 import { Event } from '@/lib/api/events';
+import { getImageUrl } from '@/lib/utils';
 
 export default function MyEventsPage() {
   const searchParams = useSearchParams();
@@ -203,7 +204,7 @@ export default function MyEventsPage() {
                 <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center">
                   {event.banner_image_url ? (
                     <img
-                      src={event.banner_image_url}
+                      src={getImageUrl(event.banner_image_url)}
                       alt={event.title}
                       className="w-full h-full object-cover"
                     />

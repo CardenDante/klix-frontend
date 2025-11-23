@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Calendar, MapPin, Image as ImageIcon, Ticket, Check } from 'lucide-react';
 import { organizersApi, EventCreateData } from '@/lib/api/organizers';
 import { eventsApi } from '@/lib/api/events';
+import { getImageUrl } from '@/lib/utils';
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -464,9 +465,9 @@ export default function CreateEventPage() {
                 {formData.banner_image_url && (
                   <div className="border-b pb-4">
                     <p className="text-sm text-gray-600 mb-2 font-body">Banner Image</p>
-                    <img 
-                      src={formData.banner_image_url} 
-                      alt="Event banner" 
+                    <img
+                      src={getImageUrl(formData.banner_image_url)}
+                      alt="Event banner"
                       className="w-full h-48 object-cover rounded-lg"
                     />
                   </div>
