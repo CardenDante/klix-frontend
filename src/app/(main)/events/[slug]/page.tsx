@@ -92,7 +92,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const imageUrl = getFullImageUrl(event.banner_image_url);
 
   // Site URL for canonical and OG
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://e-klix.com';
   const eventUrl = `${siteUrl}/events/${params.slug}`;
 
   return {
