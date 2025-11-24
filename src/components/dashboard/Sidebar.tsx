@@ -122,6 +122,7 @@ export default function Sidebar() {
   ];
   const promoterMenuItems = [
     { name: 'Dashboard', href: '/promoter', icon: LayoutDashboard },
+    { name: 'Events', href: '/promoter/events', icon: Calendar },
     { name: 'My Codes', href: '/promoter/codes', icon: Code },
     { name: 'Earnings', href: '/promoter/earnings', icon: DollarSign },
     { name: 'Leaderboard', href: '/promoter/leaderboard', icon: TrendingUp },

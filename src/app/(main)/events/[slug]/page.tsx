@@ -52,8 +52,9 @@ async function getEventData(slug: string) {
 }
 
 // Generate dynamic metadata for SEO and Open Graph
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const data = await getEventData(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await getEventData(slug);
 
   if (!data || !data.event) {
     return {
@@ -93,7 +94,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   // Site URL for canonical and OG
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://e-klix.com';
-  const eventUrl = `${siteUrl}/events/${params.slug}`;
+  const eventUrl = `${siteUrl}/events/${slug}`;
 
   return {
     title: `${event.title} - Klix Events`,
@@ -167,10 +168,11 @@ const EventDetailSkeleton = () => (
 );
 
 // Server Component - Main Page
-export default async function EventDetailPage({ params }: { params: { slug: string } }) {
+export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   // Try to fetch data for initial render, but don't fail if it doesn't work
   // The client component will handle its own data fetching
-  const data = await getEventData(params.slug);
+  const { slug } = await params;
+  const data = await getEventData(slug);
 
   // If we have data, pass it to client for faster initial render
   if (data && data.event) {

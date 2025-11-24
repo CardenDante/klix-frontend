@@ -200,8 +200,8 @@ export default function MyEventsPage() {
           {filteredEvents.map((event) => (
             <div key={event.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
               <div className="flex flex-col md:flex-row">
-                {/* Event Image */}
-                <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center">
+                {/* Event Image - Portrait format (330x320px aspect ratio ~1:1) */}
+                <div className="w-full md:w-64 h-48 md:h-64 bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {(event.portrait_image_url || event.banner_image_url) ? (
                     <img
                       src={getImageUrl(event.portrait_image_url || event.banner_image_url)}

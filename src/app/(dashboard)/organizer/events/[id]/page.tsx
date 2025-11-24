@@ -96,20 +96,37 @@ export default function EventDetailsPage() {
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const response = await apiClient.patch(`/api/v1/events/${eventId}`, formData);
       setEvent(response.data);
       setFormData(response.data);
       setIsEditing(false);
       setSuccess('Event updated successfully!');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to update event');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Auto-save when image URLs change
+  const handleImageChange = async (field: 'banner_image_url' | 'portrait_image_url' | 'sponsor_image_url', url: string) => {
+    const updatedFormData = { ...formData, [field]: url };
+    setFormData(updatedFormData);
+
+    // Auto-save the image change
+    try {
+      const response = await apiClient.patch(`/api/v1/events/${eventId}`, { [field]: url });
+      setEvent(response.data);
+      setFormData(response.data);
+      setSuccess('Image updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update image');
     }
   };
 
@@ -248,7 +265,7 @@ export default function EventDetailsPage() {
                 <div>
                   <ImageUpload
                     value={formData.banner_image_url || ''}
-                    onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
+                    onChange={(url) => handleImageChange('banner_image_url', url)}
                     uploadType="event_banner"
                     entityId={eventId}
                     label="Event Banner"
@@ -258,7 +275,7 @@ export default function EventDetailsPage() {
                 <div>
                   <ImageUpload
                     value={formData.portrait_image_url || ''}
-                    onChange={(url) => setFormData({ ...formData, portrait_image_url: url })}
+                    onChange={(url) => handleImageChange('portrait_image_url', url)}
                     uploadType="event_portrait"
                     entityId={eventId}
                     label="Event Card Portrait"
@@ -268,7 +285,7 @@ export default function EventDetailsPage() {
                 <div>
                   <ImageUpload
                     value={formData.sponsor_image_url || ''}
-                    onChange={(url) => setFormData({ ...formData, sponsor_image_url: url })}
+                    onChange={(url) => handleImageChange('sponsor_image_url', url)}
                     uploadType="event_sponsor"
                     entityId={eventId}
                     label="Sponsor Logo"

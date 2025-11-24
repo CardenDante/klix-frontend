@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Heart } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Heart, Gift, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
@@ -50,6 +50,7 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const slug = params?.slug as string;
 
   const [event, setEvent] = useState<Event | null>(initialEvent);
@@ -61,6 +62,8 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
     }, {});
   });
   const [isFollowing, setIsFollowing] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoCodeSource, setPromoCodeSource] = useState<'url' | 'manual' | null>(null);
 
   // Fetch data client-side if not provided by server
   useEffect(() => {
@@ -127,6 +130,30 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
     }
   }, [initialEvent, slug, router, initialTicketTypes]);
 
+  // Auto-apply promo code from URL parameter and track click
+  useEffect(() => {
+    const promoParam = searchParams?.get('promo');
+    const source = searchParams?.get('source') || searchParams?.get('utm_source');
+    const platform = searchParams?.get('platform') || searchParams?.get('utm_medium');
+
+    if (promoParam && !promoCode) {
+      const upperPromo = promoParam.toUpperCase();
+      setPromoCode(upperPromo);
+      setPromoCodeSource('url');
+      console.log('🎁 [PROMO] Auto-applied promo code from URL:', upperPromo);
+
+      // Track the click in the background (don't await, don't block UI)
+      api.promoter.trackClick({
+        code: upperPromo,
+        source: source || 'direct',
+        platform: platform || 'web'
+      }).catch(err => {
+        // Silent fail - tracking shouldn't break user experience
+        console.warn('⚠️ [PROMO] Failed to track click:', err);
+      });
+    }
+  }, [searchParams, promoCode]);
+
   const handleQuantityChange = (ticketTypeId: string, delta: number) => {
     setTicketQuantities(prev => {
       const newQuantity = (prev[ticketTypeId] || 0) + delta;
@@ -176,7 +203,7 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
       },
       selectedTickets,
       ticketTypes: event.ticket_types || [],
-      promoterCode: null, // Can be added if promoter code feature is implemented
+      promoterCode: promoCode.trim() || null,
     };
 
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData));
@@ -355,8 +382,49 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
               </div>
 
               {totalTickets > 0 && (
-                <div className="border-t p-6 bg-gray-50/50 rounded-b-2xl">
-                  <div className="flex justify-between items-center mb-4">
+                <div className="border-t p-6 bg-gray-50/50 rounded-b-2xl space-y-4">
+                  {/* Promo Code Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Have a Promo Code?
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => {
+                          setPromoCode(e.target.value.toUpperCase());
+                          setPromoCodeSource('manual');
+                        }}
+                        placeholder="Enter code"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                        disabled={promoCodeSource === 'url'}
+                      />
+                      <Gift className="w-10 h-10 text-primary" />
+                    </div>
+                    {promoCode && promoCodeSource === 'url' && (
+                      <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <LinkIcon className="w-4 h-4 text-blue-600" />
+                        <p className="text-xs text-blue-700 flex-1">
+                          Promo code "<span className="font-bold">{promoCode}</span>" was applied from your link!
+                        </p>
+                        <button
+                          onClick={() => {
+                            setPromoCode('');
+                            setPromoCodeSource(null);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    {promoCode && promoCodeSource === 'manual' && (
+                      <p className="text-xs text-green-600 mt-1">✓ Code "{promoCode}" will be applied at checkout</p>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center">
                     <p className="font-semibold text-gray-700">Total</p>
                     <p className="text-2xl font-bold text-gray-900">KSh {totalCost.toLocaleString()}</p>
                   </div>

@@ -100,9 +100,9 @@ export default function PromoterDashboardPage() {
     return value.toLocaleString();
   };
 
-  const GrowthIndicator = ({ value }: { value: number | null }) => {
-    if (value === null || value === 0) return null;
-    
+  const GrowthIndicator = ({ value }: { value: number | null | undefined }) => {
+    if (value === null || value === undefined || value === 0) return null;
+
     const isPositive = value > 0;
     return (
       <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
@@ -229,13 +229,13 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Conversion Rate</p>
                 <p className="text-3xl font-bold text-blue-700">
-                  {(insights.conversion_rate || 0).toFixed(2)}%
+                  {((insights.conversion_rate ?? 0).toFixed(2))}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">clicks to sales</p>
                 <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(insights.conversion_rate || 0, 100)}%` }}
+                    style={{ width: `${Math.min(insights.conversion_rate ?? 0, 100)}%` }}
                   />
                 </div>
               </div>
@@ -259,7 +259,7 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Avg Commission</p>
                 <p className="text-3xl font-bold text-orange-700">
-                  {(insights.commission_rate_avg || 0).toFixed(1)}%
+                  {((insights.commission_rate_avg ?? 0).toFixed(1))}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">across all codes</p>
               </div>

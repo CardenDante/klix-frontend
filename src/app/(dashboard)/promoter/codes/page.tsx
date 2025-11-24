@@ -14,15 +14,18 @@ import {
 } from 'lucide-react';
 
 interface ApprovedEvent {
-  approval_id: string;
+  id: string; // approval id
   event_id: string;
-  event_name: string;
-  event_slug: string;
-  event_date: string;
   commission_percentage: number | null;
   discount_percentage: number | null;
-  approval_status: string;
+  status: string;
   approved_at: string;
+  event?: {
+    id: string;
+    title: string;
+    slug: string;
+    start_datetime: string;
+  };
 }
 
 interface PromoCode {
@@ -80,8 +83,8 @@ export default function PromoterCodesPage() {
   const fetchApprovedEvents = async () => {
     try {
       // Fetch events promoter is approved for
-      const response = await api.get('/api/v1/promoter-requests/my-approved-events');
-      setApprovedEvents(response.data.data || []);
+      const response = await api.promoter.approvedEvents();
+      setApprovedEvents(response.data || []);
     } catch (err) {
       console.error('Failed to load approved events:', err);
       setError('Failed to load approved events. Make sure you have organizer approval first.');
@@ -146,18 +149,31 @@ export default function PromoterCodesPage() {
   };
 
   const generateShareLink = (code: PromoCode, platform: string) => {
-    const eventUrl = `${window.location.origin}/events/${code.event_slug}?promo=${code.code}`;
+    // Build tracking URL with UTM parameters
+    const params = new URLSearchParams({
+      promo: code.code,
+      utm_source: 'promoter',
+      utm_medium: platform,
+      utm_campaign: code.event_slug,
+      platform: platform // For our custom tracking
+    });
+
+    const trackingUrl = `${window.location.origin}/events/${code.event_slug}?${params.toString()}`;
     const message = `🎉 Get tickets for ${code.event_name}! Use code ${code.code} at checkout.`;
 
     switch (platform) {
       case 'twitter':
-        return `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(eventUrl)}`;
+        return `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(trackingUrl)}`;
       case 'facebook':
-        return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`;
+        return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(trackingUrl)}`;
       case 'whatsapp':
-        return `https://wa.me/?text=${encodeURIComponent(message + ' ' + eventUrl)}`;
+        return `https://wa.me/?text=${encodeURIComponent(message + ' ' + trackingUrl)}`;
+      case 'instagram':
+        // Instagram doesn't support direct sharing with pre-filled text
+        // Return the tracking URL for manual copying
+        return trackingUrl;
       default:
-        return eventUrl;
+        return trackingUrl;
     }
   };
 
@@ -218,8 +234,8 @@ export default function PromoterCodesPage() {
           <AlertCircle className="w-4 h-4" />
           <AlertDescription>
             You haven't been approved by any organizers yet.
-            <a href="/promoter/request-approval" className="underline ml-1">
-              Request approval to promote an event
+            <a href="/promoter/events" className="underline ml-1 font-semibold text-primary">
+              Request approval to promote an event →
             </a>
           </AlertDescription>
         </Alert>
@@ -244,11 +260,11 @@ export default function PromoterCodesPage() {
                   required
                 >
                   <option value="">Choose an event...</option>
-                  {approvedEvents.map((event) => (
-                    <option key={event.event_id} value={event.event_id}>
-                      {event.event_name} - {new Date(event.event_date).toLocaleDateString()}
-                      {event.commission_percentage && ` (${event.commission_percentage}% commission)`}
-                      {event.discount_percentage && ` (${event.discount_percentage}% discount)`}
+                  {approvedEvents.map((approval) => (
+                    <option key={approval.event_id} value={approval.event_id}>
+                      {approval.event?.title || 'Unknown Event'} - {approval.event?.start_datetime ? new Date(approval.event.start_datetime).toLocaleDateString() : 'N/A'}
+                      {approval.commission_percentage && ` (${approval.commission_percentage}% commission)`}
+                      {approval.discount_percentage && ` (${approval.discount_percentage}% discount)`}
                     </option>
                   ))}
                 </select>

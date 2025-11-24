@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { getImageUrl } from '@/lib/utils';
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -127,7 +128,7 @@ export default function MyTicketsPage() {
                 <div className="w-full md:w-48 h-48 md:h-auto flex-shrink-0 bg-gradient-to-br from-primary/20 to-primary/10">
                    {(ticket.event?.portrait_image_url || ticket.event?.banner_image_url) ? (
                     <img
-                      src={ticket.event.portrait_image_url || ticket.event.banner_image_url}
+                      src={getImageUrl(ticket.event.portrait_image_url || ticket.event.banner_image_url)}
                       alt={ticket.event.title}
                       className="w-full h-full object-cover"
                     />
