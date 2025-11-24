@@ -97,7 +97,7 @@ export default function MyEventsPage() {
       {/* Success Message */}
       {showSuccess && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add a banner image and publish it.</p>
+          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add images and publish it.</p>
         </div>
       )}
 
@@ -202,9 +202,9 @@ export default function MyEventsPage() {
               <div className="flex flex-col md:flex-row">
                 {/* Event Image */}
                 <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center">
-                  {event.banner_image_url ? (
+                  {(event.portrait_image_url || event.banner_image_url) ? (
                     <img
-                      src={getImageUrl(event.banner_image_url)}
+                      src={getImageUrl(event.portrait_image_url || event.banner_image_url)}
                       alt={event.title}
                       className="w-full h-full object-cover"
                     />
