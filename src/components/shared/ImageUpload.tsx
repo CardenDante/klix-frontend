@@ -10,7 +10,7 @@ import { getImageUrl } from '@/lib/utils';
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
-  uploadType: 'event_banner' | 'organizer_logo' | 'user_avatar';
+  uploadType: 'event_banner' | 'event_portrait' | 'event_sponsor' | 'organizer_logo' | 'user_avatar';
   entityId: string;
   label?: string;
   aspectRatio?: string;
@@ -18,19 +18,53 @@ interface ImageUploadProps {
   maxSizeMB?: number;
 }
 
+// Dimension configurations for different upload types
+const DIMENSION_CONFIG = {
+  event_banner: {
+    size: '800x305px',
+    aspectRatio: '8:3',
+    description: 'Used in hero sections and event headers'
+  },
+  event_portrait: {
+    size: '330x320px',
+    aspectRatio: '1:1',
+    description: 'Used in event cards and listings'
+  },
+  event_sponsor: {
+    size: '80x80px',
+    aspectRatio: '1:1',
+    description: 'Sponsor logo displayed on event preview'
+  },
+  organizer_logo: {
+    size: '330x320px',
+    aspectRatio: '1:1',
+    description: 'Your profile picture'
+  },
+  user_avatar: {
+    size: '200x200px',
+    aspectRatio: '1:1',
+    description: 'User profile picture'
+  }
+};
+
 export default function ImageUpload({
   value,
   onChange,
   uploadType,
   entityId,
   label = 'Upload Image',
-  aspectRatio = '16:9',
-  recommendedSize = '1920x1080px',
+  aspectRatio,
+  recommendedSize,
   maxSizeMB = 5
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string>(getImageUrl(value));
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get dimension config for this upload type
+  const dimensionConfig = DIMENSION_CONFIG[uploadType];
+  const finalAspectRatio = aspectRatio || dimensionConfig.aspectRatio;
+  const finalRecommendedSize = recommendedSize || dimensionConfig.size;
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -135,9 +169,14 @@ export default function ImageUpload({
                 <p className="text-xs text-gray-500 font-body mt-1">
                   PNG, JPG, or WebP (max {maxSizeMB}MB)
                 </p>
-                <p className="text-xs text-gray-500 font-body">
-                  Recommended: {recommendedSize} ({aspectRatio} ratio)
-                </p>
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-xs font-semibold text-blue-900 font-body">
+                    📐 Required: {finalRecommendedSize} ({finalAspectRatio} ratio)
+                  </p>
+                  <p className="text-xs text-blue-700 font-body">
+                    {dimensionConfig.description}
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -200,11 +239,19 @@ export default function ImageUpload({
       )}
 
       {/* Help text */}
-      <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 font-body">
-        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <p>
-          Images are uploaded in their original format and quality. Supported formats: JPEG, PNG, WebP.
-        </p>
+      <div className="mt-3 space-y-2">
+        <div className="flex items-start gap-2 text-xs text-gray-600 font-body bg-gray-50 p-3 rounded border">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-500" />
+          <div>
+            <p className="font-semibold mb-1">Image Requirements:</p>
+            <ul className="space-y-1 list-disc list-inside">
+              <li>Dimensions: <strong>{finalRecommendedSize}</strong> ({finalAspectRatio} aspect ratio)</li>
+              <li>Format: JPEG, PNG, or WebP</li>
+              <li>Max size: {maxSizeMB}MB</li>
+              <li>Purpose: {dimensionConfig.description}</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
