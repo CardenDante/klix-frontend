@@ -66,10 +66,13 @@ export default function PromoterDashboardPage() {
 
   const fetchDashboard = async () => {
     try {
+      console.log('📊 [PROMOTER DASHBOARD] Fetching dashboard data...');
       const response = await api.analytics.promoter.dashboard();
+      console.log('📊 [PROMOTER DASHBOARD] Dashboard response:', response.data);
       setDashboard(response.data);
-    } catch (err) {
-      console.error('Failed to load dashboard:', err);
+    } catch (err: any) {
+      console.error('❌ [PROMOTER DASHBOARD] Failed to load dashboard:', err);
+      console.error('❌ [PROMOTER DASHBOARD] Error details:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -77,15 +80,24 @@ export default function PromoterDashboardPage() {
 
   const fetchInsights = async () => {
     try {
+      console.log('💡 [PROMOTER INSIGHTS] Fetching insights data...');
       const response = await api.promoter.insights();
+      console.log('💡 [PROMOTER INSIGHTS] Insights response:', response.data);
       setInsights(response.data.data);
-    } catch (err) {
-      console.error('Failed to load insights:', err);
+    } catch (err: any) {
+      console.error('❌ [PROMOTER INSIGHTS] Failed to load insights:', err);
+      console.error('❌ [PROMOTER INSIGHTS] Error details:', err.response?.data);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `KSh ${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number | undefined | null) => {
+    const value = amount || 0;
+    return `KSh ${value.toLocaleString()}`;
+  };
+
+  const formatNumber = (num: number | undefined | null) => {
+    const value = num || 0;
+    return value.toLocaleString();
   };
 
   const GrowthIndicator = ({ value }: { value: number | null }) => {
@@ -156,7 +168,7 @@ export default function PromoterDashboardPage() {
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Tickets Sold</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {dashboard.total_tickets_sold.toLocaleString()}
+                  {formatNumber(dashboard.total_tickets_sold)}
                 </p>
                 <GrowthIndicator value={dashboard.ticket_growth_percentage} />
               </div>
@@ -217,13 +229,13 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Conversion Rate</p>
                 <p className="text-3xl font-bold text-blue-700">
-                  {insights.conversion_rate.toFixed(2)}%
+                  {(insights.conversion_rate || 0).toFixed(2)}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">clicks to sales</p>
                 <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(insights.conversion_rate, 100)}%` }}
+                    style={{ width: `${Math.min(insights.conversion_rate || 0, 100)}%` }}
                   />
                 </div>
               </div>
@@ -231,7 +243,7 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Total Clicks</p>
                 <p className="text-3xl font-bold text-purple-700">
-                  {insights.total_clicks.toLocaleString()}
+                  {formatNumber(insights.total_clicks)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">link clicks tracked</p>
               </div>
@@ -239,7 +251,7 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Conversions</p>
                 <p className="text-3xl font-bold text-green-700">
-                  {insights.total_conversions.toLocaleString()}
+                  {formatNumber(insights.total_conversions)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">completed sales</p>
               </div>
@@ -247,7 +259,7 @@ export default function PromoterDashboardPage() {
               <div className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <p className="text-sm text-gray-600 mb-1">Avg Commission</p>
                 <p className="text-3xl font-bold text-orange-700">
-                  {insights.commission_rate_avg.toFixed(1)}%
+                  {(insights.commission_rate_avg || 0).toFixed(1)}%
                 </p>
                 <p className="text-xs text-gray-500 mt-1">across all codes</p>
               </div>
@@ -329,7 +341,7 @@ export default function PromoterDashboardPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Total Uses</p>
-                <p className="text-2xl font-bold">{dashboard.total_uses.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatNumber(dashboard.total_uses)}</p>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Revenue Generated</p>
@@ -337,7 +349,7 @@ export default function PromoterDashboardPage() {
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Tickets This Month</p>
-                <p className="text-2xl font-bold">{dashboard.tickets_this_month}</p>
+                <p className="text-2xl font-bold">{formatNumber(dashboard.tickets_this_month)}</p>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Discounts Given</p>
