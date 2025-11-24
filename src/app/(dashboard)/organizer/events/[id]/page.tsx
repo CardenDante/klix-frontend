@@ -323,9 +323,9 @@ export default function EventDetailsPage() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image</h3>
                   <img
-                    src={getImageUrl(event.banner_image_url)}
+                    src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
                     alt="Event banner"
-                    className="w-full h-64 object-cover rounded-lg"
+                    className="w-full aspect-video object-cover rounded-lg"
                   />
                 </div>
               )}
@@ -401,7 +401,11 @@ export default function EventDetailsPage() {
                     </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push(`/organizer/events/${eventId}/tickets/${ticket.id}/edit`)}
+                >
                   <Edit className="w-4 h-4" />
                 </Button>
               </div>

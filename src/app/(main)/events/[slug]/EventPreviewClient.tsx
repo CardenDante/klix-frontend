@@ -228,10 +228,10 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
   return (
     <div className="bg-gray-50">
       {/* --- Hero Section --- */}
-      <section className="relative h-[50vh] min-h-[300px] text-white">
+      <section className="relative h-[60vh] min-h-[400px] text-white">
         <div className="absolute inset-0">
           <Image
-            src={getImageUrl(event.banner_image_url) || '/hero/hero2.jpg'}
+            src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
             alt={event.title}
             fill
             className="object-cover"
@@ -269,9 +269,9 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
             <div className="mt-12">
               <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>
               <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200">
                   <Image
-                    src={getImageUrl(event.organizer.profile_image_url) || '/logo.png'}
+                    src={getImageUrl(event.organizer.profile_image_url, '/logo.png')}
                     alt={event.organizer.business_name}
                     fill
                     className="object-cover"

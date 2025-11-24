@@ -10,8 +10,8 @@ export function cn(...inputs: ClassValue[]) {
  * Handles both absolute URLs and relative paths
  * CRITICAL: This MUST return backend URL (port 8000), never frontend URL (port 3000)
  */
-export function getImageUrl(path: string | undefined): string {
-  if (!path) return '';
+export function getImageUrl(path: string | undefined | null, fallback?: string): string {
+  if (!path) return fallback || '';
 
   // If already a full URL, return as-is
   if (path.startsWith('http://') || path.startsWith('https://')) {
