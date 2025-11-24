@@ -55,43 +55,37 @@ export default function CheckoutPage() {
       setLoading(true);
       setError('');
 
-      console.log('🎟️ [CHECKOUT] Starting purchase with data:', checkoutData.selectedTickets);
+      console.log('🎟️ [CHECKOUT] Starting cart purchase with data:', checkoutData.selectedTickets);
 
-      // Create ticket purchases for each type
-      const purchases = [];
-      const selectedEntries = Object.entries(checkoutData.selectedTickets);
+      // Build cart items array
+      const cartItems = Object.entries(checkoutData.selectedTickets).map(([typeId, qty]) => ({
+        ticket_type_id: typeId,
+        quantity: qty as number,
+      }));
 
-      for (const [typeId, qty] of selectedEntries) {
-        const purchaseData = {
-          ticket_type_id: typeId,
-          quantity: qty as number,
-          promoter_code: checkoutData.promoterCode || undefined,
-          attendee_name: formData.attendee_name,
-          attendee_email: formData.attendee_email,
-          attendee_phone: formData.attendee_phone,
-          use_loyalty_credits: false,
-        };
+      console.log('🎟️ [CHECKOUT] Cart items:', cartItems);
 
-        console.log('🎟️ [CHECKOUT] Purchasing ticket type:', typeId, 'quantity:', qty);
-        const response = await ticketsApi.purchaseTickets(purchaseData);
-        console.log('🎟️ [CHECKOUT] Purchase response:', response);
-        purchases.push(response);
-      }
+      // Create cart purchase request
+      const cartPurchaseData = {
+        items: cartItems,
+        promoter_code: checkoutData.promoterCode || undefined,
+        attendee_name: formData.attendee_name,
+        attendee_email: formData.attendee_email,
+        attendee_phone: formData.attendee_phone,
+        use_loyalty_credits: false,
+      };
 
-      console.log('🎟️ [CHECKOUT] Total purchases created:', purchases.length);
+      // Call cart purchase API (creates ONE transaction for ALL ticket types)
+      console.log('🎟️ [CHECKOUT] Calling cart purchase API...');
+      const purchaseResponse = await ticketsApi.purchaseCart(cartPurchaseData);
+      console.log('🎟️ [CHECKOUT] Cart purchase response:', purchaseResponse);
 
-      // NOTE: Current limitation - if multiple ticket types are selected,
-      // we create multiple transactions but only pay for the first one.
-      // TODO: Backend should support batch purchases or we need to handle multiple payments
-      if (purchases.length > 1) {
-        console.warn('⚠️ [CHECKOUT] Multiple ticket types selected - only first transaction will be paid');
-      }
+      // Extract transaction ID
+      const txId = purchaseResponse.transaction_id;
+      console.log('🎟️ [CHECKOUT] Transaction ID:', txId);
+      console.log('🎟️ [CHECKOUT] Total tickets created:', purchaseResponse.tickets.length);
+      console.log('🎟️ [CHECKOUT] Amount to pay:', purchaseResponse.amount, 'KES');
 
-      // Get transaction ID from first purchase
-      const firstPurchase = purchases[0];
-      const txId = firstPurchase.transaction_id;
-
-      console.log('🎟️ [CHECKOUT] Using transaction ID:', txId);
       setTransactionId(txId);
 
       // Move to payment step
