@@ -31,6 +31,7 @@ interface UpcomingEventData {
   start_datetime: string;
   location: string;
   banner_image_url?: string;
+  portrait_image_url?: string;
 }
 
 // Backend response format (what API actually returns)
@@ -122,7 +123,8 @@ export default function OrganizerDashboard() {
             title: e.title,
             start_datetime: e.start_datetime,
             location: e.location,
-            banner_image_url: e.banner_image_url
+            banner_image_url: e.banner_image_url,
+            portrait_image_url: e.portrait_image_url
           })),
 
           // Use analytics data for revenue/sales (fallback to 0)
@@ -301,9 +303,9 @@ export default function OrganizerDashboard() {
                         onClick={() => router.push(`/organizer/events/${event.id}`)}
                       >
                         <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center relative">
-                            {event.banner_image_url ? (
+                            {(event.portrait_image_url || event.banner_image_url) ? (
                                 <img
-                                  src={getImageUrl(event.banner_image_url)}
+                                  src={getImageUrl(event.portrait_image_url || event.banner_image_url)}
                                   alt={event.title}
                                   className="w-full h-full object-cover"
                                 />
