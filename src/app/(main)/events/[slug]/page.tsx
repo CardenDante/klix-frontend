@@ -168,13 +168,16 @@ const EventDetailSkeleton = () => (
 
 // Server Component - Main Page
 export default async function EventDetailPage({ params }: { params: { slug: string } }) {
+  // Try to fetch data for initial render, but don't fail if it doesn't work
+  // The client component will handle its own data fetching
   const data = await getEventData(params.slug);
 
-  if (!data || !data.event) {
-    notFound();
+  // If we have data, pass it to client for faster initial render
+  if (data && data.event) {
+    return <EventPreviewClient event={data.event} ticketTypes={data.ticketTypes} />;
   }
 
-  const { event, ticketTypes } = data;
-
-  return <EventPreviewClient event={event} ticketTypes={ticketTypes} />;
+  // Otherwise, let the client component fetch on its own
+  // This handles cases where server-side fetch fails (common in dev)
+  return <EventPreviewClient event={null} ticketTypes={[]} />;
 }

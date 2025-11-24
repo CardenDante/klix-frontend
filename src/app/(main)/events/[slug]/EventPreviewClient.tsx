@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,25 +41,90 @@ interface Event {
 }
 
 interface EventPreviewClientProps {
-  event: Event;
+  event: Event | null;
   ticketTypes: TicketType[];
 }
 
-export default function EventPreviewClient({ event: initialEvent, ticketTypes }: EventPreviewClientProps) {
+export default function EventPreviewClient({ event: initialEvent, ticketTypes: initialTicketTypes }: EventPreviewClientProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const params = useParams();
+  const slug = params?.slug as string;
 
-  const [event] = useState<Event>({
-    ...initialEvent,
-    ticket_types: ticketTypes
-  });
+  const [event, setEvent] = useState<Event | null>(initialEvent);
+  const [loading, setLoading] = useState(!initialEvent);
   const [ticketQuantities, setTicketQuantities] = useState<{ [key: string]: number }>(() => {
-    return ticketTypes.reduce((acc: any, tt: TicketType) => {
+    return initialTicketTypes.reduce((acc: any, tt: TicketType) => {
       acc[tt.id] = 0;
       return acc;
     }, {});
   });
   const [isFollowing, setIsFollowing] = useState(false);
+
+  // Fetch data client-side if not provided by server
+  useEffect(() => {
+    if (!initialEvent && slug) {
+      const fetchEvent = async () => {
+        try {
+          setLoading(true);
+
+          // Fetch event details
+          const eventResponse = await api.events.getBySlug(slug);
+          console.log('🎫 [EVENT PREVIEW] Event response:', eventResponse.data);
+
+          const eventData = eventResponse.data;
+
+          // Fetch ticket types separately
+          let ticketTypes: TicketType[] = [];
+          try {
+            console.log('🎫 [EVENT PREVIEW] Fetching ticket types for event ID:', eventData.id);
+            const ticketTypesResponse = await api.tickets.types.list(eventData.id);
+            console.log('🎫 [EVENT PREVIEW] Raw ticket types response:', ticketTypesResponse);
+            console.log('🎫 [EVENT PREVIEW] Response data:', ticketTypesResponse.data);
+
+            ticketTypes = ticketTypesResponse.data || [];
+            console.log('🎫 [EVENT PREVIEW] Ticket types array:', ticketTypes);
+            console.log('🎫 [EVENT PREVIEW] Ticket types count:', ticketTypes.length);
+          } catch (ticketError: any) {
+            console.error('❌ [EVENT PREVIEW] Failed to fetch ticket types:', ticketError);
+            console.error('❌ [EVENT PREVIEW] Error response:', ticketError.response?.data);
+            console.error('❌ [EVENT PREVIEW] Error status:', ticketError.response?.status);
+          }
+
+          // Combine event data with ticket types
+          const completeEvent = {
+            ...eventData,
+            ticket_types: ticketTypes
+          };
+
+          setEvent(completeEvent);
+
+          // Initialize quantities
+          const initialQuantities = ticketTypes.reduce((acc: any, tt: TicketType) => {
+            acc[tt.id] = 0;
+            return acc;
+          }, {});
+
+          console.log('🎫 [EVENT PREVIEW] Initial quantities:', initialQuantities);
+          setTicketQuantities(initialQuantities);
+        } catch (error) {
+          console.error("❌ [EVENT PREVIEW] Failed to fetch event details:", error);
+          router.push('/events');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchEvent();
+    } else if (initialEvent) {
+      // We have initial data from server, just set up ticket quantities
+      const initialQuantities = initialTicketTypes.reduce((acc: any, tt: TicketType) => {
+        acc[tt.id] = 0;
+        return acc;
+      }, {});
+      setTicketQuantities(initialQuantities);
+    }
+  }, [initialEvent, slug, router, initialTicketTypes]);
 
   const handleQuantityChange = (ticketTypeId: string, delta: number) => {
     setTicketQuantities(prev => {
@@ -79,7 +144,7 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes }:
 
   const handleGetTickets = () => {
     if (!isAuthenticated) {
-      router.push(`/login?redirect=/events/${event.slug}`);
+      router.push(`/login?redirect=/events/${slug}`);
       return;
     }
     console.log("Proceeding to checkout with:", ticketQuantities);
@@ -87,13 +152,41 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes }:
 
   const handleFollowOrganizer = () => {
     if (!isAuthenticated) {
-      router.push(`/login?redirect=/events/${event.slug}`);
+      router.push(`/login?redirect=/events/${slug}`);
       return;
     }
 
     setIsFollowing(!isFollowing);
     console.log(`${isFollowing ? 'Unfollowed' : 'Followed'} organizer:`, event?.organizer.business_name);
   };
+
+  // Loading skeleton
+  if (loading || !event) {
+    return (
+      <div>
+        <div className="h-[50vh] bg-gray-200 animate-wave"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-3 gap-12 -mt-16">
+            <div className="lg:col-span-2">
+              <div className="h-16 bg-gray-300 rounded-lg w-3/4 animate-wave mb-8"></div>
+              <div className="space-y-4">
+                <div className="h-6 bg-gray-200 rounded w-full animate-wave"></div>
+                <div className="h-6 bg-gray-200 rounded w-full animate-wave"></div>
+                <div className="h-6 bg-gray-200 rounded w-5/6 animate-wave"></div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="bg-white rounded-2xl shadow-2xl border p-6 h-96">
+                <div className="h-8 bg-gray-300 rounded w-1/2 animate-wave mb-6"></div>
+                <div className="h-12 bg-gray-200 rounded animate-wave mb-4"></div>
+                <div className="h-12 bg-gray-200 rounded animate-wave"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const startDate = new Date(event.start_datetime);
   const endDate = new Date(event.end_datetime);
