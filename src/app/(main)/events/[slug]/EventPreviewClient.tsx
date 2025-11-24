@@ -147,7 +147,41 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
       router.push(`/login?redirect=/events/${slug}`);
       return;
     }
-    console.log("Proceeding to checkout with:", ticketQuantities);
+
+    // Filter out ticket types with 0 quantity
+    const selectedTickets: { [key: string]: number } = {};
+    Object.entries(ticketQuantities).forEach(([typeId, qty]) => {
+      if (qty > 0) {
+        selectedTickets[typeId] = qty;
+      }
+    });
+
+    // Validate that at least one ticket is selected
+    if (Object.keys(selectedTickets).length === 0) {
+      alert('Please select at least one ticket');
+      return;
+    }
+
+    // Store checkout data in sessionStorage
+    const checkoutData = {
+      event: {
+        id: event.id,
+        slug: event.slug,
+        title: event.title,
+        start_datetime: event.start_datetime,
+        end_datetime: event.end_datetime,
+        location: event.location,
+        banner_image_url: event.banner_image_url,
+      },
+      selectedTickets,
+      ticketTypes: event.ticket_types || [],
+      promoterCode: null, // Can be added if promoter code feature is implemented
+    };
+
+    sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData));
+
+    // Navigate to checkout
+    router.push('/checkout');
   };
 
   const handleFollowOrganizer = () => {
