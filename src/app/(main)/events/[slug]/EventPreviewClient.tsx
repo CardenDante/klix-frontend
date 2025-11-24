@@ -36,6 +36,7 @@ interface Event {
   start_datetime: string;
   end_datetime: string;
   banner_image_url: string;
+  sponsor_image_url?: string | null;
   organizer: Organizer;
   ticket_types?: TicketType[];
 }
@@ -265,6 +266,23 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
               <h2 className="text-3xl font-bold font-comfortaa text-gray-900">About this Event</h2>
               <p className="font-body">{event.description}</p>
             </div>
+
+            {/* Sponsor Section */}
+            {event.sponsor_image_url && (
+              <div className="mt-8 p-6 bg-white border rounded-xl">
+                <h3 className="text-lg font-semibold text-gray-600 mb-4 font-comfortaa">Sponsored by</h3>
+                <div className="flex items-center justify-center">
+                  <div className="relative w-20 h-20">
+                    <Image
+                      src={getImageUrl(event.sponsor_image_url)}
+                      alt="Sponsor"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-12">
               <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>

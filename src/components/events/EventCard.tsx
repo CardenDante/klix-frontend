@@ -50,7 +50,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
       {/* Image */}
       <div className="relative h-48 md:h-56 overflow-hidden bg-gray-100">
         <img
-          src={getImageUrl(event.banner_image_url, undefined)}
+          src={getImageUrl(event.portrait_image_url || event.banner_image_url, undefined)}
           alt={event.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           onError={(e) => {

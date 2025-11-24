@@ -40,6 +40,8 @@ interface Event {
   start_datetime: string;
   end_datetime: string;
   banner_image_url: string | null;
+  portrait_image_url: string | null;
+  sponsor_image_url: string | null;
   slug: string;
   status: string;
   is_published: boolean;
@@ -239,18 +241,39 @@ export default function EventDetailsPage() {
         <CardContent className="space-y-4">
           {isEditing ? (
             <>
-              {/* UPDATED: Image Upload Component */}
-              <div>
-                <ImageUpload
-                  value={formData.banner_image_url || ''}
-                  onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
-                  uploadType="event_banner"
-                  entityId={eventId}
-                  label="Event Banner"
-                  aspectRatio="16:9"
-                  recommendedSize="1920x1080px"
-                  maxSizeMB={5}
-                />
+              {/* Image Upload Components */}
+              <div className="space-y-6 p-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <h3 className="text-lg font-semibold text-gray-900 font-comfortaa">Event Images</h3>
+
+                <div>
+                  <ImageUpload
+                    value={formData.banner_image_url || ''}
+                    onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
+                    uploadType="event_banner"
+                    entityId={eventId}
+                    label="Event Banner"
+                  />
+                </div>
+
+                <div>
+                  <ImageUpload
+                    value={formData.portrait_image_url || ''}
+                    onChange={(url) => setFormData({ ...formData, portrait_image_url: url })}
+                    uploadType="event_portrait"
+                    entityId={eventId}
+                    label="Event Card Portrait"
+                  />
+                </div>
+
+                <div>
+                  <ImageUpload
+                    value={formData.sponsor_image_url || ''}
+                    onChange={(url) => setFormData({ ...formData, sponsor_image_url: url })}
+                    uploadType="event_sponsor"
+                    entityId={eventId}
+                    label="Sponsor Logo"
+                  />
+                </div>
               </div>
 
               <div>
@@ -319,16 +342,42 @@ export default function EventDetailsPage() {
             </>
           ) : (
             <>
-              {event.banner_image_url && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image</h3>
-                  <img
-                    src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
-                    alt="Event banner"
-                    className="w-full aspect-video object-cover rounded-lg"
-                  />
-                </div>
-              )}
+              {/* Display Images */}
+              <div className="space-y-4">
+                {event.banner_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image (800x305px)</h3>
+                    <img
+                      src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
+                      alt="Event banner"
+                      className="w-full aspect-[8/3] object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+
+                {event.portrait_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Event Card Portrait (330x320px)</h3>
+                    <img
+                      src={getImageUrl(event.portrait_image_url)}
+                      alt="Event portrait"
+                      className="w-64 aspect-square object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+
+                {event.sponsor_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Sponsor Logo (80x80px)</h3>
+                    <img
+                      src={getImageUrl(event.sponsor_image_url)}
+                      alt="Sponsor logo"
+                      className="w-20 h-20 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <h3 className="text-sm font-medium text-gray-500 font-body">Description</h3>
                 <p className="mt-1 font-body">{event.description || 'No description'}</p>
