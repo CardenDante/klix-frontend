@@ -54,6 +54,7 @@ export interface Ticket {
     end_datetime: string;
     location: string;
     banner_image_url?: string;
+    portrait_image_url?: string;
   };
   // Ticket type details (populated when fetching tickets)
   ticket_type?: {
