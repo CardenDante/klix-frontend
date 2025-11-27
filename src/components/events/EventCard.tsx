@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Event } from '@/lib/api/events';
 import { MapPin, Calendar, Ticket, Share2, Bookmark } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 
 interface EventCardProps {
   event: Event;
@@ -48,17 +49,22 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
     >
       {/* Image */}
       <div className="relative h-48 md:h-56 overflow-hidden bg-gray-100">
-        {event.banner_image_url ? (
-          <img
-            src={event.banner_image_url}
-            alt={event.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center">
-            <Ticket className="w-16 h-16 text-white/50" />
-          </div>
-        )}
+        <img
+          src={getImageUrl(event.portrait_image_url || event.banner_image_url, undefined)}
+          alt={event.title}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={(e) => {
+            // Show fallback gradient if image fails to load
+            e.currentTarget.style.display = 'none';
+            const parent = e.currentTarget.parentElement;
+            if (parent && !parent.querySelector('.fallback-gradient')) {
+              const fallback = document.createElement('div');
+              fallback.className = 'fallback-gradient w-full h-full bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center';
+              fallback.innerHTML = '<svg class="w-16 h-16 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>';
+              parent.appendChild(fallback);
+            }
+          }}
+        />
 
         {/* Overlay badges */}
         <div className="absolute top-3 left-3 flex gap-2">

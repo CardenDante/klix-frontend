@@ -21,7 +21,12 @@
       "Bash(git diff:*)",
       "Bash(PGPASSWORD=klix_password psql:*)",
       "Bash(docker-compose:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker network inspect:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

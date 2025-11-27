@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Plus, Search, Calendar, MapPin, Ticket, Edit, Trash2, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import { organizersApi } from '@/lib/api/organizers';
 import { Event } from '@/lib/api/events';
+import { getImageUrl } from '@/lib/utils';
 
 export default function MyEventsPage() {
   const searchParams = useSearchParams();
@@ -96,7 +97,7 @@ export default function MyEventsPage() {
       {/* Success Message */}
       {showSuccess && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add a banner image and publish it.</p>
+          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add images and publish it.</p>
         </div>
       )}
 
@@ -199,11 +200,11 @@ export default function MyEventsPage() {
           {filteredEvents.map((event) => (
             <div key={event.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow">
               <div className="flex flex-col md:flex-row">
-                {/* Event Image */}
-                <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center">
-                  {event.banner_image_url ? (
+                {/* Event Image - Portrait format (330x320px aspect ratio ~1:1) */}
+                <div className="w-full md:w-64 h-48 md:h-64 bg-gradient-to-br from-[#EB7D30] to-[#f5a56d] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {(event.portrait_image_url || event.banner_image_url) ? (
                     <img
-                      src={event.banner_image_url}
+                      src={getImageUrl(event.portrait_image_url || event.banner_image_url)}
                       alt={event.title}
                       className="w-full h-full object-cover"
                     />

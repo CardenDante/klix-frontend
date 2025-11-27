@@ -10,10 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import ImageUpload from '@/components/shared/ImageUpload';
-import { 
-  ArrowLeft, Save, Trash2, Eye, EyeOff, Calendar, MapPin, 
-  DollarSign, Users, Plus, Edit, Ticket 
+import {
+  ArrowLeft, Save, Trash2, Eye, EyeOff, Calendar, MapPin,
+  DollarSign, Users, Plus, Edit, Ticket
 } from 'lucide-react';
+import { getImageUrl } from '@/lib/utils';
 
 interface TicketType {
   id: string;
@@ -39,6 +40,8 @@ interface Event {
   start_datetime: string;
   end_datetime: string;
   banner_image_url: string | null;
+  portrait_image_url: string | null;
+  sponsor_image_url: string | null;
   slug: string;
   status: string;
   is_published: boolean;
@@ -93,20 +96,37 @@ export default function EventDetailsPage() {
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const response = await apiClient.patch(`/api/v1/events/${eventId}`, formData);
       setEvent(response.data);
       setFormData(response.data);
       setIsEditing(false);
       setSuccess('Event updated successfully!');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to update event');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Auto-save when image URLs change
+  const handleImageChange = async (field: 'banner_image_url' | 'portrait_image_url' | 'sponsor_image_url', url: string) => {
+    const updatedFormData = { ...formData, [field]: url };
+    setFormData(updatedFormData);
+
+    // Auto-save the image change
+    try {
+      const response = await apiClient.patch(`/api/v1/events/${eventId}`, { [field]: url });
+      setEvent(response.data);
+      setFormData(response.data);
+      setSuccess('Image updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to update image');
     }
   };
 
@@ -238,18 +258,39 @@ export default function EventDetailsPage() {
         <CardContent className="space-y-4">
           {isEditing ? (
             <>
-              {/* UPDATED: Image Upload Component */}
-              <div>
-                <ImageUpload
-                  value={formData.banner_image_url || ''}
-                  onChange={(url) => setFormData({ ...formData, banner_image_url: url })}
-                  uploadType="event_banner"
-                  entityId={eventId}
-                  label="Event Banner"
-                  aspectRatio="16:9"
-                  recommendedSize="1920x1080px"
-                  maxSizeMB={5}
-                />
+              {/* Image Upload Components */}
+              <div className="space-y-6 p-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <h3 className="text-lg font-semibold text-gray-900 font-comfortaa">Event Images</h3>
+
+                <div>
+                  <ImageUpload
+                    value={formData.banner_image_url || ''}
+                    onChange={(url) => handleImageChange('banner_image_url', url)}
+                    uploadType="event_banner"
+                    entityId={eventId}
+                    label="Event Banner"
+                  />
+                </div>
+
+                <div>
+                  <ImageUpload
+                    value={formData.portrait_image_url || ''}
+                    onChange={(url) => handleImageChange('portrait_image_url', url)}
+                    uploadType="event_portrait"
+                    entityId={eventId}
+                    label="Event Card Portrait"
+                  />
+                </div>
+
+                <div>
+                  <ImageUpload
+                    value={formData.sponsor_image_url || ''}
+                    onChange={(url) => handleImageChange('sponsor_image_url', url)}
+                    uploadType="event_sponsor"
+                    entityId={eventId}
+                    label="Sponsor Logo"
+                  />
+                </div>
               </div>
 
               <div>
@@ -318,16 +359,42 @@ export default function EventDetailsPage() {
             </>
           ) : (
             <>
-              {event.banner_image_url && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image</h3>
-                  <img 
-                    src={event.banner_image_url} 
-                    alt="Event banner" 
-                    className="w-full h-64 object-cover rounded-lg"
-                  />
-                </div>
-              )}
+              {/* Display Images */}
+              <div className="space-y-4">
+                {event.banner_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Banner Image (800x305px)</h3>
+                    <img
+                      src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
+                      alt="Event banner"
+                      className="w-full aspect-[8/3] object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+
+                {event.portrait_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Event Card Portrait (330x320px)</h3>
+                    <img
+                      src={getImageUrl(event.portrait_image_url)}
+                      alt="Event portrait"
+                      className="w-64 aspect-square object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+
+                {event.sponsor_image_url && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2 font-body">Sponsor Logo (80x80px)</h3>
+                    <img
+                      src={getImageUrl(event.sponsor_image_url)}
+                      alt="Sponsor logo"
+                      className="w-20 h-20 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <h3 className="text-sm font-medium text-gray-500 font-body">Description</h3>
                 <p className="mt-1 font-body">{event.description || 'No description'}</p>
@@ -400,7 +467,11 @@ export default function EventDetailsPage() {
                     </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push(`/organizer/events/${eventId}/tickets/${ticket.id}/edit`)}
+                >
                   <Edit className="w-4 h-4" />
                 </Button>
               </div>

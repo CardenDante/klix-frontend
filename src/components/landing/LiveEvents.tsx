@@ -6,6 +6,7 @@ import { Calendar, MapPin, Users, TrendingUp, Music, Gamepad2, Briefcase, PartyP
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api-client';
 import { Badge } from '@/components/ui/badge';
+import { getImageUrl } from '@/lib/utils';
 
 interface Event {
   id: string;
@@ -15,6 +16,7 @@ interface Event {
   location: string;
   start_datetime: string;
   banner_image_url: string;
+  portrait_image_url?: string;
   tickets_sold: number;
   is_sold_out: boolean;
 }
@@ -130,7 +132,7 @@ export default function LiveEvents() {
                 {/* Event Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={event.banner_image_url || '/hero/hero3.jpg'} // Fallback image
+                    src={getImageUrl(event.portrait_image_url || event.banner_image_url) || '/hero/hero3.jpg'} // Fallback image
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
                   />

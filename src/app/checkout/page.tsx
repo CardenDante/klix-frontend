@@ -29,11 +29,13 @@ export default function CheckoutPage() {
     // Load checkout data from session
     const data = sessionStorage.getItem('checkout_data');
     if (!data) {
+      console.warn('⚠️ [CHECKOUT] No checkout data found, redirecting to events');
       router.push('/events');
       return;
     }
+    console.log('🎟️ [CHECKOUT] Loaded checkout data:', JSON.parse(data));
     setCheckoutData(JSON.parse(data));
-  }, []);
+  }, [router]);
 
   const getTotalAmount = () => {
     if (!checkoutData) return 0;
@@ -53,36 +55,49 @@ export default function CheckoutPage() {
       setLoading(true);
       setError('');
 
-      // Create ticket purchases for each type
-      const purchases = [];
-      for (const [typeId, qty] of Object.entries(checkoutData.selectedTickets)) {
-        const purchaseData = {
-          ticket_type_id: typeId,
-          quantity: qty as number,
-          promoter_code: checkoutData.promoterCode || undefined,
-          attendee_name: formData.attendee_name,
-          attendee_email: formData.attendee_email,
-          attendee_phone: formData.attendee_phone,
-          use_loyalty_credits: false,
-        };
-        
-        const response = await ticketsApi.purchaseTickets(purchaseData);
-        purchases.push(response);
-      }
+      console.log('🎟️ [CHECKOUT] Starting cart purchase with data:', checkoutData.selectedTickets);
 
-      // Get transaction ID from first purchase
-      const firstPurchase = purchases[0];
-      const txId = firstPurchase.transaction_id;
+      // Build cart items array
+      const cartItems = Object.entries(checkoutData.selectedTickets).map(([typeId, qty]) => ({
+        ticket_type_id: typeId,
+        quantity: qty as number,
+      }));
+
+      console.log('🎟️ [CHECKOUT] Cart items:', cartItems);
+
+      // Create cart purchase request
+      const cartPurchaseData = {
+        items: cartItems,
+        promoter_code: checkoutData.promoterCode || undefined,
+        attendee_name: formData.attendee_name,
+        attendee_email: formData.attendee_email,
+        attendee_phone: formData.attendee_phone,
+        use_loyalty_credits: false,
+      };
+
+      // Call cart purchase API (creates ONE transaction for ALL ticket types)
+      console.log('🎟️ [CHECKOUT] Calling cart purchase API...');
+      const purchaseResponse = await ticketsApi.purchaseCart(cartPurchaseData);
+      console.log('🎟️ [CHECKOUT] Cart purchase response:', purchaseResponse);
+
+      // Extract transaction ID
+      const txId = purchaseResponse.transaction_id;
+      console.log('🎟️ [CHECKOUT] Transaction ID:', txId);
+      console.log('🎟️ [CHECKOUT] Total tickets created:', purchaseResponse.tickets.length);
+      console.log('🎟️ [CHECKOUT] Amount to pay:', purchaseResponse.amount, 'KES');
+
       setTransactionId(txId);
 
       // Move to payment step
       setStep(2);
-      
+
       // Initiate M-Pesa payment
       await initiateMpesaPayment(txId);
-      
+
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create purchase');
+      console.error('❌ [CHECKOUT] Purchase failed:', err);
+      console.error('❌ [CHECKOUT] Error details:', err.response?.data);
+      setError(err.response?.data?.detail || err.message || 'Failed to create purchase');
     } finally {
       setLoading(false);
     }
@@ -91,45 +106,61 @@ export default function CheckoutPage() {
   const initiateMpesaPayment = async (txId: string) => {
     try {
       setPaymentStatus('processing');
-      
+
+      console.log('💰 [PAYMENT] Initiating M-Pesa for transaction:', txId);
+      console.log('💰 [PAYMENT] Phone number:', formData.attendee_phone);
+
       // Initiate M-Pesa STK Push
       const mpesaResponse = await paymentsApi.initiateMpesa(txId);
-      
+      console.log('💰 [PAYMENT] M-Pesa response:', mpesaResponse);
+
       if (mpesaResponse.success) {
+        console.log('✅ [PAYMENT] M-Pesa STK push sent successfully');
         // Start polling for payment status
         pollPaymentStatus(txId);
       } else {
+        console.error('❌ [PAYMENT] M-Pesa initiation failed:', mpesaResponse);
         setPaymentStatus('failed');
         setError('Failed to initiate M-Pesa payment');
       }
     } catch (err: any) {
+      console.error('❌ [PAYMENT] M-Pesa initiation error:', err);
+      console.error('❌ [PAYMENT] Error response:', err.response?.data);
       setPaymentStatus('failed');
-      setError(err.response?.data?.detail || 'Payment initiation failed');
+      setError(err.response?.data?.detail || err.message || 'Payment initiation failed');
     }
   };
 
   const pollPaymentStatus = async (txId: string) => {
     let attempts = 0;
     const maxAttempts = 30; // Poll for 5 minutes (10s intervals)
-    
+
+    console.log('🔄 [PAYMENT] Starting to poll payment status...');
+
     const interval = setInterval(async () => {
       try {
         attempts++;
+        console.log(`🔄 [PAYMENT] Polling attempt ${attempts}/${maxAttempts}`);
+
         const status = await paymentsApi.getTransactionStatus(txId);
-        
+        console.log('🔄 [PAYMENT] Transaction status:', status);
+
         if (status.status === 'completed') {
           clearInterval(interval);
+          console.log('✅ [PAYMENT] Payment completed successfully!');
           setPaymentStatus('success');
           setStep(3);
-          
+
           // Clear checkout data
           sessionStorage.removeItem('checkout_data');
         } else if (status.status === 'failed' || attempts >= maxAttempts) {
           clearInterval(interval);
+          console.error('❌ [PAYMENT] Payment failed or timed out');
           setPaymentStatus('failed');
           setError('Payment failed or timed out');
         }
       } catch (err) {
+        console.warn('⚠️ [PAYMENT] Polling error (will retry):', err);
         // Continue polling
       }
     }, 10000); // Poll every 10 seconds

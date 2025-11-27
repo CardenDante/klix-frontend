@@ -169,6 +169,8 @@ export const api = {
     deactivateCode: (codeId: string) => apiClient.post(`/api/v1/promoters/code/${codeId}/deactivate`),
     leaderboard: (params?: any) => apiClient.get('/api/v1/promoters/leaderboard', { params }),
     shareLink: (codeId: string, data: any) => apiClient.post(`/api/v1/promoters/codes/${codeId}/share`, data),
+    trackClick: (data: { code: string; source?: string; platform?: string }) =>
+      apiClient.post('/api/v1/promoters/track-click', data),
 
     // Commission & Earnings
     earnings: () => apiClient.get('/api/v1/promoters/earnings'),

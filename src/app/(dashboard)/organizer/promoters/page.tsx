@@ -331,7 +331,11 @@ export default function OrganizerPromotersPage() {
                           </div>
                         )}
                         <p className="text-xs text-gray-500 font-body mt-2">
-                          Requested {new Date(request.created_at).toLocaleDateString()}
+                          Requested {request.created_at ? new Date(request.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          }) : 'Recently'}
                         </p>
                       </div>
                       {request.status === 'PENDING' && (

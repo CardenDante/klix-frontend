@@ -13,6 +13,8 @@ export interface Event {
   start_datetime: string;
   end_datetime: string;
   banner_image_url?: string;
+  portrait_image_url?: string;
+  sponsor_image_url?: string;
   additional_images?: string[];
   status: string;
   is_published: boolean;

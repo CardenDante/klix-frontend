@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, Calendar, Users, Frown, Music, Gamepad2, Briefcase, PartyPopper, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { getImageUrl } from '@/lib/utils';
 
 interface Event {
   id: string;
@@ -17,6 +18,7 @@ interface Event {
   location: string;
   start_datetime: string;
   banner_image_url: string;
+  portrait_image_url?: string;
   tickets_sold: number;
   is_sold_out: boolean;
 }
@@ -155,7 +157,7 @@ function EventsPageContent() {
                 >
                   <div className="relative h-48 overflow-hidden">
                     <img
-                      src={event.banner_image_url || '/hero/hero3.jpg'}
+                      src={getImageUrl(event.portrait_image_url || event.banner_image_url) || '/hero/hero3.jpg'}
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />

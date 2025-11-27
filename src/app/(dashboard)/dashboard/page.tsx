@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { getImageUrl } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -321,7 +322,7 @@ function AttendeeDashboard({ user }: { user: any }) {
                   <div className="w-full sm:w-20 h-24 sm:h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     {ticket.event?.banner_image_url ? (
                       <img
-                        src={ticket.event.banner_image_url}
+                        src={getImageUrl(ticket.event.banner_image_url)}
                         alt={ticket.event.title}
                         className="w-full h-full object-cover rounded-lg"
                       />
@@ -380,7 +381,7 @@ function AttendeeDashboard({ user }: { user: any }) {
                 >
                   <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
                     {event.banner_image_url ? (
-                      <img src={event.banner_image_url} alt={event.title} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(event.banner_image_url)} alt={event.title} className="w-full h-full object-cover" />
                     ) : (
                       <Calendar className="w-12 h-12 text-primary" />
                     )}

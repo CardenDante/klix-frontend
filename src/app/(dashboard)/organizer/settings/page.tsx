@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { getImageUrl } from '@/lib/utils';
 import {
   Building2, Save, CreditCard, Link as LinkIcon,
   CheckCircle, AlertCircle, Image as ImageIcon, Upload
@@ -261,17 +262,17 @@ export default function OrganizerSettingsPage() {
               {formData.logo_url && (
                 <div className="mb-4 border rounded-lg p-4 flex items-center gap-4">
                   <img
-                    src={formData.logo_url}
+                    src={getImageUrl(formData.logo_url)}
                     alt="Profile Logo"
-                    className="h-20 w-20 object-contain rounded border"
+                    className="h-20 w-20 object-cover rounded-full border-2 border-gray-200"
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.src = '/default-avatar.png';
                     }}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Current Profile Logo</p>
+                    <p className="text-sm font-medium">Current Profile Picture</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Upload a new logo to replace it
+                      Upload a new profile picture to replace it
                     </p>
                   </div>
                 </div>
@@ -294,10 +295,10 @@ export default function OrganizerSettingsPage() {
                     <Upload className="w-6 h-6 text-[#EB7D30]" />
                   </div>
                   <p className="font-medium mb-1">
-                    {uploadingLogo ? 'Uploading...' : 'Click to upload logo'}
+                    {uploadingLogo ? 'Uploading...' : 'Click to upload profile picture'}
                   </p>
                   <p className="text-xs text-gray-500">
-                    JPEG, PNG or WebP (Max. 5MB, 400x400px recommended)
+                    JPEG, PNG or WebP (Max. 5MB, Square image recommended)
                   </p>
                 </label>
               </div>

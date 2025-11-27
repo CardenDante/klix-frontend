@@ -12,6 +12,21 @@ export interface PurchaseTicketRequest {
   loyalty_credits_amount?: number;
 }
 
+export interface CartItem {
+  ticket_type_id: string;
+  quantity: number;
+}
+
+export interface PurchaseCartRequest {
+  items: CartItem[];
+  promoter_code?: string;
+  attendee_name: string;
+  attendee_email: string;
+  attendee_phone?: string;
+  use_loyalty_credits?: boolean;
+  loyalty_credits_amount?: number;
+}
+
 export interface Ticket {
   id: string;
   ticket_number: string;
@@ -39,6 +54,7 @@ export interface Ticket {
     end_datetime: string;
     location: string;
     banner_image_url?: string;
+    portrait_image_url?: string;
   };
   // Ticket type details (populated when fetching tickets)
   ticket_type?: {
@@ -49,10 +65,16 @@ export interface Ticket {
 }
 
 export const ticketsApi = {
-  // Purchase tickets
+  // Purchase tickets (single ticket type - LEGACY)
   purchaseTickets: async (data: PurchaseTicketRequest) => {
     const response = await apiClient.post('/api/v1/tickets/purchase', data);
     return response.data;
+  },
+
+  // Purchase cart (multiple ticket types in one transaction)
+  purchaseCart: async (data: PurchaseCartRequest) => {
+    const response = await apiClient.post('/api/v1/tickets/purchase-cart', data);
+    return response.data.data; // Extract the nested data
   },
 
   // Get my tickets

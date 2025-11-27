@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Calendar, MapPin, Image as ImageIcon, Ticket, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, MapPin, Ticket, Check } from 'lucide-react';
 import { organizersApi, EventCreateData } from '@/lib/api/organizers';
 import { eventsApi } from '@/lib/api/events';
 
@@ -21,8 +21,6 @@ export default function CreateEventPage() {
     longitude: undefined,
     start_datetime: '',
     end_datetime: '',
-    banner_image_url: '',
-    additional_images: [],
     settings: {},
   });
 
@@ -33,9 +31,8 @@ export default function CreateEventPage() {
   const steps = [
     { number: 1, title: 'Basic Info', icon: Calendar },
     { number: 2, title: 'Date & Location', icon: MapPin },
-    { number: 3, title: 'Media', icon: ImageIcon },
-    { number: 4, title: 'Tickets', icon: Ticket },
-    { number: 5, title: 'Review', icon: Check },
+    { number: 3, title: 'Tickets', icon: Ticket },
+    { number: 4, title: 'Review', icon: Check },
   ];
 
   const handleNext = () => {
@@ -53,7 +50,7 @@ export default function CreateEventPage() {
     }
     
     setError('');
-    if (currentStep < 5) setCurrentStep(currentStep + 1);
+    if (currentStep < 4) setCurrentStep(currentStep + 1);
   };
 
   const handleBack = () => {
@@ -91,8 +88,6 @@ export default function CreateEventPage() {
         description: formData.description?.trim() || undefined,
         latitude: formData.latitude || undefined,
         longitude: formData.longitude || undefined,
-        banner_image_url: formData.banner_image_url || undefined,
-        additional_images: formData.additional_images?.length ? formData.additional_images : undefined,
       };
 
       // Create event
@@ -330,32 +325,8 @@ export default function CreateEventPage() {
             </div>
           )}
 
-          {/* Step 3: Media */}
+          {/* Step 3: Tickets */}
           {currentStep === 3 && (
-            <div className="space-y-6">
-              <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg text-center">
-                <ImageIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 font-comfortaa">
-                  Banner Image (Optional)
-                </h3>
-                <p className="text-sm text-gray-700 mb-4 font-body">
-                  You can add a banner image after creating your event. A high-quality banner helps attract more attendees!
-                </p>
-                <p className="text-xs text-gray-600 font-body">
-                  💡 <strong>Recommended:</strong> 1920x1080px (16:9 ratio) • Max 5MB • JPEG, PNG, or WebP
-                </p>
-              </div>
-
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800 font-body">
-                  ✅ <strong>Next Step:</strong> After creating your event, you'll be able to edit it and upload a banner image.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Tickets */}
-          {currentStep === 4 && (
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900 font-comfortaa">Ticket Types</h3>
@@ -455,23 +426,12 @@ export default function CreateEventPage() {
             </div>
           )}
 
-          {/* Step 5: Review */}
-          {currentStep === 5 && (
+          {/* Step 4: Review */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <h3 className="font-comfortaa text-xl font-bold text-gray-900 mb-4">Review Your Event</h3>
-              
-              <div className="space-y-4">
-                {formData.banner_image_url && (
-                  <div className="border-b pb-4">
-                    <p className="text-sm text-gray-600 mb-2 font-body">Banner Image</p>
-                    <img 
-                      src={formData.banner_image_url} 
-                      alt="Event banner" 
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                  </div>
-                )}
 
+              <div className="space-y-4">
                 <div className="border-b pb-4">
                   <p className="text-sm text-gray-600 font-body">Title</p>
                   <p className="font-semibold text-gray-900 font-comfortaa">{formData.title}</p>
@@ -529,7 +489,7 @@ export default function CreateEventPage() {
               Back
             </button>
 
-            {currentStep < 5 ? (
+            {currentStep < 4 ? (
               <button
                 onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-3 bg-[#EB7D30] text-white font-semibold rounded-full hover:bg-[#d66d20] transition-colors font-body"

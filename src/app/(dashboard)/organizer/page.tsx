@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, Ticket, Calendar, BarChart3, ArrowRight, Loader2, PlusCircle, MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { getImageUrl } from '@/lib/utils';
 
 // --- INTERFACES ---
 interface SalesData {
@@ -30,8 +31,28 @@ interface UpcomingEventData {
   start_datetime: string;
   location: string;
   banner_image_url?: string;
+  portrait_image_url?: string;
 }
 
+// Backend response format (what API actually returns)
+interface BackendDashboardStats {
+  organizer_id: string;
+  organizer_name: string;
+  total_events: number; // Backend uses this
+  active_events: number;
+  completed_events: number;
+  draft_events: number;
+  total_revenue: number;
+  total_tickets_sold: number;
+  upcoming_events: UpcomingEventData[];
+  top_events: TopEventData[];
+  revenue_this_month: number;
+  revenue_last_month: number;
+  tickets_sold_this_month: number;
+  tickets_sold_last_month: number;
+}
+
+// Frontend format (normalized)
 interface DashboardStats {
   total_revenue: number;
   total_tickets_sold: number;
@@ -48,15 +69,77 @@ export default function OrganizerDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fallbackEvents, setFallbackEvents] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await organizersApi.getDashboard();
-        setStats(response.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+
+        // ALWAYS fetch events directly first (analytics endpoint is unreliable)
+        console.log('🔄 [DASHBOARD] Fetching events directly...');
+        const eventsResponse = await organizersApi.getMyEvents();
+        console.log('📊 [DASHBOARD] My events response:', eventsResponse.data);
+
+        const events = eventsResponse.data.data || eventsResponse.data || [];
+        setFallbackEvents(events);
+
+        console.log(`✅ [DASHBOARD] Found ${events.length} events`);
+
+        // Try to get analytics data, but don't fail if it doesn't work
+        let analyticsData: BackendDashboardStats | null = null;
+        try {
+          const analyticsResponse = await organizersApi.getDashboard();
+          analyticsData = analyticsResponse.data;
+          console.log('📊 [DASHBOARD] Analytics data:', analyticsData);
+        } catch (analyticsError: any) {
+          console.warn("⚠️ [DASHBOARD] Analytics endpoint failed, using events data only:", analyticsError);
+        }
+
+        // Build stats from BOTH sources (prioritize events data for counts)
+        // Filter upcoming events: start_datetime is in the FUTURE
+        const now = new Date();
+        console.log('⏰ [DASHBOARD] Current time:', now.toISOString());
+
+        const upcomingEvents = events.filter((e: any) => {
+          const eventStart = new Date(e.start_datetime);
+          const isUpcoming = eventStart > now;
+          console.log(`📅 [DASHBOARD] Event "${e.title}": ${e.start_datetime} → ${eventStart.toISOString()} → Upcoming: ${isUpcoming}`);
+          return isUpcoming;
+        });
+
+        console.log(`📊 [DASHBOARD] Total events: ${events.length}, Upcoming: ${upcomingEvents.length}`);
+
+        // If no upcoming events but we have events, show ALL events (they might be past events)
+        const displayEvents = upcomingEvents.length > 0 ? upcomingEvents : events;
+
+        const normalizedStats: DashboardStats = {
+          // Use events data for counts (it's more reliable)
+          total_events_count: events.length,
+          upcoming_events_count: upcomingEvents.length,
+          upcoming_events: displayEvents.slice(0, 3).map((e: any) => ({
+            id: e.id,
+            slug: e.slug,
+            title: e.title,
+            start_datetime: e.start_datetime,
+            location: e.location,
+            banner_image_url: e.banner_image_url,
+            portrait_image_url: e.portrait_image_url
+          })),
+
+          // Use analytics data for revenue/sales (fallback to 0)
+          total_revenue: analyticsData?.total_revenue || 0,
+          total_tickets_sold: analyticsData?.total_tickets_sold || 0,
+          top_events: analyticsData?.top_events || [],
+          sales_over_time: []
+        };
+
+        console.log('✅ [DASHBOARD] Final normalized stats:', normalizedStats);
+        setStats(normalizedStats);
+
+      } catch (error: any) {
+        console.error("❌ [DASHBOARD] Failed to fetch data:", error);
+        console.error("❌ [DASHBOARD] Error details:", error.response?.data);
         toast.error("Could not load your dashboard data. Please try again.");
       } finally {
         setLoading(false);
@@ -74,7 +157,18 @@ export default function OrganizerDashboard() {
     );
   }
 
-  if (!stats || stats.total_events_count === 0) {
+  // Debug: log the stats to see what we have
+  console.log('📊 [DASHBOARD] Current stats state:', stats);
+  console.log('📊 [DASHBOARD] Should show empty state?', !stats || stats.total_events_count === 0);
+
+  if (!stats) {
+    console.warn('⚠️ [DASHBOARD] Stats is null, showing empty state');
+    return <EmptyState />;
+  }
+
+  // Only show empty state if we're sure there are no events
+  if (stats.total_events_count === 0) {
+    console.warn('⚠️ [DASHBOARD] Total events count is 0, showing empty state');
     return <EmptyState />;
   }
 
@@ -180,8 +274,14 @@ export default function OrganizerDashboard() {
           <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="font-comfortaa">Upcoming Events</CardTitle>
-                  <CardDescription className="font-body">Your next few scheduled events.</CardDescription>
+                  <CardTitle className="font-comfortaa">
+                    {stats.upcoming_events_count > 0 ? 'Upcoming Events' : 'Recent Events'}
+                  </CardTitle>
+                  <CardDescription className="font-body">
+                    {stats.upcoming_events_count > 0
+                      ? `${stats.upcoming_events_count} event${stats.upcoming_events_count !== 1 ? 's' : ''} coming up`
+                      : 'Your events (add new dates for upcoming events)'}
+                  </CardDescription>
                 </div>
                 <Button variant="ghost" size="sm" asChild>
                     <Link href="/organizer/events">
@@ -193,38 +293,84 @@ export default function OrganizerDashboard() {
           <CardContent>
               {(stats.upcoming_events || []).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {(stats.upcoming_events || []).slice(0, 3).map((event) => (
-                      <div 
-                        key={event.id} 
-                        className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                    {(stats.upcoming_events || []).slice(0, 3).map((event) => {
+                      const eventDate = new Date(event.start_datetime);
+                      const isPast = eventDate < new Date();
+                      return (
+                      <div
+                        key={event.id}
+                        className={`border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${isPast ? 'opacity-75' : ''}`}
                         onClick={() => router.push(`/organizer/events/${event.id}`)}
                       >
-                        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                            {event.banner_image_url ? (
+                        <div className="h-40 bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center relative">
+                            {(event.portrait_image_url || event.banner_image_url) ? (
                                 <img
-                                  src={event.banner_image_url.startsWith('http') ? event.banner_image_url : `http://localhost:8000${event.banner_image_url}`}
+                                  src={getImageUrl(event.portrait_image_url || event.banner_image_url)}
                                   alt={event.title}
                                   className="w-full h-full object-cover"
                                 />
                             ) : (
                                 <Calendar className="w-12 h-12 text-primary" />
                             )}
+                            {isPast && (
+                              <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs px-2 py-1 rounded">
+                                Past Event
+                              </div>
+                            )}
                         </div>
                         <div className="p-4">
                             <h4 className="font-semibold font-comfortaa truncate">{event.title}</h4>
                             <div className="text-xs text-gray-600 space-y-1 mt-2 font-body">
-                                <p className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(event.start_datetime).toLocaleDateString()}</p>
+                                <p className="flex items-center gap-1.5">
+                                  <Clock className="w-3 h-3" />
+                                  {eventDate.toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
                                 <p className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {event.location}</p>
                             </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                 </div>
               ) : (
                 <p className="text-center text-gray-500 py-8 font-body">You have no upcoming events.</p>
               )}
           </CardContent>
       </Card>
+
+      {/* DEBUG PANEL - Remove after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="mt-8 border-red-300 bg-red-50/50">
+          <CardHeader>
+            <CardTitle className="text-red-700 font-comfortaa">🐛 Debug Information</CardTitle>
+            <CardDescription className="text-red-600">This panel shows raw data from the API</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4 text-sm font-mono">
+              <div>
+                <p className="font-bold text-red-700 mb-2">Stats Object:</p>
+                <pre className="bg-white p-4 rounded overflow-auto max-h-96 text-xs">
+                  {JSON.stringify(stats, null, 2)}
+                </pre>
+              </div>
+              {fallbackEvents.length > 0 && (
+                <div>
+                  <p className="font-bold text-red-700 mb-2">Fallback Events ({fallbackEvents.length}):</p>
+                  <pre className="bg-white p-4 rounded overflow-auto max-h-96 text-xs">
+                    {JSON.stringify(fallbackEvents, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
