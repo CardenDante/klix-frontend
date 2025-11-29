@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Clock, Users, Plus, Minus, Ticket as TicketIcon, Heart, Gift, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
-import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 
 // --- Define Types ---
@@ -23,7 +22,7 @@ interface TicketType {
 interface Organizer {
   id: string;
   business_name: string;
-  profile_image_url: string | null;
+  logo_url: string | null;
 }
 
 interface Event {
@@ -53,7 +52,13 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
   const searchParams = useSearchParams();
   const slug = params?.slug as string;
 
-  const [event, setEvent] = useState<Event | null>(initialEvent);
+  const [event, setEvent] = useState<Event | null>(() => {
+    // Merge initial event with ticket types if provided
+    if (initialEvent && initialTicketTypes.length > 0) {
+      return { ...initialEvent, ticket_types: initialTicketTypes };
+    }
+    return initialEvent;
+  });
   const [loading, setLoading] = useState(!initialEvent);
   const [ticketQuantities, setTicketQuantities] = useState<{ [key: string]: number }>(() => {
     return initialTicketTypes.reduce((acc: any, tt: TicketType) => {
@@ -258,12 +263,10 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
       {/* --- Hero Section --- */}
       <section className="relative h-[60vh] min-h-[400px] text-white">
         <div className="absolute inset-0">
-          <Image
+          <img
             src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
             alt={event.title}
-            fill
-            className="object-cover"
-            priority
+            className="w-full h-full object-cover"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -294,34 +297,14 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
               <p className="font-body">{event.description}</p>
             </div>
 
-            {/* Sponsor Section */}
-            {event.sponsor_image_url && (
-              <div className="mt-8 p-6 bg-white border rounded-xl">
-                <h3 className="text-lg font-semibold text-gray-600 mb-4 font-comfortaa">Sponsored by</h3>
-                <div className="flex items-center justify-center">
-                  <div className="relative w-20 h-20">
-                    <Image
-                      src={getImageUrl(event.sponsor_image_url)}
-                      alt="Sponsor"
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="mt-12">
               <h3 className="text-2xl font-bold font-comfortaa text-gray-900 mb-4">Organizer</h3>
               <div className="flex items-center gap-4 bg-white p-4 rounded-xl border">
-                <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200">
-                  <Image
-                    src={getImageUrl(event.organizer.profile_image_url, '/logo.png')}
-                    alt={event.organizer.business_name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
+                <img
+                  src={getImageUrl(event.organizer.logo_url, '/logo.png')}
+                  alt={event.organizer.business_name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                />
                 <div className="flex-1">
                   <p className="font-bold text-lg text-gray-800">{event.organizer.business_name}</p>
                   <Button
@@ -437,6 +420,31 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
           </div>
         </div>
       </main>
+
+      {/* Sponsor Footer */}
+      {event.sponsor_image_url && (
+        <footer className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="text-center">
+              <p className="text-sm uppercase tracking-wider text-gray-500 mb-6 font-semibold">
+                Proudly Sponsored By
+              </p>
+              <div className="flex justify-center items-center">
+                <div className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-300">
+                  <img
+                    src={getImageUrl(event.sponsor_image_url)}
+                    alt="Event Sponsor"
+                    className="h-24 w-auto max-w-xs object-contain"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-6">
+                Thank you to our sponsor for making this event possible
+              </p>
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

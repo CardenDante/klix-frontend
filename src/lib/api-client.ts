@@ -277,6 +277,8 @@ export const api = {
         apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/approve`, data),
       reject: (approvalId: string, data?: { response_message?: string }) =>
         apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/reject`, data || {}),
+      revoke: (approvalId: string, data?: { response_message?: string }) =>
+        apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/revoke`, data || {}),
       approvedPromoters: (eventId: string) =>
         apiClient.get(`/api/v1/promoter-requests/organizers/events/${eventId}/approved-promoters`),
     },

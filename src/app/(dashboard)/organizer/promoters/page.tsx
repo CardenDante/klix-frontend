@@ -17,7 +17,8 @@ import {
   Megaphone,
   Check,
   X,
-  Clock
+  Clock,
+  Ban
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -48,7 +49,7 @@ interface PromoterRequest {
     };
   };
   message: string | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
   commission_percentage: number | null;
   discount_percentage: number | null;
   created_at: string;
@@ -152,6 +153,21 @@ export default function OrganizerPromotersPage() {
     } catch (error: any) {
       console.error('Failed to reject:', error);
       toast.error(error.response?.data?.detail || 'Failed to reject request');
+    }
+  };
+
+  const handleRevoke = async (requestId: string, promoterName: string) => {
+    if (!confirm(`Are you sure you want to suspend ${promoterName} from promoting this event? They will no longer be able to create promo codes.`)) return;
+
+    try {
+      await api.organizer.promoterRequests.revoke(requestId, {
+        response_message: 'Promoter access suspended by organizer'
+      });
+      toast.success('Promoter suspended successfully');
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to revoke:', error);
+      toast.error(error.response?.data?.detail || 'Failed to suspend promoter');
     }
   };
 
@@ -294,7 +310,12 @@ export default function OrganizerPromotersPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {requests.map((request) => (
+                {requests.map((request) => {
+                  // Normalize status to uppercase for comparison
+                  const normalizedStatus = request.status?.toUpperCase();
+                  console.log('Request status:', request.status, 'Normalized:', normalizedStatus);
+
+                  return (
                   <div key={request.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -304,9 +325,9 @@ export default function OrganizerPromotersPage() {
                           </h4>
                           <Badge
                             variant={
-                              request.status === 'APPROVED'
+                              normalizedStatus === 'APPROVED'
                                 ? 'default'
-                                : request.status === 'REJECTED'
+                                : normalizedStatus === 'REJECTED'
                                 ? 'destructive'
                                 : 'secondary'
                             }
@@ -325,7 +346,7 @@ export default function OrganizerPromotersPage() {
                             "{request.message}"
                           </p>
                         )}
-                        {request.status === 'APPROVED' && (
+                        {normalizedStatus === 'APPROVED' && (
                           <div className="mt-2 text-sm text-gray-600 font-body">
                             Commission: {request.commission_percentage}% | Discount: {request.discount_percentage}%
                           </div>
@@ -338,8 +359,8 @@ export default function OrganizerPromotersPage() {
                           }) : 'Recently'}
                         </p>
                       </div>
-                      {request.status === 'PENDING' && (
-                        <div className="flex gap-2">
+                      {normalizedStatus === 'PENDING' && (
+                        <div className="flex flex-col sm:flex-row gap-2 min-w-[140px]">
                           <Button
                             size="sm"
                             onClick={() => setApprovalModal({
@@ -350,7 +371,7 @@ export default function OrganizerPromotersPage() {
                               responseMessage: '',
                               processing: false
                             })}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <Check className="w-4 h-4 mr-1" />
                             Approve
@@ -365,9 +386,21 @@ export default function OrganizerPromotersPage() {
                           </Button>
                         </div>
                       )}
+                      {normalizedStatus === 'APPROVED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRevoke(request.id, request.promoter.business_name)}
+                          className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                        >
+                          <Ban className="w-4 h-4 mr-1" />
+                          Suspend
+                        </Button>
+                      )}
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
             )}
           </CardContent>
@@ -376,15 +409,15 @@ export default function OrganizerPromotersPage() {
 
       {/* Approval Modal */}
       {approvalModal.show && approvalModal.request && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle className="font-comfortaa">Approve Promoter Request</CardTitle>
-              <CardDescription className="font-body">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md bg-white shadow-2xl">
+            <CardHeader className="bg-white">
+              <CardTitle className="font-comfortaa text-gray-900">Approve Promoter Request</CardTitle>
+              <CardDescription className="font-body text-gray-600">
                 Set commission and discount rates for {approvalModal.request.promoter.business_name}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 bg-white">
               <div>
                 <label className="block text-sm font-medium mb-1 font-body">
                   Commission Percentage (%)

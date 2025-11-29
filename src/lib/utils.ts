@@ -18,9 +18,15 @@ export function getImageUrl(path: string | undefined | null, fallback?: string):
     return path;
   }
 
-  // HARDCODED BACKEND URL - This is the simplest and most reliable approach
-  // In production, this should come from environment variable
-  const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  // Get backend URL - MUST be port 8000, never 3000
+  // Use environment variable if available, otherwise hardcode to localhost:8000
+  let BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // If not set or invalid, use default
+  if (!BACKEND_URL || BACKEND_URL.includes(':3000')) {
+    BACKEND_URL = 'http://localhost:8000';
+    console.warn('⚠️ NEXT_PUBLIC_API_URL not set or invalid, using default: http://localhost:8000');
+  }
 
   // Safety check: NEVER use port 3000 for images
   const safeBackendUrl = BACKEND_URL.replace(':3000', ':8000');
@@ -31,10 +37,8 @@ export function getImageUrl(path: string | undefined | null, fallback?: string):
   // Build full URL
   const fullUrl = `${safeBackendUrl}${normalizedPath}`;
 
-  // Debug logging (remove in production)
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🖼️ [getImageUrl] ${path} → ${fullUrl}`);
-  }
+  // Debug logging
+  console.log(`🖼️ [getImageUrl] ${path} → ${fullUrl}`);
 
   return fullUrl;
 }

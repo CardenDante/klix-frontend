@@ -14,9 +14,8 @@ import {
   Clock, XCircle, Loader2, ExternalLink, Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { getImageUrl } from '@/lib/utils';
-import Image from 'next/image';
 
 interface Event {
   id: string;
@@ -230,11 +229,13 @@ export default function PromoterEventsPage() {
                 return (
                   <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative h-48 w-full bg-gradient-to-br from-primary/20 to-primary/10">
-                      <Image
-                        src={getImageUrl(event.portrait_image_url || event.banner_image_url)}
+                      <img
+                        src={getImageUrl(event.portrait_image_url || event.banner_image_url, '/hero/hero2.jpg')}
                         alt={event.title}
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/hero/hero2.jpg';
+                        }}
                       />
                       <div className="absolute top-3 right-3">
                         <Badge className="bg-primary">{event.category.replace('_', ' ')}</Badge>
@@ -251,7 +252,11 @@ export default function PromoterEventsPage() {
                       <div className="space-y-2 text-sm text-gray-600">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          <span>{format(new Date(event.start_datetime), 'PPP')}</span>
+                          <span>
+                            {event.start_datetime && isValid(new Date(event.start_datetime))
+                              ? format(new Date(event.start_datetime), 'PPP')
+                              : 'Date TBA'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4" />
@@ -350,7 +355,11 @@ export default function PromoterEventsPage() {
                         <div className="space-y-1 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            <span>{format(new Date(request.event.start_datetime), 'PPP')}</span>
+                            <span>
+                              {request.event.start_datetime && isValid(new Date(request.event.start_datetime))
+                                ? format(new Date(request.event.start_datetime), 'PPP')
+                                : 'Date TBA'}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
@@ -393,7 +402,9 @@ export default function PromoterEventsPage() {
                         )}
 
                         <p className="text-xs text-gray-500 mt-3">
-                          Requested {format(new Date(request.created_at), 'PPP')}
+                          Requested {request.created_at && isValid(new Date(request.created_at))
+                            ? format(new Date(request.created_at), 'PPP')
+                            : 'recently'}
                         </p>
                       </div>
 

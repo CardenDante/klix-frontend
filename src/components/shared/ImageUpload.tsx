@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, X, Loader2, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
@@ -65,6 +65,15 @@ export default function ImageUpload({
   const dimensionConfig = DIMENSION_CONFIG[uploadType];
   const finalAspectRatio = aspectRatio || dimensionConfig.aspectRatio;
   const finalRecommendedSize = recommendedSize || dimensionConfig.size;
+
+  // Update preview when value prop changes
+  useEffect(() => {
+    if (value) {
+      setPreview(getImageUrl(value));
+    } else {
+      setPreview('');
+    }
+  }, [value]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

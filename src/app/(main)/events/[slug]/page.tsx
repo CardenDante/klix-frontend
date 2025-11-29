@@ -2,14 +2,24 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import EventPreviewClient from './EventPreviewClient';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use server-side API URL for SSR/metadata (works inside Docker network)
+// Use client-side API URL for browser requests (works from host machine)
+const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper to get full image URL
-function getFullImageUrl(path: string | undefined): string {
-  if (!path) return `${API_BASE_URL}/static/default-event.jpg`;
+// Helper to get full image URL for metadata
+function getFullImageUrl(path: string | undefined | null): string {
+  // Use a default image if path is not provided
+  if (!path) {
+    const safeBackendUrl = API_BASE_URL.replace(':3000', ':8000');
+    return `${safeBackendUrl}/static/default-event.jpg`;
+  }
+
+  // If already a full URL, return as-is
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
+
+  // Build full URL with backend
   const safeBackendUrl = API_BASE_URL.replace(':3000', ':8000');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${safeBackendUrl}${normalizedPath}`;
@@ -19,15 +29,26 @@ function getFullImageUrl(path: string | undefined): string {
 async function getEventData(slug: string) {
   try {
     // Fetch event details
-    const eventResponse = await fetch(`${API_BASE_URL}/api/v1/events/slug/${slug}`, {
+    const eventUrl = `${API_BASE_URL}/api/v1/events/slug/${slug}`;
+    console.log(`[METADATA] Fetching event from: ${eventUrl}`);
+
+    const eventResponse = await fetch(eventUrl, {
       cache: 'no-store', // Always fetch fresh data for metadata
     });
 
     if (!eventResponse.ok) {
+      console.error(`[METADATA] Event fetch failed with status: ${eventResponse.status}`);
       return null;
     }
 
     const eventData = await eventResponse.json();
+    console.log(`[METADATA] Event data received:`, {
+      title: eventData.title,
+      hasOrganizer: !!eventData.organizer,
+      hasBanner: !!eventData.banner_image_url,
+      hasPortrait: !!eventData.portrait_image_url,
+      hasSponsor: !!eventData.sponsor_image_url
+    });
 
     // Fetch ticket types separately
     let ticketTypes: any[] = [];
@@ -39,11 +60,15 @@ async function getEventData(slug: string) {
 
       if (ticketTypesResponse.ok) {
         ticketTypes = await ticketTypesResponse.json();
+        console.log(`[METADATA] Ticket types fetched: ${ticketTypes.length} types`);
+      } else {
+        console.error(`[METADATA] Ticket types fetch failed with status: ${ticketTypesResponse.status}`);
       }
     } catch (error) {
       console.error('Failed to fetch ticket types for metadata:', error);
     }
 
+    console.log(`[METADATA] Returning data with ${ticketTypes.length} ticket types`);
     return { event: eventData, ticketTypes: ticketTypes || [] };
   } catch (error) {
     console.error('Failed to fetch event for metadata:', error);
@@ -54,9 +79,12 @@ async function getEventData(slug: string) {
 // Generate dynamic metadata for SEO and Open Graph
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
+  console.log(`[METADATA] Generating metadata for slug: ${slug}`);
+
   const data = await getEventData(slug);
 
   if (!data || !data.event) {
+    console.warn(`[METADATA] No event data found for slug: ${slug}`);
     return {
       title: 'Event Not Found - Klix',
       description: 'The event you are looking for could not be found.',
@@ -64,13 +92,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 
   const { event } = data;
-  const eventDate = new Date(event.start_datetime);
-  const formattedDate = eventDate.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  console.log(`[METADATA] Generating metadata for event: ${event.title}`);
+
+  // Safely handle date formatting
+  let formattedDate = 'Date TBA';
+  if (event.start_datetime) {
+    try {
+      const eventDate = new Date(event.start_datetime);
+      if (!isNaN(eventDate.getTime())) {
+        formattedDate = eventDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      }
+    } catch (error) {
+      console.error('Error formatting date for metadata:', error);
+    }
+  }
 
   // Generate SEO-friendly description
   const description = event.description
@@ -89,12 +129,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     'event booking',
   ].filter(Boolean);
 
-  // Get full image URL for OG
-  const imageUrl = getFullImageUrl(event.banner_image_url);
+  // Get full image URL for OG - use portrait for better social media display
+  const imageUrl = getFullImageUrl(event.portrait_image_url || event.banner_image_url);
+  console.log(`[METADATA] Image URL for OG: ${imageUrl}`);
 
   // Site URL for canonical and OG
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://e-klix.com';
   const eventUrl = `${siteUrl}/events/${slug}`;
+
+  console.log(`[METADATA] Final metadata:`, {
+    title: `${event.title} - Klix Events`,
+    description: description.substring(0, 50) + '...',
+    imageUrl,
+    eventUrl
+  });
 
   return {
     title: `${event.title} - Klix Events`,
@@ -176,6 +224,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
 
   // If we have data, pass it to client for faster initial render
   if (data && data.event) {
+    console.log(`[PAGE] Passing to client: event=${data.event.title}, ticketTypes=${data.ticketTypes.length}`);
     return <EventPreviewClient event={data.event} ticketTypes={data.ticketTypes} />;
   }
 
