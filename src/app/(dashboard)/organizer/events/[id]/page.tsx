@@ -70,12 +70,21 @@ export default function EventDetailsPage() {
     try {
       // The auth token should automatically be added by apiClient interceptor
       // This endpoint allows organizers to see their own draft events
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setError('You must be logged in to view this event.');
+        setLoading(false);
+        return;
+      }
+
       const response = await apiClient.get(`/api/v1/events/${eventId}`);
       setEvent(response.data);
       setFormData(response.data);
     } catch (err: any) {
       console.error('Failed to fetch event:', err);
-      setError(err.response?.data?.detail || 'Failed to load event. Make sure you are logged in.');
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.detail || 'Failed to load event. Make sure you are logged in and have permission to view this event.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -179,19 +188,19 @@ export default function EventDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" onClick={() => router.back()} className="p-2 sm:px-4">
+            <ArrowLeft className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 font-comfortaa truncate">
               {event.title}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant={event.is_published ? 'default' : 'secondary'}>
                 {event.is_published ? 'Published' : 'Draft'}
               </Badge>
@@ -200,15 +209,15 @@ export default function EventDetailsPage() {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={togglePublish}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={togglePublish} className="flex-1 sm:flex-none text-sm">
             {event.is_published ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {event.is_published ? 'Unpublish' : 'Publish'}
           </Button>
-          <Button variant="outline" onClick={() => router.push(`/organizer/analytics`)}>
+          <Button variant="outline" onClick={() => router.push(`/organizer/analytics`)} className="flex-1 sm:flex-none text-sm">
             Analytics
           </Button>
-          <Button variant="destructive" onClick={handleDelete}>
+          <Button variant="destructive" onClick={handleDelete} className="w-full sm:w-auto text-sm">
             <Trash2 className="w-4 h-4 mr-2" />
             Delete
           </Button>
@@ -308,7 +317,7 @@ export default function EventDetailsPage() {
                   rows={4}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1 font-body">Category</label>
                   <select
@@ -338,7 +347,7 @@ export default function EventDetailsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1 font-body">Start Date & Time</label>
                   <Input
@@ -399,19 +408,19 @@ export default function EventDetailsPage() {
                 <h3 className="text-sm font-medium text-gray-500 font-body">Description</h3>
                 <p className="mt-1 font-body">{event.description || 'No description'}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2 font-body">
                     <Calendar className="w-4 h-4" /> Date & Time
                   </h3>
-                  <p className="mt-1 font-body">{new Date(event.start_datetime).toLocaleString()}</p>
+                  <p className="mt-1 font-body text-sm sm:text-base">{new Date(event.start_datetime).toLocaleString()}</p>
                   <p className="text-sm text-gray-500 font-body">to {new Date(event.end_datetime).toLocaleString()}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2 font-body">
                     <MapPin className="w-4 h-4" /> Location
                   </h3>
-                  <p className="mt-1 font-body">{event.location}</p>
+                  <p className="mt-1 font-body break-words">{event.location}</p>
                 </div>
               </div>
             </>
@@ -421,12 +430,12 @@ export default function EventDetailsPage() {
 
       {/* Ticket Types */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <CardTitle className="flex items-center gap-2 font-comfortaa">
             <Ticket className="w-5 h-5" />
             Ticket Types
           </CardTitle>
-          <Button onClick={() => router.push(`/organizer/events/${eventId}/tickets/create`)}>
+          <Button onClick={() => router.push(`/organizer/events/${eventId}/tickets/create`)} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Ticket Type
           </Button>
@@ -434,9 +443,9 @@ export default function EventDetailsPage() {
         <CardContent>
           <div className="space-y-3">
             {ticketTypes.map((ticket) => (
-              <div key={ticket.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
+              <div key={ticket.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h4 className="font-semibold font-comfortaa">{ticket.name}</h4>
                     <Badge variant={ticket.is_active ? 'default' : 'secondary'}>
                       {ticket.is_active ? 'Active' : 'Inactive'}
@@ -446,9 +455,9 @@ export default function EventDetailsPage() {
                     )}
                   </div>
                   {ticket.description && (
-                    <p className="text-sm text-gray-600 mt-1 font-body">{ticket.description}</p>
+                    <p className="text-sm text-gray-600 mt-1 font-body break-words">{ticket.description}</p>
                   )}
-                  <div className="flex items-center gap-6 mt-2 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mt-2 text-sm">
                     <span className="flex items-center gap-1 font-medium text-[#EB7D30] font-body">
                       <DollarSign className="w-4 h-4" />
                       {formatCurrency(ticket.price)}
@@ -457,7 +466,7 @@ export default function EventDetailsPage() {
                       <Users className="w-4 h-4" />
                       {ticket.quantity_sold} / {ticket.quantity_total} sold
                     </span>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-[100px]">
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-[#EB7D30] h-2 rounded-full"
@@ -471,6 +480,7 @@ export default function EventDetailsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.push(`/organizer/events/${eventId}/tickets/${ticket.id}/edit`)}
+                  className="self-end sm:self-auto"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>

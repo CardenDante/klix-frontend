@@ -72,9 +72,12 @@ export default function PromoterCodesPage() {
   const fetchCodes = async () => {
     try {
       const response = await api.promoter.myCodes({ page_size: 100 });
+      console.log('My Codes API Response:', response.data);
+      console.log('Codes array:', response.data.data);
       setCodes(response.data.data || []);
     } catch (err) {
       console.error('Failed to load codes:', err);
+      setError('Failed to load promo codes. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -119,7 +122,8 @@ export default function PromoterCodesPage() {
     };
 
     try {
-      await api.promoter.createCode(payload);
+      const createResponse = await api.promoter.createCode(payload);
+      console.log('Code created:', createResponse.data);
       setSuccess('Promo code created successfully!');
       setShowCreateForm(false);
       setFormData({
@@ -127,8 +131,10 @@ export default function PromoterCodesPage() {
         code_type: 'commission',
       });
       setSelectedEvent(null);
-      fetchCodes();
+      console.log('Fetching codes after creation...');
+      await fetchCodes();
     } catch (err: any) {
+      console.error('Create code error:', err);
       setError(err.response?.data?.detail || 'Failed to create code');
     }
   };
@@ -196,18 +202,19 @@ export default function PromoterCodesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'Comfortaa' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate" style={{ fontFamily: 'Comfortaa' }}>
             My Promo Codes
           </h1>
-          <p className="text-gray-600 mt-1">Create and manage your promotional codes</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Create and manage your promotional codes</p>
         </div>
         <Button
           onClick={() => setShowCreateForm(!showCreateForm)}
           disabled={approvedEvents.length === 0}
+          className="w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create New Code
@@ -331,10 +338,10 @@ export default function PromoterCodesPage() {
         {filteredCodes.map((code) => (
           <Card key={code.code_id} className="hover:shadow-md transition">
             <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Badge className="bg-[#EB7D30] text-lg px-4 py-1">{code.code}</Badge>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Badge className="bg-[#EB7D30] text-base sm:text-lg px-3 sm:px-4 py-1">{code.code}</Badge>
                     <Badge variant={code.is_active ? 'default' : 'secondary'}>
                       {code.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -343,12 +350,12 @@ export default function PromoterCodesPage() {
                     </Badge>
                   </div>
 
-                  <h3 className="font-semibold text-lg mb-1">{code.event_name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">
+                  <h3 className="font-semibold text-base sm:text-lg mb-1">{code.event_name}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3">
                     {new Date(code.event_date).toLocaleDateString()} • Created {new Date(code.created_at).toLocaleDateString()}
                   </p>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Times Used</p>
                       <p className="text-xl font-bold">{code.times_used}</p>
@@ -374,11 +381,12 @@ export default function PromoterCodesPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 ml-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => copyToClipboard(code.code)}
+                    className="w-full sm:w-auto"
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     Copy
@@ -387,6 +395,7 @@ export default function PromoterCodesPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShareCode(code)}
+                    className="w-full sm:w-auto"
                   >
                     <Share2 className="w-4 h-4 mr-1" />
                     Share
@@ -396,6 +405,7 @@ export default function PromoterCodesPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleDeactivate(code.code_id)}
+                      className="w-full sm:w-auto"
                     >
                       <Power className="w-4 h-4 mr-1" />
                       Deactivate

@@ -143,7 +143,7 @@ export const api = {
       dashboard: () => apiClient.get('/api/v1/analytics/promoter/dashboard'),
       commission: () => apiClient.get('/api/v1/analytics/promoter/commission'),
       codePerformance: (codeId: string) => apiClient.get(`/api/v1/analytics/promoter/codes/${codeId}/performance`),
-      leaderboard: (params?: any) => apiClient.get('/api/v1/analytics/promoter/leaderboard', { params }),
+      leaderboard: (params?: any) => apiClient.get('/api/v1/promoters/leaderboard', { params }),
       clearCache: () => apiClient.post('/api/v1/analytics/promoter/cache/clear'),
     },
   },
@@ -167,6 +167,7 @@ export const api = {
     myCodes: (params?: any) => apiClient.get('/api/v1/promoters/my-codes', { params }),
     codeAnalytics: (codeId: string) => apiClient.get(`/api/v1/promoters/code/${codeId}/analytics`),
     deactivateCode: (codeId: string) => apiClient.post(`/api/v1/promoters/code/${codeId}/deactivate`),
+    validateCode: (code: string, eventId: string) => apiClient.get('/api/v1/promoters/codes/validate', { params: { code, event_id: eventId } }),
     leaderboard: (params?: any) => apiClient.get('/api/v1/promoters/leaderboard', { params }),
     shareLink: (codeId: string, data: any) => apiClient.post(`/api/v1/promoters/codes/${codeId}/share`, data),
     trackClick: (data: { code: string; source?: string; platform?: string }) =>
@@ -279,6 +280,8 @@ export const api = {
         apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/reject`, data || {}),
       revoke: (approvalId: string, data?: { response_message?: string }) =>
         apiClient.post(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}/revoke`, data || {}),
+      update: (approvalId: string, data: { commission_percentage: number; discount_percentage: number }) =>
+        apiClient.patch(`/api/v1/promoter-requests/organizers/promoter-requests/${approvalId}`, data),
       approvedPromoters: (eventId: string) =>
         apiClient.get(`/api/v1/promoter-requests/organizers/events/${eventId}/approved-promoters`),
     },

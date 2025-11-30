@@ -31,7 +31,7 @@ interface Leaderboard {
 export default function PromoterLeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<'all-time' | 'month' | 'week'>('all-time');
+  const [period, setPeriod] = useState<'all_time' | 'this_month' | 'last_month'>('all_time');
   const [limit, setLimit] = useState(50);
 
   useEffect(() => {
@@ -50,7 +50,10 @@ export default function PromoterLeaderboardPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number | string | undefined | null) => {
+    const value = amount ? parseFloat(amount.toString()) : 0;
+    return `KSh ${value.toLocaleString()}`;
+  };
 
   const getRankBadge = (rank: number) => {
     switch (rank) {
@@ -99,9 +102,9 @@ export default function PromoterLeaderboardPage() {
     return <div className="text-center py-12 text-gray-600">Failed to load leaderboard</div>;
   }
 
-  const currentUser = leaderboard.leaderboard.find(e => e.is_current_user);
-  const top3 = leaderboard.leaderboard.slice(0, 3);
-  const rest = leaderboard.leaderboard.slice(3);
+  const currentUser = (leaderboard.leaderboard || []).find(e => e.is_current_user);
+  const top3 = (leaderboard.leaderboard || []).slice(0, 3);
+  const rest = (leaderboard.leaderboard || []).slice(3);
 
   return (
     <div className="space-y-6">
@@ -119,22 +122,22 @@ export default function PromoterLeaderboardPage() {
       {/* Period Selector */}
       <div className="flex items-center justify-center gap-2">
         <Button
-          variant={period === 'all-time' ? 'default' : 'outline'}
-          onClick={() => setPeriod('all-time')}
+          variant={period === 'all_time' ? 'default' : 'outline'}
+          onClick={() => setPeriod('all_time')}
         >
           All Time
         </Button>
         <Button
-          variant={period === 'month' ? 'default' : 'outline'}
-          onClick={() => setPeriod('month')}
+          variant={period === 'this_month' ? 'default' : 'outline'}
+          onClick={() => setPeriod('this_month')}
         >
           This Month
         </Button>
         <Button
-          variant={period === 'week' ? 'default' : 'outline'}
-          onClick={() => setPeriod('week')}
+          variant={period === 'last_month' ? 'default' : 'outline'}
+          onClick={() => setPeriod('last_month')}
         >
-          This Week
+          Last Month
         </Button>
       </div>
 
@@ -314,7 +317,7 @@ export default function PromoterLeaderboardPage() {
             </p>
           )}
 
-          {leaderboard.leaderboard.length === 0 && (
+          {(leaderboard.leaderboard || []).length === 0 && (
             <p className="text-center text-gray-500 py-8">
               No promoters on the leaderboard yet. Start selling to be the first!
             </p>

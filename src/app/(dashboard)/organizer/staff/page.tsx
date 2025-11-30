@@ -48,6 +48,7 @@ export default function StaffManagementPage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [tempPassword, setTempPassword] = useState<string>('');
 
   useEffect(() => {
     fetchEvents();
@@ -88,6 +89,7 @@ export default function StaffManagementPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setTempPassword('');
 
     if (!selectedEventId) {
       setError('Please select an event');
@@ -95,17 +97,40 @@ export default function StaffManagementPage() {
     }
 
     try {
-      await api.staff.add(selectedEventId, {
+      console.log('📝 [STAFF ADD] Adding staff member:', {
+        eventId: selectedEventId,
         email: formData.email,
         role: formData.role
       });
 
-      setSuccess('Staff member added successfully!');
+      const response = await api.staff.add(selectedEventId, {
+        email: formData.email,
+        role: formData.role
+      });
+
+      console.log('✅ [STAFF ADD] Staff member added successfully:', response.data);
+
+      // Check if a temporary password was returned (new user created)
+      if (response.data.temp_password) {
+        setTempPassword(response.data.temp_password);
+        setSuccess(`Staff member added! A new account was created for ${formData.email}.`);
+      } else {
+        setSuccess('Staff member added successfully!');
+      }
+
       setFormData({ email: '', role: 'Staff' });
       setShowAddForm(false);
       fetchEventStaff(selectedEventId);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to add staff member');
+      console.error('❌ [STAFF ADD] Failed to add staff member:', err);
+      console.error('❌ [STAFF ADD] Error response:', err.response?.data);
+      console.error('❌ [STAFF ADD] Error status:', err.response?.status);
+
+      if (err.response?.status === 401) {
+        setError('Authentication error. Please refresh the page and try again.');
+      } else {
+        setError(err.response?.data?.detail || err.response?.data?.message || 'Failed to add staff member');
+      }
     }
   };
 
@@ -183,6 +208,54 @@ export default function StaffManagementPage() {
         </Alert>
       )}
 
+      {/* Temporary Password Display */}
+      {tempPassword && (
+        <Card className="border-green-500 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-green-800 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              Account Created - Temporary Password
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-white p-4 rounded border-2 border-green-200">
+              <p className="text-sm text-gray-600 mb-2">Temporary Password (share with staff member):</p>
+              <div className="flex items-center gap-2">
+                <code className="text-lg font-mono font-bold text-green-700 bg-green-100 px-4 py-2 rounded flex-1">
+                  {tempPassword}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPassword);
+                    alert('Password copied to clipboard!');
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
+              <h4 className="font-semibold text-yellow-800 mb-2">⚠️ Important Instructions:</h4>
+              <ul className="space-y-1 text-sm text-yellow-900">
+                <li>• Share this temporary password with {formData.email || 'the staff member'} securely</li>
+                <li>• They should log in at the staff portal and change their password</li>
+                <li>• This password will only be shown once - make sure to save it</li>
+                <li>• The staff member will be prompted to verify their email on first login</li>
+              </ul>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setTempPassword('')}
+            >
+              I've Saved the Password
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Event Selector */}
       <Card>
         <CardHeader>
@@ -230,7 +303,7 @@ export default function StaffManagementPage() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  If user doesn't exist, they'll receive an invitation
+                  If this user doesn't have an account, we'll create one and show you their temporary password
                 </p>
               </div>
               <div>

@@ -86,7 +86,7 @@ export default function PromoterEarningsPage() {
   };
 
   const handleEventSelect = (eventId: string) => {
-    const event = breakdown?.commission_by_event.find(e => e.event_id === eventId);
+    const event = (breakdown?.commission_by_event || []).find(e => e.event_id === eventId);
     setSelectedEvent(event || null);
     setWithdrawData({
       ...withdrawData,
@@ -127,7 +127,10 @@ export default function PromoterEarningsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number | string | undefined | null) => {
+    const value = amount ? parseFloat(amount.toString()) : 0;
+    return `KSh ${value.toLocaleString()}`;
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -277,7 +280,7 @@ export default function PromoterEarningsPage() {
                   required
                 >
                   <option value="">Choose an event...</option>
-                  {breakdown.commission_by_event
+                  {(breakdown.commission_by_event || [])
                     .filter(event => event.available > 0)
                     .map((event) => (
                       <option key={event.event_id} value={event.event_id}>
@@ -378,7 +381,7 @@ export default function PromoterEarningsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {breakdown.commission_by_event.map((event, index) => (
+            {(breakdown.commission_by_event || []).map((event, index) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex-1">
                   <h4 className="font-semibold">{event.event_name}</h4>
@@ -405,7 +408,7 @@ export default function PromoterEarningsPage() {
                 </div>
               </div>
             ))}
-            {breakdown.commission_by_event.length === 0 && (
+            {(breakdown.commission_by_event || []).length === 0 && (
               <p className="text-center text-gray-500 py-8">No commission earned yet</p>
             )}
           </div>

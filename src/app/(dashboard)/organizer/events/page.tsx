@@ -93,22 +93,22 @@ export default function MyEventsPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Success Message */}
       {showSuccess && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-semibold">✅ Event created successfully! You can now add images and publish it.</p>
+          <p className="text-green-800 font-semibold text-sm sm:text-base">✅ Event created successfully! You can now add images and publish it.</p>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="font-comfortaa text-3xl font-bold text-gray-900 mb-2">My Events</h1>
-          <p className="text-gray-600">Manage all your events</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex-1 min-w-0">
+          <h1 className="font-comfortaa text-2xl sm:text-3xl font-bold text-gray-900 mb-2 truncate">My Events</h1>
+          <p className="text-sm sm:text-base text-gray-600">Manage all your events</p>
         </div>
-        <Link href="/organizer/events/create">
-          <button className="mt-4 md:mt-0 flex items-center gap-2 px-6 py-3 bg-[#EB7D30] text-white font-bold rounded-full hover:bg-[#d66d20] transition-colors">
+        <Link href="/organizer/events/create" className="w-full sm:w-auto">
+          <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#EB7D30] text-white font-bold rounded-full hover:bg-[#d66d20] transition-colors">
             <Plus className="w-5 h-5" />
             Create Event
           </button>
@@ -116,10 +116,10 @@ export default function MyEventsPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
+        <div className="flex flex-col gap-4">
           {/* Search */}
-          <div className="flex-1 relative">
+          <div className="w-full relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -131,7 +131,7 @@ export default function MyEventsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
@@ -247,16 +247,16 @@ export default function MyEventsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/organizer/events/${event.id}`}>
-                      <button className="px-4 py-2 bg-[#EB7D30] text-white rounded-lg hover:bg-[#d66d20] transition-colors text-sm font-semibold flex items-center gap-2">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+                    <Link href={`/organizer/events/${event.id}`} className="col-span-2 sm:col-span-1">
+                      <button className="w-full sm:w-auto px-4 py-2 bg-[#EB7D30] text-white rounded-lg hover:bg-[#d66d20] transition-colors text-sm font-semibold flex items-center justify-center gap-2">
                         <Edit className="w-4 h-4" />
                         Manage
                       </button>
                     </Link>
 
                     <Link href={`/events/${event.slug}`} target="_blank">
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center gap-2">
+                      <button className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center gap-2">
                         <Eye className="w-4 h-4" />
                         Preview
                       </button>
@@ -265,7 +265,7 @@ export default function MyEventsPage() {
                     {event.is_published ? (
                       <button
                         onClick={() => handleUnpublish(event.id)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center gap-2"
+                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
                       >
                         <EyeOff className="w-4 h-4" />
                         Unpublish
@@ -273,7 +273,7 @@ export default function MyEventsPage() {
                     ) : (
                       <button
                         onClick={() => handlePublish(event.id)}
-                        className="px-4 py-2 border border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors text-sm font-semibold flex items-center gap-2"
+                        className="w-full sm:w-auto px-4 py-2 border border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
                       >
                         <Eye className="w-4 h-4" />
                         Publish
@@ -282,7 +282,7 @@ export default function MyEventsPage() {
 
                     <button
                       onClick={() => handleDelete(event.id)}
-                      className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-semibold flex items-center gap-2"
+                      className="w-full sm:w-auto px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" />
                       Delete

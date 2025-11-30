@@ -14,16 +14,19 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(1); // 1: Details, 2: Payment, 3: Confirmation
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+
   // Form data
   const [formData, setFormData] = useState({
     attendee_name: user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : '',
     attendee_email: user?.email || '',
     attendee_phone: user?.phone_number || '',
   });
-  
+
   const [transactionId, setTransactionId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'success' | 'failed'>('pending');
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   useEffect(() => {
     // Load checkout data from session
@@ -34,15 +37,53 @@ export default function CheckoutPage() {
       return;
     }
     console.log('🎟️ [CHECKOUT] Loaded checkout data:', JSON.parse(data));
-    setCheckoutData(JSON.parse(data));
-  }, [router]);
+    const parsedData = JSON.parse(data);
+    setCheckoutData(parsedData);
 
-  const getTotalAmount = () => {
+    // Validate promoter code if present
+    if (parsedData.promoterCode && parsedData.event?.id) {
+      validatePromoterCode(parsedData.promoterCode, parsedData.event.id);
+    }
+
+    // Cleanup: clear polling interval on unmount
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [router, pollingInterval]);
+
+  const validatePromoterCode = async (code: string, eventId: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/promoters/codes/validate?code=${code}&event_id=${eventId}`);
+      const result = await response.json();
+
+      if (result.success && result.valid) {
+        setDiscountPercentage(result.data.discount_percentage);
+        console.log('✅ [CHECKOUT] Promoter code validated:', result.data);
+      } else {
+        console.warn('⚠️ [CHECKOUT] Invalid promoter code:', result.data.message);
+      }
+    } catch (err) {
+      console.error('❌ [CHECKOUT] Failed to validate promoter code:', err);
+    }
+  };
+
+  const getSubtotal = () => {
     if (!checkoutData) return 0;
     return Object.entries(checkoutData.selectedTickets).reduce((total: number, [typeId, qty]: any) => {
       const ticketType = checkoutData.ticketTypes.find((t: any) => t.id === typeId);
       return total + (ticketType ? parseFloat(ticketType.price) * qty : 0);
     }, 0);
+  };
+
+  const getDiscountAmount = () => {
+    if (!discountPercentage) return 0;
+    return (getSubtotal() * discountPercentage) / 100;
+  };
+
+  const getTotalAmount = () => {
+    return getSubtotal() - getDiscountAmount();
   };
 
   const getTotalTickets = () => {
@@ -147,23 +188,71 @@ export default function CheckoutPage() {
 
         if (status.status === 'completed') {
           clearInterval(interval);
+          setPollingInterval(null);
           console.log('✅ [PAYMENT] Payment completed successfully!');
           setPaymentStatus('success');
           setStep(3);
 
           // Clear checkout data
           sessionStorage.removeItem('checkout_data');
-        } else if (status.status === 'failed' || attempts >= maxAttempts) {
+        } else if (status.status === 'failed' || status.status === 'cancelled' || attempts >= maxAttempts) {
           clearInterval(interval);
+          setPollingInterval(null);
           console.error('❌ [PAYMENT] Payment failed or timed out');
           setPaymentStatus('failed');
-          setError('Payment failed or timed out');
+          setError(status.status === 'cancelled' ? 'Payment was cancelled' : 'Payment failed or timed out. Please try again.');
         }
       } catch (err) {
         console.warn('⚠️ [PAYMENT] Polling error (will retry):', err);
         // Continue polling
       }
     }, 10000); // Poll every 10 seconds
+
+    setPollingInterval(interval);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!transactionId || checkingPayment) return;
+
+    setCheckingPayment(true);
+    console.log('✅ [PAYMENT] User clicked confirm payment, checking status immediately...');
+
+    try {
+      const status = await paymentsApi.getTransactionStatus(transactionId);
+      console.log('✅ [PAYMENT] Manual check result:', status);
+
+      if (status.status === 'completed') {
+        // Stop polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+
+        console.log('✅ [PAYMENT] Payment confirmed!');
+        setPaymentStatus('success');
+        setStep(3);
+
+        // Clear checkout data
+        sessionStorage.removeItem('checkout_data');
+      } else if (status.status === 'failed' || status.status === 'cancelled') {
+        // Stop polling
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          setPollingInterval(null);
+        }
+
+        setPaymentStatus('failed');
+        setError(status.status === 'cancelled' ? 'Payment was cancelled' : 'Payment verification failed. Please ensure you completed the M-Pesa payment.');
+      } else {
+        // Still pending - show message
+        setError('Payment is still processing. Please complete the M-Pesa prompt on your phone first.');
+      }
+    } catch (err: any) {
+      console.error('❌ [PAYMENT] Manual check error:', err);
+      setError('Failed to verify payment. Please try again.');
+    } finally {
+      setCheckingPayment(false);
+    }
   };
 
   if (!checkoutData) {
@@ -307,10 +396,34 @@ export default function CheckoutPage() {
                       <p className="text-gray-600 mb-6">
                         Please check your phone for the M-Pesa prompt and enter your PIN to complete the payment.
                       </p>
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto mb-6">
                         <p className="text-blue-900 text-sm">
                           <strong>Amount:</strong> KSh {getTotalAmount().toLocaleString()}<br />
                           <strong>Phone:</strong> {formData.attendee_phone}
+                        </p>
+                      </div>
+
+                      {/* Confirm Payment Button */}
+                      <div className="max-w-md mx-auto">
+                        <button
+                          onClick={handleConfirmPayment}
+                          disabled={checkingPayment}
+                          className="w-full px-6 py-4 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {checkingPayment ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Verifying Payment...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5" />
+                              I've Completed the Payment
+                            </>
+                          )}
+                        </button>
+                        <p className="text-xs text-gray-500 text-center mt-3">
+                          Click this button after you've entered your PIN and completed the payment on your phone
                         </p>
                       </div>
                     </>
@@ -403,27 +516,51 @@ export default function CheckoutPage() {
                 })}
               </div>
 
-              {/* Promoter Code */}
-              {checkoutData.promoterCode && (
-                <div className="mb-4 pb-4 border-b border-gray-200">
-                  <div className="flex items-center gap-2 text-sm text-green-600">
-                    <Gift className="w-4 h-4" />
-                    <span>Promoter code: <strong>{checkoutData.promoterCode}</strong></span>
-                  </div>
+              {/* Promoter Code & Pricing */}
+              <div className="space-y-3">
+                {/* Subtotal */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-semibold">KSh {getSubtotal().toLocaleString()}</span>
                 </div>
-              )}
 
-              {/* Total */}
-              <div className="pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Total</span>
-                  <span className="font-bold text-2xl text-[#EB7D30]">
-                    KSh {getTotalAmount().toLocaleString()}
-                  </span>
+                {/* Promoter Code Discount */}
+                {checkoutData.promoterCode && discountPercentage > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-sm text-green-600 bg-green-50 p-2 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-4 h-4" />
+                        <span>
+                          <strong>{checkoutData.promoterCode}</strong> ({discountPercentage}% off)
+                        </span>
+                      </div>
+                      <span className="font-semibold">-KSh {getDiscountAmount().toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
+
+                {/* Show commission-only code (no discount for customer) */}
+                {checkoutData.promoterCode && discountPercentage === 0 && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded-lg">
+                    <Gift className="w-4 h-4" />
+                    <span>
+                      Supporting promoter: <strong>{checkoutData.promoterCode}</strong>
+                    </span>
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-900 font-semibold">Total</span>
+                    <span className="font-bold text-2xl text-[#EB7D30]">
+                      KSh {getTotalAmount().toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 text-right">
+                    {getTotalTickets()} ticket(s)
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 text-right">
-                  {getTotalTickets()} ticket(s)
-                </p>
               </div>
             </div>
           </div>

@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import  apiClient  from '@/lib/api-client';
+import { organizersApi } from '@/lib/api/organizers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CreditCard, Eye, EyeOff, Save, CheckCircle, 
-  AlertTriangle, Shield, Lock, Key 
+import {
+  CreditCard, Eye, EyeOff, Save, CheckCircle,
+  AlertTriangle, Shield, Lock, Key
 } from 'lucide-react';
 
 interface MpesaCredential {
@@ -43,7 +43,7 @@ export default function MpesaCredentialsPage() {
 
   const fetchCredentials = async () => {
     try {
-      const response = await apiClient.get('/organizers/mpesa-credentials/me');
+      const response = await organizersApi.getMyMpesaCredentials();
       setCredentials(response.data);
     } catch (err: any) {
       if (err.response?.status === 404) {
@@ -61,7 +61,7 @@ export default function MpesaCredentialsPage() {
     setSuccess('');
 
     try {
-      await apiClient.post('/organizers/mpesa-credentials', formData);
+      await organizersApi.addMpesaCredentials(formData);
       setSuccess('M-Pesa credentials saved successfully!');
       setShowForm(false);
       fetchCredentials();

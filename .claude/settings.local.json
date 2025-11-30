@@ -28,7 +28,8 @@
       "Bash(docker network inspect:*)",
       "Bash(pkill:*)",
       "Bash(npm run dev:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(docker restart:*)"
     ],
     "deny": [],
     "ask": []

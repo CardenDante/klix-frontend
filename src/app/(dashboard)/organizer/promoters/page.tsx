@@ -18,7 +18,8 @@ import {
   Check,
   X,
   Clock,
-  Ban
+  Ban,
+  Edit
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -74,6 +75,20 @@ export default function OrganizerPromotersPage() {
     commissionPercentage: '10',
     discountPercentage: '5',
     responseMessage: '',
+    processing: false
+  });
+
+  const [editModal, setEditModal] = useState<{
+    show: boolean;
+    request: PromoterRequest | null;
+    commissionPercentage: string;
+    discountPercentage: string;
+    processing: boolean;
+  }>({
+    show: false,
+    request: null,
+    commissionPercentage: '0',
+    discountPercentage: '0',
     processing: false
   });
 
@@ -168,6 +183,45 @@ export default function OrganizerPromotersPage() {
     } catch (error: any) {
       console.error('Failed to revoke:', error);
       toast.error(error.response?.data?.detail || 'Failed to suspend promoter');
+    }
+  };
+
+  const handleEditRates = async () => {
+    if (!editModal.request) return;
+
+    const commission = parseFloat(editModal.commissionPercentage);
+    const discount = parseFloat(editModal.discountPercentage);
+
+    if (isNaN(commission) || commission < 0 || commission > 100) {
+      toast.error('Commission must be between 0 and 100');
+      return;
+    }
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      toast.error('Discount must be between 0 and 100');
+      return;
+    }
+
+    try {
+      setEditModal(prev => ({ ...prev, processing: true }));
+
+      await api.organizer.promoterRequests.update(editModal.request.id, {
+        commission_percentage: commission,
+        discount_percentage: discount
+      });
+
+      toast.success('Rates updated successfully!');
+      setEditModal({
+        show: false,
+        request: null,
+        commissionPercentage: '0',
+        discountPercentage: '0',
+        processing: false
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Failed to update rates:', error);
+      toast.error(error.response?.data?.detail || 'Failed to update rates');
+      setEditModal(prev => ({ ...prev, processing: false }));
     }
   };
 
@@ -317,8 +371,8 @@ export default function OrganizerPromotersPage() {
 
                   return (
                   <div key={request.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-semibold font-comfortaa">
                             {request.promoter.business_name}
@@ -360,7 +414,7 @@ export default function OrganizerPromotersPage() {
                         </p>
                       </div>
                       {normalizedStatus === 'PENDING' && (
-                        <div className="flex flex-col sm:flex-row gap-2 min-w-[140px]">
+                        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:min-w-[200px]">
                           <Button
                             size="sm"
                             onClick={() => setApprovalModal({
@@ -371,7 +425,7 @@ export default function OrganizerPromotersPage() {
                               responseMessage: '',
                               processing: false
                             })}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                           >
                             <Check className="w-4 h-4 mr-1" />
                             Approve
@@ -380,6 +434,7 @@ export default function OrganizerPromotersPage() {
                             size="sm"
                             variant="destructive"
                             onClick={() => handleReject(request.id)}
+                            className="w-full sm:w-auto"
                           >
                             <X className="w-4 h-4 mr-1" />
                             Reject
@@ -387,15 +442,32 @@ export default function OrganizerPromotersPage() {
                         </div>
                       )}
                       {normalizedStatus === 'APPROVED' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRevoke(request.id, request.promoter.business_name)}
-                          className="border-orange-600 text-orange-600 hover:bg-orange-50"
-                        >
-                          <Ban className="w-4 h-4 mr-1" />
-                          Suspend
-                        </Button>
+                        <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditModal({
+                              show: true,
+                              request,
+                              commissionPercentage: request.commission_percentage?.toString() || '0',
+                              discountPercentage: request.discount_percentage?.toString() || '0',
+                              processing: false
+                            })}
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50 w-full sm:w-auto"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit Rates
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRevoke(request.id, request.promoter.business_name)}
+                            className="border-orange-600 text-orange-600 hover:bg-orange-50 w-full sm:w-auto"
+                          >
+                            <Ban className="w-4 h-4 mr-1" />
+                            Suspend
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -504,6 +576,97 @@ export default function OrganizerPromotersPage() {
                     processing: false
                   })}
                   disabled={approvalModal.processing}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal.show && editModal.request && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md bg-white shadow-2xl">
+            <CardHeader className="bg-white">
+              <CardTitle className="font-comfortaa text-gray-900">Edit Promoter Rates</CardTitle>
+              <CardDescription className="font-body text-gray-600">
+                Update commission and discount rates for {editModal.request.promoter.business_name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 bg-white">
+              <div>
+                <label className="block text-sm font-medium mb-1 font-body">
+                  Commission Percentage (%)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={editModal.commissionPercentage}
+                  onChange={(e) => setEditModal(prev => ({
+                    ...prev,
+                    commissionPercentage: e.target.value
+                  }))}
+                  placeholder="e.g. 10"
+                />
+                <p className="text-xs text-gray-500 mt-1 font-body">
+                  The promoter will earn this percentage on each sale
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 font-body">
+                  Discount Percentage (%)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={editModal.discountPercentage}
+                  onChange={(e) => setEditModal(prev => ({
+                    ...prev,
+                    discountPercentage: e.target.value
+                  }))}
+                  placeholder="e.g. 5"
+                />
+                <p className="text-xs text-gray-500 mt-1 font-body">
+                  Buyers using promo codes will get this discount
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={handleEditRates}
+                  disabled={editModal.processing}
+                  className="flex-1"
+                >
+                  {editModal.processing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Update Rates
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditModal({
+                    show: false,
+                    request: null,
+                    commissionPercentage: '0',
+                    discountPercentage: '0',
+                    processing: false
+                  })}
+                  disabled={editModal.processing}
                   className="flex-1"
                 >
                   Cancel

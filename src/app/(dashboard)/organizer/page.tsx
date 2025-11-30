@@ -178,16 +178,16 @@ export default function OrganizerDashboard() {
   }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 font-comfortaa">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 font-comfortaa">
             Welcome, <span className="gradient-text font-playful pr-2">{user?.first_name || 'Organizer'}!</span>
           </h1>
-          <p className="text-gray-600 mt-1 font-body">Here's an overview of your events and sales.</p>
+          <p className="text-sm sm:text-base text-gray-600 mt-1 font-body">Here's an overview of your events and sales.</p>
         </div>
-        <Button size="lg" onClick={() => router.push('/organizer/events/create')}>
+        <Button size="lg" onClick={() => router.push('/organizer/events/create')} className="w-full sm:w-auto">
           <PlusCircle className="w-5 h-5 mr-2" />
           Create New Event
         </Button>
