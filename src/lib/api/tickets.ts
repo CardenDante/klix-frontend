@@ -126,8 +126,9 @@ export const paymentsApi = {
   },
 
   // Get transaction status
-  getTransactionStatus: async (transactionId: string) => {
-    const response = await apiClient.get(`/api/v1/payments/transaction/${transactionId}`);
+  getTransactionStatus: async (transactionId: string, options?: { force_check?: boolean }) => {
+    const params = options?.force_check ? { force_check: 'true' } : {};
+    const response = await apiClient.get(`/api/v1/payments/transaction/${transactionId}`, { params });
     return response.data;
   },
 };

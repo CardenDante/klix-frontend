@@ -215,11 +215,13 @@ export default function CheckoutPage() {
     if (!transactionId || checkingPayment) return;
 
     setCheckingPayment(true);
-    console.log('✅ [PAYMENT] User clicked confirm payment, checking status immediately...');
+    console.log('✅ [PAYMENT] User clicked "I have paid" - querying M-Pesa directly...');
 
     try {
-      const status = await paymentsApi.getTransactionStatus(transactionId);
-      console.log('✅ [PAYMENT] Manual check result:', status);
+      // IMPORTANT: Pass force_check=true to query M-Pesa API directly
+      // This ensures we get the latest payment status from M-Pesa, not just cached DB data
+      const status = await paymentsApi.getTransactionStatus(transactionId, { force_check: true });
+      console.log('✅ [PAYMENT] M-Pesa direct check result:', status);
 
       if (status.status === 'completed') {
         // Stop polling

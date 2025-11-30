@@ -33,10 +33,44 @@ interface RegisterData {
   phone_number?: string;
 }
 
+// Initialize auth state from localStorage
+const initializeAuthState = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering
+    return {
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+    };
+  }
+
+  const token = localStorage.getItem('access_token');
+  const cachedUser = localStorage.getItem('user');
+
+  if (token && cachedUser) {
+    try {
+      const userData = JSON.parse(cachedUser);
+      console.log('🔄 [AUTH] Restored session for:', userData.email);
+      return {
+        user: userData,
+        isLoading: false,
+        isAuthenticated: true,
+      };
+    } catch (error) {
+      console.error('❌ [AUTH] Failed to parse cached user data');
+      localStorage.removeItem('user');
+    }
+  }
+
+  return {
+    user: null,
+    isLoading: false,
+    isAuthenticated: false,
+  };
+};
+
 export const useAuth = create<AuthState>((set) => ({
-  user: null,
-  isLoading: false,
-  isAuthenticated: false,
+  ...initializeAuthState(),
 
   /**
    * Login with Email & Password
@@ -69,10 +103,13 @@ export const useAuth = create<AuthState>((set) => ({
       const userResponse = await apiClient.get('/api/v1/auth/me');
       console.log('✅ [USER] Logged in as:', userResponse.data.email);
 
-      set({ 
-        user: userResponse.data, 
+      // Cache user data
+      localStorage.setItem('user', JSON.stringify(userResponse.data));
+
+      set({
+        user: userResponse.data,
         isAuthenticated: true,
-        isLoading: false 
+        isLoading: false
       });
     } catch (error: any) {
       console.error('❌ [AUTH ERROR]', error);
@@ -159,10 +196,13 @@ export const useAuth = create<AuthState>((set) => ({
       const userResponse = await apiClient.get('/api/v1/auth/me');
       console.log('✅ [REGISTER] Complete! Welcome:', userResponse.data.email);
 
-      set({ 
-        user: userResponse.data, 
+      // Cache user data
+      localStorage.setItem('user', JSON.stringify(userResponse.data));
+
+      set({
+        user: userResponse.data,
         isAuthenticated: true,
-        isLoading: false 
+        isLoading: false
       });
     } catch (error: any) {
       console.error('❌ [REGISTER ERROR]', error);
@@ -230,10 +270,13 @@ export const useAuth = create<AuthState>((set) => ({
       const userResponse = await apiClient.get('/api/v1/auth/me');
       console.log('✅ [GOOGLE] Logged in as:', userResponse.data.email);
 
-      set({ 
-        user: userResponse.data, 
+      // Cache user data
+      localStorage.setItem('user', JSON.stringify(userResponse.data));
+
+      set({
+        user: userResponse.data,
         isAuthenticated: true,
-        isLoading: false 
+        isLoading: false
       });
     } catch (error: any) {
       console.error('❌ [GOOGLE ERROR]', error);
@@ -291,10 +334,11 @@ export const useAuth = create<AuthState>((set) => ({
       // Clear everything
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      
-      set({ 
-        user: null, 
-        isAuthenticated: false 
+      localStorage.removeItem('user');
+
+      set({
+        user: null,
+        isAuthenticated: false
       });
       
       console.log('✅ [LOGOUT] Logged out successfully');
@@ -303,9 +347,10 @@ export const useAuth = create<AuthState>((set) => ({
       // Still clear state even if logout fails
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      set({ 
-        user: null, 
-        isAuthenticated: false 
+      localStorage.removeItem('user');
+      set({
+        user: null,
+        isAuthenticated: false
       });
     }
   },
@@ -317,28 +362,72 @@ export const useAuth = create<AuthState>((set) => ({
     try {
       const token = localStorage.getItem('access_token');
       if (!token) {
-        set({ isAuthenticated: false, user: null });
+        console.log('⚠️ [AUTH] No access token found');
+        set({ isAuthenticated: false, user: null, isLoading: false });
         return;
       }
 
+      console.log('🔍 [AUTH] Fetching user profile...');
       set({ isLoading: true });
       const response = await apiClient.get('/api/v1/auth/me');
-      
-      set({ 
-        user: response.data, 
+
+      console.log('✅ [AUTH] User fetched successfully:', response.data.email);
+      set({
+        user: response.data,
         isAuthenticated: true,
-        isLoading: false 
+        isLoading: false
       });
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      // Token invalid or expired
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      set({ 
-        user: null, 
-        isAuthenticated: false,
-        isLoading: false 
-      });
+
+      // Persist user to localStorage to survive page reloads
+      localStorage.setItem('user', JSON.stringify(response.data));
+    } catch (error: any) {
+      console.error('❌ [AUTH] Failed to fetch user:', error);
+
+      // Check if it's a 401 (unauthorized) - token is invalid/expired
+      if (error.response?.status === 401) {
+        console.log('🔒 [AUTH] Token expired or invalid, clearing auth state');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false
+        });
+      } else {
+        // Network error or other issue - try to use cached user data
+        console.log('⚠️ [AUTH] Network error, attempting to use cached user data');
+        const cachedUser = localStorage.getItem('user');
+
+        if (cachedUser) {
+          try {
+            const userData = JSON.parse(cachedUser);
+            console.log('✅ [AUTH] Using cached user data:', userData.email);
+            set({
+              user: userData,
+              isAuthenticated: true,
+              isLoading: false
+            });
+          } catch (parseError) {
+            console.error('❌ [AUTH] Failed to parse cached user');
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false
+            });
+          }
+        } else {
+          // No cached data and network failed - clear auth
+          console.log('❌ [AUTH] No cached user data available');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
+        }
+      }
     }
   },
 
