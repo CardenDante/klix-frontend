@@ -25,7 +25,7 @@ export default function CheckoutPage() {
 
   const [transactionId, setTransactionId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'success' | 'failed'>('pending');
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [websocket, setWebsocket] = useState<WebSocket | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
   useEffect(() => {
@@ -45,13 +45,13 @@ export default function CheckoutPage() {
       validatePromoterCode(parsedData.promoterCode, parsedData.event.id);
     }
 
-    // Cleanup: clear polling interval on unmount
+    // Cleanup: close WebSocket on unmount
     return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
+      if (websocket) {
+        websocket.close();
       }
     };
-  }, [router, pollingInterval]);
+  }, [router, websocket]);
 
   const validatePromoterCode = async (code: string, eventId: string) => {
     try {
@@ -157,8 +157,8 @@ export default function CheckoutPage() {
 
       if (mpesaResponse.success) {
         console.log('✅ [PAYMENT] M-Pesa STK push sent successfully');
-        // Start polling for payment status
-        pollPaymentStatus(txId);
+        // Connect to WebSocket for real-time payment updates
+        connectWebSocket(txId);
       } else {
         console.error('❌ [PAYMENT] M-Pesa initiation failed:', mpesaResponse);
         setPaymentStatus('failed');
@@ -172,43 +172,56 @@ export default function CheckoutPage() {
     }
   };
 
-  const pollPaymentStatus = async (txId: string) => {
-    let attempts = 0;
-    const maxAttempts = 30; // Poll for 5 minutes (10s intervals)
+  const connectWebSocket = (txId: string) => {
+    console.log('🔌 [WEBSOCKET] Connecting to payment status WebSocket...');
 
-    console.log('🔄 [PAYMENT] Starting to poll payment status...');
+    // Get WebSocket URL (use wss:// for production, ws:// for local)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    const wsEndpoint = `${wsUrl}/api/v1/ws/payment-status/${txId}`;
 
-    const interval = setInterval(async () => {
+    console.log('🔌 [WEBSOCKET] Connecting to:', wsEndpoint);
+
+    const ws = new WebSocket(wsEndpoint);
+
+    ws.onopen = () => {
+      console.log('✅ [WEBSOCKET] Connected successfully');
+    };
+
+    ws.onmessage = (event) => {
       try {
-        attempts++;
-        console.log(`🔄 [PAYMENT] Polling attempt ${attempts}/${maxAttempts}`);
+        const data = JSON.parse(event.data);
+        console.log('📨 [WEBSOCKET] Received message:', data);
 
-        const status = await paymentsApi.getTransactionStatus(txId);
-        console.log('🔄 [PAYMENT] Transaction status:', status);
-
-        if (status.status === 'completed') {
-          clearInterval(interval);
-          setPollingInterval(null);
-          console.log('✅ [PAYMENT] Payment completed successfully!');
-          setPaymentStatus('success');
-          setStep(3);
-
-          // Clear checkout data
-          sessionStorage.removeItem('checkout_data');
-        } else if (status.status === 'failed' || status.status === 'cancelled' || attempts >= maxAttempts) {
-          clearInterval(interval);
-          setPollingInterval(null);
-          console.error('❌ [PAYMENT] Payment failed or timed out');
-          setPaymentStatus('failed');
-          setError(status.status === 'cancelled' ? 'Payment was cancelled' : 'Payment failed or timed out. Please try again.');
+        if (data.type === 'payment_status') {
+          if (data.status === 'completed') {
+            console.log('✅ [PAYMENT] Payment completed via WebSocket!');
+            setPaymentStatus('success');
+            setStep(3);
+            sessionStorage.removeItem('checkout_data');
+            ws.close();
+          } else if (data.status === 'failed' || data.status === 'timeout') {
+            console.error('❌ [PAYMENT] Payment failed via WebSocket');
+            setPaymentStatus('failed');
+            setError(data.message || 'Payment failed. Please try again.');
+            ws.close();
+          }
         }
       } catch (err) {
-        console.warn('⚠️ [PAYMENT] Polling error (will retry):', err);
-        // Continue polling
+        console.error('❌ [WEBSOCKET] Error parsing message:', err);
       }
-    }, 10000); // Poll every 10 seconds
+    };
 
-    setPollingInterval(interval);
+    ws.onerror = (error) => {
+      console.error('❌ [WEBSOCKET] Connection error:', error);
+      // Don't set error state yet - user can still use "I have paid" button
+    };
+
+    ws.onclose = () => {
+      console.log('🔌 [WEBSOCKET] Connection closed');
+    };
+
+    setWebsocket(ws);
   };
 
   const handleConfirmPayment = async () => {
@@ -224,10 +237,9 @@ export default function CheckoutPage() {
       console.log('✅ [PAYMENT] M-Pesa direct check result:', status);
 
       if (status.status === 'completed') {
-        // Stop polling
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
+        // Close WebSocket connection
+        if (websocket) {
+          websocket.close();
         }
 
         console.log('✅ [PAYMENT] Payment confirmed!');
@@ -237,10 +249,9 @@ export default function CheckoutPage() {
         // Clear checkout data
         sessionStorage.removeItem('checkout_data');
       } else if (status.status === 'failed' || status.status === 'cancelled') {
-        // Stop polling
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          setPollingInterval(null);
+        // Close WebSocket connection
+        if (websocket) {
+          websocket.close();
         }
 
         setPaymentStatus('failed');
