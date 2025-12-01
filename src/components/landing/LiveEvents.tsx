@@ -23,8 +23,8 @@ interface Event {
 
 // --- Skeleton Card Component (with wave effect) ---
 const SkeletonCard = () => (
-  <div className="bg-white/50 rounded-2xl h-96 overflow-hidden border border-gray-200/50">
-    <div className="h-48 bg-gray-200 animate-wave" />
+  <div className="bg-white/50 rounded-2xl overflow-hidden border border-gray-200/50">
+    <div className="aspect-[330/320] bg-gray-200 animate-wave" />
     <div className="p-5 space-y-4">
       <div className="h-4 bg-gray-200 rounded w-1/4 animate-wave" />
       <div className="h-6 bg-gray-300 rounded w-3/4 animate-wave" />
@@ -130,7 +130,7 @@ export default function LiveEvents() {
                 className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer hover:-translate-y-2 border border-transparent hover:border-primary/50"
               >
                 {/* Event Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative aspect-[330/320] overflow-hidden">
                   <img
                     src={getImageUrl(event.portrait_image_url || event.banner_image_url) || '/hero/hero3.jpg'} // Fallback image
                     alt={event.title}

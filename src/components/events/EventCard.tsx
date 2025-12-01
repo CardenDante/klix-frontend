@@ -48,7 +48,7 @@ export default function EventCard({ event, featured = false }: EventCardProps) {
       className={`group relative block bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 ${featured ? 'md:col-span-2' : ''}`}
     >
       {/* Image */}
-      <div className="relative h-48 md:h-56 overflow-hidden bg-gray-100">
+      <div className="relative aspect-[330/320] overflow-hidden bg-gray-100">
         <img
           src={getImageUrl(event.portrait_image_url || event.banner_image_url, undefined)}
           alt={event.title}
