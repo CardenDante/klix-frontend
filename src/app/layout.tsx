@@ -29,8 +29,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${dmSans.variable} antialiased`}>
+    // We force className="light" and verify language
+    <html lang="en" className="light" suppressHydrationWarning>
+      {/* We add explicit styles to body to prevent a 'flash' of dark color */}
+      <body 
+        className={`${dmSans.variable} antialiased bg-white text-gray-900`}
+        style={{ backgroundColor: 'white', color: '#171717' }} 
+      >
         <AuthProvider>
           {children}
         </AuthProvider>

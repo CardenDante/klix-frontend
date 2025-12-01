@@ -176,11 +176,6 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
   const totalTickets = Object.values(ticketQuantities).reduce((total, qty) => total + qty, 0);
 
   const handleGetTickets = () => {
-    if (!isAuthenticated) {
-      router.push(`/login?redirect=/events/${slug}`);
-      return;
-    }
-
     // Filter out ticket types with 0 quantity
     const selectedTickets: { [key: string]: number } = {};
     Object.entries(ticketQuantities).forEach(([typeId, qty]) => {
@@ -195,7 +190,7 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
       return;
     }
 
-    // Store checkout data in sessionStorage
+    // Store checkout data in sessionStorage before checking auth
     const checkoutData = {
       event: {
         id: event.id,
@@ -212,6 +207,12 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
     };
 
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData));
+
+    // Check authentication and redirect to login if needed
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/checkout`);
+      return;
+    }
 
     // Navigate to checkout
     router.push('/checkout');

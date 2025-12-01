@@ -1,25 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, loginWithGoogle } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+  const [redirectPath, setRedirectPath] = useState<string>('/dashboard');
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  useEffect(() => {
+    // Get redirect path from URL params
+    const redirect = searchParams?.get('redirect');
+    if (redirect) {
+      setRedirectPath(redirect);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +38,7 @@ export default function LoginPage() {
 
     try {
       await login(formData.email, formData.password);
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {
@@ -42,7 +52,7 @@ export default function LoginPage() {
 
     try {
       await loginWithGoogle();
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
       setError(err.message || 'Google login failed. Please try again.');
     } finally {
@@ -190,7 +200,10 @@ export default function LoginPage() {
           {/* Sign Up Link */}
           <p className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{' '}
-            <Link href="/register" className="text-[#EB7D30] hover:text-[#d16a1f] font-semibold">
+            <Link
+              href={redirectPath !== '/dashboard' ? `/register?redirect=${encodeURIComponent(redirectPath)}` : '/register'}
+              className="text-[#EB7D30] hover:text-[#d16a1f] font-semibold"
+            >
               Sign up free
             </Link>
           </p>
@@ -204,5 +217,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#EB7D30]" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
