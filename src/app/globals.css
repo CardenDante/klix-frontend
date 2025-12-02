@@ -7,6 +7,8 @@
   --primary: #EB7D30;
   --primary-dark: #d16a1f;
   --primary-light: #ff9554;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 }
 
 @theme inline {
@@ -15,13 +17,15 @@
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
   --color-primary-light: var(--primary-light);
-  
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
   /* Font families */
   --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
   --font-heading: 'Comfortaa', cursive;
   --font-playful: 'Pacifico', cursive;
   --font-body: 'Nunito', sans-serif;
-  
+
   /* Custom animations */
   --animate-float: float 3s ease-in-out infinite;
   --animate-glow: glow 2s ease-in-out infinite alternate;
