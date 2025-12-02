@@ -176,7 +176,7 @@ export default function CheckoutPage() {
     console.log('🔌 [WEBSOCKET] Connecting to payment status WebSocket...');
 
     // Get WebSocket URL (use wss:// for production, ws:// for local)
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, ''); // Remove trailing slash
     const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
     const wsEndpoint = `${wsUrl}/api/v1/ws/payment-status/${txId}`;
 
@@ -233,10 +233,14 @@ export default function CheckoutPage() {
     try {
       // IMPORTANT: Pass force_check=true to query M-Pesa API directly
       // This ensures we get the latest payment status from M-Pesa, not just cached DB data
-      const status = await paymentsApi.getTransactionStatus(transactionId, { force_check: true });
-      console.log('✅ [PAYMENT] M-Pesa direct check result:', status);
+      const response = await paymentsApi.getTransactionStatus(transactionId, { force_check: true });
+      console.log('✅ [PAYMENT] M-Pesa direct check result:', response);
 
-      if (status.status === 'completed') {
+      // Backend returns: {success: true, data: {status: "completed", ...}}
+      const transactionStatus = response.data?.status || response.status;
+      console.log('✅ [PAYMENT] Transaction status:', transactionStatus);
+
+      if (transactionStatus === 'completed') {
         // Close WebSocket connection
         if (websocket) {
           websocket.close();
@@ -245,23 +249,27 @@ export default function CheckoutPage() {
         console.log('✅ [PAYMENT] Payment confirmed!');
         setPaymentStatus('success');
         setStep(3);
+        setError(''); // Clear any errors
 
         // Clear checkout data
         sessionStorage.removeItem('checkout_data');
-      } else if (status.status === 'failed' || status.status === 'cancelled') {
+      } else if (transactionStatus === 'failed' || transactionStatus === 'cancelled') {
         // Close WebSocket connection
         if (websocket) {
           websocket.close();
         }
 
+        console.log('❌ [PAYMENT] Payment failed/cancelled:', transactionStatus);
         setPaymentStatus('failed');
-        setError(status.status === 'cancelled' ? 'Payment was cancelled' : 'Payment verification failed. Please ensure you completed the M-Pesa payment.');
+        setError(transactionStatus === 'cancelled' ? 'Payment was cancelled' : 'Payment verification failed. Please ensure you completed the M-Pesa payment.');
       } else {
         // Still pending - show message
+        console.log('⏳ [PAYMENT] Payment still pending');
         setError('Payment is still processing. Please complete the M-Pesa prompt on your phone first.');
       }
     } catch (err: any) {
       console.error('❌ [PAYMENT] Manual check error:', err);
+      setPaymentStatus('failed');
       setError('Failed to verify payment. Please try again.');
     } finally {
       setCheckingPayment(false);
