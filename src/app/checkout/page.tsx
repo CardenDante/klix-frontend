@@ -416,6 +416,15 @@ export default function CheckoutPage() {
                         </p>
                       </div>
 
+                      {/* Error message display */}
+                      {error && paymentStatus === 'processing' && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 max-w-md mx-auto mb-4">
+                          <p className="text-sm text-orange-900">
+                            <strong>Note:</strong> {error}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Confirm Payment Button */}
                       <div className="max-w-md mx-auto">
                         <button
@@ -450,12 +459,25 @@ export default function CheckoutPage() {
                       <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-3">
                         Payment Failed
                       </h2>
-                      <p className="text-gray-600 mb-6">{error}</p>
+                      <p className="text-gray-600 mb-4">{error || 'Payment could not be completed. Please try again.'}</p>
+
+                      {/* Helpful tips */}
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto mb-6 text-left">
+                        <p className="text-sm text-yellow-900 font-semibold mb-2">Common issues:</p>
+                        <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                          <li>Payment was cancelled on your phone</li>
+                          <li>Insufficient M-Pesa balance</li>
+                          <li>Incorrect PIN entered</li>
+                          <li>Request timed out (didn't enter PIN in time)</li>
+                        </ul>
+                      </div>
+
                       <button
                         onClick={() => {
                           setStep(1);
                           setPaymentStatus('pending');
                           setError('');
+                          setTransactionId('');
                         }}
                         className="px-6 py-3 bg-[#EB7D30] text-white font-bold rounded-full hover:bg-[#d66d20] transition-colors"
                       >
@@ -475,10 +497,24 @@ export default function CheckoutPage() {
                   <h2 className="font-comfortaa text-2xl font-bold text-gray-900 mb-3">
                     Payment Successful!
                   </h2>
-                  <p className="text-gray-600 mb-6">
-                    Your tickets have been sent to <strong>{formData.attendee_email}</strong>
+                  <p className="text-gray-600 mb-2">
+                    Your tickets have been sent to:
                   </p>
-                  <div className="flex gap-4 justify-center">
+                  <p className="text-lg font-semibold text-gray-900 mb-6">
+                    {formData.attendee_email}
+                  </p>
+
+                  {/* Success details */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto mb-6 text-left">
+                    <p className="text-sm text-green-900 font-semibold mb-2">✓ What happens next:</p>
+                    <ul className="text-sm text-green-800 space-y-1 list-disc list-inside">
+                      <li>Ticket confirmation email sent with QR codes</li>
+                      <li>Payment receipt sent to your email</li>
+                      <li>Present QR code at event entrance for check-in</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <button
                       onClick={() => router.push('/dashboard/tickets')}
                       className="px-6 py-3 bg-[#EB7D30] text-white font-bold rounded-full hover:bg-[#d66d20] transition-colors"

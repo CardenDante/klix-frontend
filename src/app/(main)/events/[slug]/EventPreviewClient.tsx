@@ -262,12 +262,12 @@ export default function EventPreviewClient({ event: initialEvent, ticketTypes: i
   return (
     <div className="bg-gray-50">
       {/* --- Hero Section --- */}
-      <section className="relative h-[60vh] min-h-[400px] text-white">
-        <div className="absolute inset-0">
+      <section className="relative h-[50vh] min-h-[305px] text-white bg-gray-900">
+        <div className="absolute inset-0 flex items-center justify-center">
           <img
             src={getImageUrl(event.banner_image_url, '/hero/hero2.jpg')}
             alt={event.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
