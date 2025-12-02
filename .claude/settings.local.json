@@ -29,7 +29,8 @@
       "Bash(pkill:*)",
       "Bash(npm run dev:*)",
       "Bash(lsof:*)",
-      "Bash(docker restart:*)"
+      "Bash(docker restart:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

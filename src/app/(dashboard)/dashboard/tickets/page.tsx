@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Download, Calendar, MapPin, QrCode, Ticket as TicketIcon, User, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, Ticket as TicketIcon, User, ArrowRight } from 'lucide-react';
 import { ticketsApi } from '@/lib/api/tickets';
 import type { Ticket } from '@/lib/api/tickets';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/utils';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -45,12 +46,6 @@ export default function MyTicketsPage() {
     if (filter === 'past') return eventDate < now;
     return true;
   });
-
-  const downloadTicket = (ticketId: string) => {
-    // This would ideally point to a backend endpoint that generates a PDF
-    alert(`Downloading ticket ${ticketId}. (Placeholder)`);
-    // window.open(`/api/v1/tickets/${ticketId}/download`, '_blank');
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -123,9 +118,9 @@ export default function MyTicketsPage() {
         <div className="space-y-6">
           {filteredTickets.map((ticket) => (
             <Card key={ticket.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="flex flex-col md:flex-row">
+              <div className="flex flex-col lg:flex-row">
                 {/* Event Image */}
-                <div className="w-full md:w-48 h-48 md:h-auto flex-shrink-0 bg-gradient-to-br from-primary/20 to-primary/10">
+                <div className="w-full lg:w-48 h-48 lg:h-auto flex-shrink-0 bg-gradient-to-br from-primary/20 to-primary/10">
                    {(ticket.event?.portrait_image_url || ticket.event?.banner_image_url) ? (
                     <img
                       src={getImageUrl(ticket.event.portrait_image_url || ticket.event.banner_image_url)}
@@ -140,67 +135,61 @@ export default function MyTicketsPage() {
                 </div>
 
                 {/* Ticket Info */}
-                <div className="flex-1 p-6 flex flex-col justify-between">
-                  <div>
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2">
-                        <div>
-                            <h3 className="font-comfortaa text-xl font-bold text-gray-900">
-                                {ticket.event?.title}
-                            </h3>
-                            <p className="text-sm text-gray-500 font-mono">
-                                Ticket #{ticket.ticket_number}
-                            </p>
-                        </div>
-                        <div className="mt-2 sm:mt-0">
-                            {getStatusBadge(ticket.status)}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 my-4 text-sm font-body">
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <Calendar className="w-4 h-4 text-primary" />
-                            <span>
-                                {ticket.event?.start_datetime && new Date(ticket.event.start_datetime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-700">
-                            <MapPin className="w-4 h-4 text-primary" />
-                            <span className="line-clamp-1">{ticket.event?.location}</span>
-                        </div>
-                         <div className="flex items-center gap-2 text-gray-700">
-                            <User className="w-4 h-4 text-primary" />
-                            <span>{ticket.attendee_name}</span>
-                        </div>
-                         <div className="flex items-center gap-2 text-gray-700">
-                            <TicketIcon className="w-4 h-4 text-primary" />
-                            <span>{ticket.ticket_type?.name}</span>
-                        </div>
-                    </div>
+                <div className="flex-1 p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2">
+                      <div>
+                          <h3 className="font-comfortaa text-xl font-bold text-gray-900">
+                              {ticket.event?.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 font-mono">
+                              Ticket #{ticket.ticket_number}
+                          </p>
+                      </div>
+                      <div className="mt-2 sm:mt-0">
+                          {getStatusBadge(ticket.status)}
+                      </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t mt-4">
-                     <p className="text-lg font-bold text-primary flex-1 text-center sm:text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 my-4 text-sm font-body">
+                      <div className="flex items-center gap-2 text-gray-700">
+                          <Calendar className="w-4 h-4 text-primary" />
+                          <span>
+                              {ticket.event?.start_datetime && new Date(ticket.event.start_datetime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-700">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          <span className="line-clamp-1">{ticket.event?.location}</span>
+                      </div>
+                       <div className="flex items-center gap-2 text-gray-700">
+                          <User className="w-4 h-4 text-primary" />
+                          <span>{ticket.attendee_name}</span>
+                      </div>
+                       <div className="flex items-center gap-2 text-gray-700">
+                          <TicketIcon className="w-4 h-4 text-primary" />
+                          <span>{ticket.ticket_type?.name}</span>
+                      </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 pt-4 border-t mt-4">
+                     <p className="text-lg font-bold text-primary">
                         KSh {parseFloat(ticket.final_price).toLocaleString()}
                      </p>
-                     <div className="flex gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                            // TODO: Show QR code modal
-                            alert('QR Code: ' + ticket.qr_code);
-                            }}
-                        >
-                            <QrCode className="w-4 h-4 mr-2" />
-                            Show QR Code
-                        </Button>
-                        <Button
-                            onClick={() => downloadTicket(ticket.id)}
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                        </Button>
-                     </div>
                   </div>
+                </div>
+
+                {/* QR Code */}
+                <div className="w-full lg:w-48 p-6 bg-gray-50 flex flex-col items-center justify-center border-t lg:border-t-0 lg:border-l">
+                  <div className="bg-white p-3 rounded-lg border-2 border-gray-200 mb-2">
+                    <QRCodeSVG
+                      value={ticket.qr_code}
+                      size={128}
+                      level="H"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 text-center font-body">
+                    Scan at entrance
+                  </p>
                 </div>
               </div>
             </Card>
