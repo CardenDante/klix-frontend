@@ -79,10 +79,11 @@ export const ticketsApi = {
 
   // Get my tickets
   getMyTickets: async (eventId?: string) => {
-    const url = eventId 
-      ? `/api/v1/tickets/my-tickets?event_id=${eventId}` 
+    const url = eventId
+      ? `/api/v1/tickets/my-tickets?event_id=${eventId}`
       : '/api/v1/tickets/my-tickets';
     const response = await apiClient.get(url);
+    // Backend now returns array of tickets with nested event and ticket_type
     return response.data;
   },
 
