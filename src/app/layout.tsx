@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
-import { OrganizationSchema, WebsiteSchema } from "@/components/seo/StructuredData";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -73,6 +72,9 @@ export const metadata: Metadata = {
     'color-scheme': 'light',
     'apple-mobile-web-app-status-bar-style': 'light-content',
   },
+};
+
+export const viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#ffffff' },
@@ -92,27 +94,6 @@ export default function RootLayout({
         className={`${dmSans.variable} antialiased bg-white text-gray-900`}
         style={{ backgroundColor: '#ffffff', color: '#171717', colorScheme: 'light' }}
       >
-        {/* Structured Data for SEO */}
-        <OrganizationSchema
-          data={{
-            name: 'Klix',
-            url: 'https://e-klix.com',
-            logo: 'https://e-klix.com/logo.png',
-            description: 'Premier event ticketing platform in Kenya. Discover and book tickets to concerts, festivals, conferences, and more.',
-            contactPoint: {
-              telephone: '+254-XXX-XXXXXX',
-              contactType: 'customer service',
-              email: 'support@e-klix.com',
-            },
-            sameAs: [
-              'https://www.facebook.com/klixkenya',
-              'https://twitter.com/klixkenya',
-              'https://www.instagram.com/klixkenya',
-            ],
-          }}
-        />
-        <WebsiteSchema />
-
         <AuthProvider>
           {children}
         </AuthProvider>
