@@ -2,6 +2,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light only;
   --background: #ffffff;
   --foreground: #171717;
   --primary: #EB7D30;
@@ -9,6 +10,13 @@
   --primary-light: #ff9554;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
+}
+
+/* Force light mode on all elements including mobile */
+*,
+*::before,
+*::after {
+  color-scheme: light;
 }
 
 @theme inline {

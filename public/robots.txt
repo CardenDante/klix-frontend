@@ -1,0 +1,20 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and dashboard areas
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /organizer/
+Disallow: /promoter/
+Disallow: /staff/
+Disallow: /checkout
+Disallow: /api/
+
+# Allow events and public pages
+Allow: /events/
+Allow: /about
+Allow: /contact
+
+# Sitemap location
+Sitemap: https://e-klix.com/sitemap.xml

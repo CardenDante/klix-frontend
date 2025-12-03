@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { OrganizationSchema, WebsiteSchema } from "@/components/seo/StructuredData";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -11,15 +12,62 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Klix - Discover Unforgettable Events",
-  description: "Find and book tickets to the hottest events in Kenya. From concerts to conferences, Klix makes event discovery simple, fun, and rewarding.",
-  keywords: "events, tickets, Kenya, Nairobi, concerts, festivals, conferences",
+  title: "Klix - Discover & Book Tickets to Amazing Events in Kenya",
+  description: "Your premier event ticketing platform in Kenya. Discover concerts, festivals, conferences, and more. Easy booking, secure payments, instant tickets. Find your next unforgettable experience with Klix!",
+  keywords: [
+    "event tickets Kenya",
+    "buy tickets online Kenya",
+    "Nairobi events",
+    "Kenya concerts",
+    "event booking platform",
+    "ticket sales Kenya",
+    "live events Nairobi",
+    "music festivals Kenya",
+    "conference tickets",
+    "entertainment events",
+    "Klix tickets",
+    "event discovery Kenya"
+  ].join(", "),
   authors: [{ name: "Klix" }],
+  metadataBase: new URL('https://e-klix.com'),
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
-    title: "Klix - Discover Unforgettable Events",
-    description: "Find and book tickets to the hottest events in Kenya",
+    title: "Klix - Discover & Book Tickets to Amazing Events in Kenya",
+    description: "Your premier event ticketing platform in Kenya. Discover concerts, festivals, conferences, and more. Easy booking, secure payments, instant tickets.",
     type: "website",
     locale: "en_KE",
+    url: 'https://e-klix.com',
+    siteName: 'Klix',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Klix - Event Ticketing Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Klix - Discover & Book Tickets to Amazing Events in Kenya",
+    description: "Your premier event ticketing platform in Kenya. Find and book tickets to concerts, festivals, conferences, and more.",
+    images: ['/og-image.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: 'your-google-verification-code', // Add your Google Search Console verification code
   },
 };
 
@@ -29,13 +77,42 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // We force className="light" and verify language
-    <html lang="en" className="light" suppressHydrationWarning>
-      {/* We add explicit styles to body to prevent a 'flash' of dark color */}
-      <body 
+    // Force light mode with color-scheme and explicit class
+    <html lang="en" className="light" suppressHydrationWarning style={{ colorScheme: 'light' }}>
+      <head>
+        {/* Force light mode on all devices including mobile */}
+        <meta name="color-scheme" content="light" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="light-content" />
+      </head>
+      {/* Explicit inline styles to prevent any dark mode flashing */}
+      <body
         className={`${dmSans.variable} antialiased bg-white text-gray-900`}
-        style={{ backgroundColor: 'white', color: '#171717' }} 
+        style={{ backgroundColor: '#ffffff', color: '#171717', colorScheme: 'light' }}
       >
+        {/* Structured Data for SEO */}
+        <OrganizationSchema
+          data={{
+            name: 'Klix',
+            url: 'https://e-klix.com',
+            logo: 'https://e-klix.com/logo.png',
+            description: 'Premier event ticketing platform in Kenya. Discover and book tickets to concerts, festivals, conferences, and more.',
+            contactPoint: {
+              telephone: '+254-XXX-XXXXXX',
+              contactType: 'customer service',
+              email: 'support@e-klix.com',
+            },
+            sameAs: [
+              'https://www.facebook.com/klixkenya',
+              'https://twitter.com/klixkenya',
+              'https://www.instagram.com/klixkenya',
+            ],
+          }}
+        />
+        <WebsiteSchema />
+
         <AuthProvider>
           {children}
         </AuthProvider>

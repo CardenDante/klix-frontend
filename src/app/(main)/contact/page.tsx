@@ -73,7 +73,7 @@ export default function ContactPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <Mail className="w-6 h-6 flex-shrink-0" />
-                  <span className="font-body">support@e-klix.com</span>
+                  <span className="font-body">support@chach-a.com</span>
                 </div>
                 <div className="flex items-start gap-4">
                   <MapPin className="w-6 h-6 flex-shrink-0 mt-1" />

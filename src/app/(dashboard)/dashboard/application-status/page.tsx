@@ -227,7 +227,7 @@ export default function ApplicationStatusPage() {
         </Button>
         <Button 
           variant="outline"
-          onClick={() => window.location.href = 'mailto:support@e-klix.com'}
+          onClick={() => window.location.href = 'mailto:support@chach-a.com'}
         >
           <Mail className="w-4 h-4 mr-2" />
           Contact Support
