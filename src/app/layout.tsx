@@ -69,6 +69,14 @@ export const metadata: Metadata = {
   verification: {
     google: 'your-google-verification-code', // Add your Google Search Console verification code
   },
+  other: {
+    'color-scheme': 'light',
+    'apple-mobile-web-app-status-bar-style': 'light-content',
+  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#ffffff' },
+  ],
 };
 
 export default function RootLayout({
@@ -79,14 +87,6 @@ export default function RootLayout({
   return (
     // Force light mode with color-scheme and explicit class
     <html lang="en" className="light" suppressHydrationWarning style={{ colorScheme: 'light' }}>
-      <head>
-        {/* Force light mode on all devices including mobile */}
-        <meta name="color-scheme" content="light" />
-        <meta name="theme-color" content="#ffffff" />
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#ffffff" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="light-content" />
-      </head>
       {/* Explicit inline styles to prevent any dark mode flashing */}
       <body
         className={`${dmSans.variable} antialiased bg-white text-gray-900`}
