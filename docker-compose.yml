@@ -1,0 +1,45 @@
+# Local stack: Postgres + Phoenix API + Next.js web.
+#   docker compose up --build
+#   docker compose exec api bin/klix eval 'Klix.Release.migrate()'   # (runs automatically on start)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: klix
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./apps/api
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: ecto://postgres:postgres@db/klix
+      SECRET_KEY_BASE: local-dev-secret-key-base-local-dev-secret-key-base-local-dev-0000
+      JWT_SIGNING_SECRET: local-dev-jwt-secret
+      QR_SIGNING_SECRET: local-dev-qr-secret
+      PHX_HOST: localhost
+      CORS_ORIGINS: http://localhost:3000
+      # Uses the fake M-Pesa. Set MPESA_* variables to use Daraja instead.
+      ALLOW_SANDBOX_PAYMENTS: "true"
+    ports: ["4000:4000"]
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000
+        NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
