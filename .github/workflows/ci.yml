@@ -23,15 +23,15 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
         options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       MIX_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.17.3"
-          otp-version: "27.1"
+          elixir-version: "1.18"
+          otp-version: "27.3"
       - uses: actions/cache@v4
         with:
           path: |
