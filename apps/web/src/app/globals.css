@@ -1,0 +1,88 @@
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource/comfortaa/600.css';
+@import '@fontsource/comfortaa/700.css';
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #fff5ed;
+  --color-brand-100: #ffe8d4;
+  --color-brand-200: #fdcca7;
+  --color-brand-300: #fba86f;
+  --color-brand-400: #f58c46;
+  --color-brand-500: #eb7d30;
+  --color-brand-600: #d16a1f;
+  --color-brand-700: #ad521a;
+  --color-brand-800: #8a421c;
+  --color-brand-900: #70381a;
+
+  --color-ink: #1c1917;
+  --color-muted: #6b6560;
+  --color-line: #ebe6e1;
+  --color-canvas: #faf8f6;
+  --color-success: #15803d;
+  --color-danger: #dc2626;
+
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Comfortaa', ui-rounded, 'DM Sans Variable', sans-serif;
+
+  --radius-card: 1rem;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+@layer components {
+  /* Organizer-written event descriptions (HTML). */
+  .prose-event {
+    @apply text-[15px] leading-relaxed text-ink/85;
+  }
+  .prose-event p {
+    @apply mb-3;
+  }
+  .prose-event h2,
+  .prose-event h3 {
+    @apply mt-5 mb-2 font-semibold text-ink;
+  }
+  .prose-event ul {
+    @apply mb-3 list-disc pl-5;
+  }
+  .prose-event ol {
+    @apply mb-3 list-decimal pl-5;
+  }
+  .prose-event a {
+    @apply text-brand-600 underline;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
