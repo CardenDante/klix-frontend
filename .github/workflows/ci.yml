@@ -39,9 +39,7 @@ jobs:
             apps/api/_build
           key: mix-${{ runner.os }}-${{ hashFiles('apps/api/mix.exs', 'apps/api/mix.lock') }}
           restore-keys: mix-${{ runner.os }}-
-      - run: mix deps.get
-      - name: Show resolved mix.lock
-        run: cat mix.lock
+      - run: mix deps.get --check-locked
       - run: mix compile --warnings-as-errors
       - run: mix test
 
