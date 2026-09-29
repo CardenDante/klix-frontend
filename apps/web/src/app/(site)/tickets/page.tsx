@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { RequireAuth } from '@/components/require-auth';
 import { ButtonLink } from '@/components/ui/button';
 import { Badge, EmptyState, ErrorNote, Spinner } from '@/components/ui/misc';
+import { SafeImg } from '@/components/ui/safe-img';
 import { ticketsApi } from '@/lib/api/endpoints';
 import type { Ticket } from '@/lib/api/types';
 import { formatEventRange } from '@/lib/format';
@@ -67,7 +68,7 @@ function TicketGroup({ title, tickets }: { title: string; tickets: Ticket[] }) {
               className="flex items-center gap-4 rounded-card border border-line bg-white p-3 pr-4 transition hover:border-ink/20"
             >
               {t.event?.banner_image_url ? (
-                <img src={t.event.banner_image_url} alt="" className="size-16 rounded-xl object-cover" />
+                <SafeImg src={t.event.banner_image_url} alt="" className="size-16 rounded-xl object-cover" />
               ) : (
                 <div className="flex size-16 items-center justify-center rounded-xl bg-brand-50 text-brand-500">
                   <TicketIcon className="size-6" />

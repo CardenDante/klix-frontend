@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { EventCard } from '@/components/event-card';
+import { EventRow } from '@/components/event-card';
 import { discoveryApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/lib/auth';
 
@@ -19,11 +19,7 @@ export function ForYou() {
   return (
     <section className="mx-auto max-w-6xl px-4 pt-14">
       <h2 className="mb-6 text-2xl font-bold sm:text-3xl">Picked for you</h2>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {data.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
-      </div>
+      <EventRow events={data} />
     </section>
   );
 }

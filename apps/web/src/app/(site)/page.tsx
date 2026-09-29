@@ -1,6 +1,6 @@
 import { ArrowRight, BadgeCheck, QrCode, Smartphone } from 'lucide-react';
 import Link from 'next/link';
-import { EventCard } from '@/components/event-card';
+import { EventRow } from '@/components/event-card';
 import { ForYou } from '@/components/for-you';
 import { HeroSearch } from '@/components/hero-search';
 import { ButtonLink } from '@/components/ui/button';
@@ -52,11 +52,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pt-14">
         <SectionHeader title="Upcoming events" href="/events" />
         {upcoming && upcoming.data.length > 0 ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {upcoming.data.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
+          <EventRow events={upcoming.data} />
         ) : (
           <p className="rounded-card border border-dashed border-line bg-white px-6 py-12 text-center text-muted">
             {upcoming ? 'No upcoming events yet — check back soon.' : 'Events are unavailable right now. Please try again shortly.'}
@@ -67,11 +63,7 @@ export default async function HomePage() {
       {popular && popular.data.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pt-16">
           <SectionHeader title="Selling fast" href="/events?sort_by=popularity" />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {popular.data.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
+          <EventRow events={popular.data} />
         </section>
       )}
 

@@ -7,7 +7,7 @@ import { ColumnChart } from '@/components/charts';
 import { Stat } from '@/components/stat';
 import { Card, ErrorNote, Spinner } from '@/components/ui/misc';
 import { adminApi } from '@/lib/api/endpoints';
-import { CATEGORY_LABELS, formatKES } from '@/lib/format';
+import { CATEGORY_LABELS, formatKES, formatKESCompact } from '@/lib/format';
 
 export default function AdminOverviewPage() {
   const query = useQuery({ queryKey: ['admin-overview'], queryFn: adminApi.overview, refetchInterval: 60_000 });
@@ -37,8 +37,8 @@ export default function AdminOverviewPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Banknote} label="Sales this month" value={formatKES(o.orders.gmv_this_month)} hint={`${formatKES(o.orders.platform_fees_this_month)} fees`} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat icon={Banknote} label="Sales this month" value={formatKESCompact(o.orders.gmv_this_month)} hint={`${formatKES(o.orders.platform_fees_this_month)} fees`} />
         <Stat icon={Ticket} label="Tickets sold" value={o.tickets_sold.toLocaleString()} hint={`${o.orders.completed.toLocaleString()} orders`} />
         <Stat icon={Users} label="Users" value={o.users.total.toLocaleString()} hint={`${o.users.new_this_month} new this month`} />
         <Stat icon={CalendarDays} label="Upcoming events" value={o.events.upcoming} hint={`${o.events.flagged} flagged`} />

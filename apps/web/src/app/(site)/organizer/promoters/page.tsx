@@ -118,7 +118,7 @@ function RequestCard({ request }: { request: EventApproval }) {
           <span>
             {Number(request.commission_percentage)}% commission · {Number(request.discount_percentage ?? 0)}% buyer discount
           </span>
-          <Button size="sm" variant="ghost" onClick={() => revoke.mutate()} loading={revoke.isPending}>
+          <Button size="sm" variant="ghost" onClick={() => confirm('Revoke this promoter? Their codes stop working for this event.') && revoke.mutate()} loading={revoke.isPending}>
             Remove promoter
           </Button>
         </div>

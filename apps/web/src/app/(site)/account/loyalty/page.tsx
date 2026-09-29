@@ -26,7 +26,7 @@ export default function LoyaltyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <Stat icon={Coins} label="Available" value={b.available_credits.toLocaleString()} hint="1 credit = KES 1" />
         <Stat icon={Hourglass} label="Expiring in 30 days" value={b.expiring_soon.toLocaleString()} />
         <Stat icon={Gift} label="Earned all-time" value={b.total_credits.toLocaleString()} />

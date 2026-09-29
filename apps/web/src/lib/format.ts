@@ -7,6 +7,14 @@ export function formatKES(amount: string | number | null | undefined) {
   return kes.format(Number.isFinite(n) ? n : 0).replace(/ /g, ' ');
 }
 
+/** Shortens large amounts for stat tiles: "Ksh 9.8M", "Ksh 245K". */
+export function formatKESCompact(amount: string | number | null | undefined) {
+  const n = typeof amount === 'string' ? Number(amount) : (amount ?? 0);
+  if (!Number.isFinite(n) || Math.abs(n) < 100_000) return formatKES(n);
+  const short = new Intl.NumberFormat('en-KE', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+  return `Ksh ${short}`;
+}
+
 export function priceLabel(minPrice: string | null | undefined) {
   if (minPrice === null || minPrice === undefined) return 'Tickets soon';
   return Number(minPrice) === 0 ? 'Free' : `From ${formatKES(minPrice)}`;

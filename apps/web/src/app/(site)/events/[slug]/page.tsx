@@ -1,11 +1,14 @@
 import { CalendarDays, Clock, MapPin } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { EventActions } from '@/components/event-actions';
 import { Badge } from '@/components/ui/misc';
+import { SafeImg } from '@/components/ui/safe-img';
 import { fetchEventPage } from '@/lib/api/server';
-import { CATEGORY_LABELS, formatDateLong, formatEventRange, formatTime, stripHtml } from '@/lib/format';
+import { CATEGORY_LABELS, formatDateLong, formatKES, formatTime, stripHtml } from '@/lib/format';
 import { sanitizeDescription } from '@/lib/sanitize';
 import { SITE_URL } from '@/lib/utils';
+import { MobileBuyBar } from './mobile-buy-bar';
 import { SimilarEvents } from './similar-events';
 import { TicketPicker } from './ticket-picker';
 
@@ -37,6 +40,19 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
 
   const { event, ticketTypes } = page;
   const prices = ticketTypes.map((t) => Number(t.price));
+  const onSale = ticketTypes.filter((t) => t.is_on_sale && !t.is_sold_out).map((t) => Number(t.price));
+  const salesClosed = event.status !== 'published' || new Date(event.end_datetime) < new Date();
+  const buyBarDisabled =
+    event.status === 'cancelled'
+      ? 'Cancelled'
+      : salesClosed
+        ? 'Sales closed'
+        : event.is_sold_out
+          ? 'Sold out'
+          : onSale.length === 0
+            ? 'Not on sale'
+            : undefined;
+  const fromPrice = onSale.length ? Math.min(...onSale) : null;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -69,11 +85,12 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
       <div className="relative bg-ink">
         {event.banner_image_url && (
           <>
-            <img src={event.banner_image_url} alt="" className="absolute inset-0 size-full object-cover opacity-30 blur-2xl" />
+            <SafeImg src={event.banner_image_url} alt="" className="absolute inset-0 size-full object-cover opacity-30 blur-2xl" />
             <div className="relative mx-auto max-w-5xl px-0 sm:px-4 sm:pt-8">
-              <img
+              <SafeImg
                 src={event.banner_image_url}
                 alt={event.title}
+                fallback={<div className="h-40" />}
                 className="aspect-[16/9] w-full object-cover sm:aspect-[21/9] sm:rounded-3xl"
               />
             </div>
@@ -111,8 +128,26 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
             </Detail>
           </dl>
 
+          <EventActions
+            className="mt-4"
+            title={event.title}
+            url={`${SITE_URL}/events/${event.slug}`}
+            location={event.location}
+            start={event.start_datetime}
+            end={event.end_datetime}
+          />
+        </div>
+
+        {/* Tickets sit right under the key facts on phones, and in a sticky sidebar on desktop. */}
+        <aside id="tickets" className="scroll-mt-20 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+          <TicketPicker event={event} ticketTypes={ticketTypes} />
+          <p className="mt-3 text-center text-xs text-muted">Pay securely with M-Pesa · Tickets arrive instantly by email and SMS</p>
+        </aside>
+
+        <div>
+
           {event.description && (
-            <section className="mt-8">
+            <section className="lg:mt-8">
               <h2 className="text-xl font-bold">About this event</h2>
               <div className="prose-event mt-3" dangerouslySetInnerHTML={{ __html: sanitizeDescription(event.description) }} />
             </section>
@@ -134,13 +169,12 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
             </section>
           )}
         </div>
-
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <TicketPicker event={event} ticketTypes={ticketTypes} />
-          <p className="mt-3 text-center text-xs text-muted">{formatEventRange(event.start_datetime, event.end_datetime)}</p>
-        </aside>
       </div>
       <SimilarEvents eventId={event.id} />
+      <MobileBuyBar
+        priceLabel={fromPrice === null ? event.title : fromPrice === 0 ? 'Free' : `From ${formatKES(fromPrice)}`}
+        disabledLabel={buyBarDisabled}
+      />
     </article>
   );
 }

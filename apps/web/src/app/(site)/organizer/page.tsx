@@ -3,8 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { CalendarPlus, ChevronRight, Ticket, TrendingUp, Wallet } from 'lucide-react';
 import Link from 'next/link';
+import { Stat } from '@/components/stat';
 import { ButtonLink } from '@/components/ui/button';
 import { Badge, Card, EmptyState, ErrorNote, Spinner } from '@/components/ui/misc';
+import { SafeImg } from '@/components/ui/safe-img';
 import { organizerApi } from '@/lib/api/endpoints';
 import type { EventStatus, KlixEvent } from '@/lib/api/types';
 import { formatDate, formatTime } from '@/lib/format';
@@ -35,7 +37,7 @@ export default function OrganizerHome() {
         </ButtonLink>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <Stat icon={TrendingUp} label="Live events" value={live} />
         <Stat icon={Ticket} label="Tickets sold" value={sold.toLocaleString()} />
         <Stat icon={Wallet} label="Total events" value={events.length} />
@@ -71,7 +73,7 @@ function EventRow({ event }: { event: KlixEvent }) {
   return (
     <Link href={`/organizer/events/${event.id}`} className="flex items-center gap-4 p-4 hover:bg-canvas">
       {event.banner_image_url ? (
-        <img src={event.banner_image_url} alt="" className="hidden size-14 rounded-xl object-cover sm:block" />
+        <SafeImg src={event.banner_image_url} alt="" className="hidden size-14 rounded-xl object-cover sm:block" />
       ) : (
         <div className="hidden size-14 rounded-xl bg-brand-50 sm:block" />
       )}
@@ -96,19 +98,5 @@ function EventRow({ event }: { event: KlixEvent }) {
       </div>
       <ChevronRight className="size-5 text-muted" aria-hidden />
     </Link>
-  );
-}
-
-function Stat({ icon: Icon, label, value }: { icon: typeof Ticket; label: string; value: string | number }) {
-  return (
-    <Card className="flex items-center gap-4 p-5">
-      <div className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-        <Icon className="size-5" aria-hidden />
-      </div>
-      <div>
-        <p className="text-sm text-muted">{label}</p>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-    </Card>
   );
 }

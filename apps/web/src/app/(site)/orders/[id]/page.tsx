@@ -87,6 +87,7 @@ function AwaitingPayment({ order }: { order: Order }) {
   };
 
   const cancel = async () => {
+    if (!confirm('Cancel this order and release the tickets?')) return;
     await checkoutApi.cancel(order.id).catch((e: Error) => toast.error(e.message));
     void queryClient.invalidateQueries({ queryKey: ['order', order.id] });
   };

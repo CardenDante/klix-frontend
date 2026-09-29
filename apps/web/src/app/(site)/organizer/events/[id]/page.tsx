@@ -70,7 +70,10 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
             <Button
               variant={live ? 'secondary' : 'primary'}
               loading={publish.isPending}
-              onClick={() => publish.mutate(!live)}
+              onClick={() => {
+                if (live && !confirm('Unpublish? The event page goes offline and ticket sales stop.')) return;
+                publish.mutate(!live);
+              }}
             >
               {live ? 'Unpublish' : 'Publish'}
             </Button>
@@ -331,6 +334,7 @@ function StaffPanel({ event }: { event: KlixEvent }) {
   });
 
   const remove = async (assignmentId: string) => {
+    if (!confirm('Remove this person from the door team?')) return;
     await organizerApi.removeStaff(event.id, assignmentId).catch((e: Error) => toast.error(e.message));
     void queryClient.invalidateQueries({ queryKey: ['staff', event.id] });
   };

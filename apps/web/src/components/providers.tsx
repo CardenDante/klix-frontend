@@ -25,6 +25,10 @@ export function Providers({ children }: { children: ReactNode }) {
   const refreshUser = useAuth((s) => s.refreshUser);
   const hydrated = useAuth((s) => s.hydrated);
 
+  useEffect(() => {
+    void useAuth.persist?.rehydrate();
+  }, []);
+
   // Pick up role changes (e.g. organizer approval) on every visit.
   useEffect(() => {
     if (hydrated) void refreshUser();

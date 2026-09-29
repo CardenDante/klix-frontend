@@ -16,15 +16,15 @@ export function Stat({
   trend?: number | null;
 }) {
   return (
-    <Card className="flex items-start gap-4 p-5">
+    <Card className="flex items-start gap-4 p-4 sm:p-5">
       {Icon && (
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+        <div className="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 sm:flex">
           <Icon className="size-5" aria-hidden />
         </div>
       )}
       <div className="min-w-0">
         <p className="text-sm text-muted">{label}</p>
-        <p className="truncate text-2xl font-bold tabular-nums">{value}</p>
+        <p className="truncate text-xl sm:text-2xl font-bold tabular-nums">{value}</p>
         {(hint || (trend !== undefined && trend !== null)) && (
           <p className="mt-0.5 text-xs text-muted">
             {trend !== undefined && trend !== null && (

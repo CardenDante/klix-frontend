@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
 import { Badge, Card, Spinner } from '@/components/ui/misc';
+import { SafeImg } from '@/components/ui/safe-img';
 import { eventsApi, promoterApi } from '@/lib/api/endpoints';
 import type { EventApproval, KlixEvent } from '@/lib/api/types';
 import { formatDate, priceLabel } from '@/lib/format';
@@ -136,7 +137,7 @@ function PromotableEvent({ event, request }: { event: KlixEvent; request?: Event
   return (
     <Card className="flex flex-col overflow-hidden">
       {event.banner_image_url ? (
-        <img src={event.banner_image_url} alt="" className="aspect-[16/8] w-full object-cover" />
+        <SafeImg src={event.banner_image_url} alt="" className="aspect-[16/8] w-full object-cover" />
       ) : (
         <div className="aspect-[16/8] bg-brand-50" />
       )}

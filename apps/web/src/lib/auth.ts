@@ -62,10 +62,15 @@ export const useAuth = create<AuthState>()(
     {
       name: 'klix-auth',
       partialize: ({ accessToken, refreshToken, user }) => ({ accessToken, refreshToken, user }),
-      onRehydrateStorage: () => () => useAuth.setState({ hydrated: true }),
+      // Rehydrated from Providers after mount, so the first client render
+      // matches the server render (signed out) and there's no mismatch.
+      skipHydration: true,
     },
   ),
 );
+
+// `persist` is undefined on the server, where there is no storage.
+useAuth.persist?.onFinishHydration(() => useAuth.setState({ hydrated: true }));
 
 installAuthBridge({
   getAccessToken: () => useAuth.getState().accessToken,

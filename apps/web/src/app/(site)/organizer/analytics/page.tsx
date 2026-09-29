@@ -7,7 +7,7 @@ import { Stat } from '@/components/stat';
 import { Card, ErrorNote, Spinner } from '@/components/ui/misc';
 import { organizerApi } from '@/lib/api/endpoints';
 import type { EventSummary } from '@/lib/api/types';
-import { formatDate, formatKES } from '@/lib/format';
+import { formatDate, formatKES, formatKESCompact } from '@/lib/format';
 
 export default function OrganizerAnalyticsPage() {
   const query = useQuery({ queryKey: ['organizer-dashboard'], queryFn: organizerApi.dashboard, refetchInterval: 60_000 });
@@ -19,11 +19,11 @@ export default function OrganizerAnalyticsPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Analytics</h1>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat
           icon={Wallet}
           label="Sales this month"
-          value={formatKES(d.revenue_this_month)}
+          value={formatKESCompact(d.revenue_this_month)}
           trend={d.revenue_growth_percentage}
           hint="vs last month"
         />

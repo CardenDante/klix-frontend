@@ -2,6 +2,7 @@ import { CalendarDays, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import type { KlixEvent } from '@/lib/api/types';
 import { CATEGORY_LABELS, formatDate, formatTime, priceLabel } from '@/lib/format';
+import { SafeImg } from '@/components/ui/safe-img';
 
 export function EventCard({ event }: { event: KlixEvent }) {
   const fewLeft =
@@ -13,18 +14,17 @@ export function EventCard({ event }: { event: KlixEvent }) {
       className="group flex flex-col overflow-hidden rounded-card border border-line bg-white transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-ink/5"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-brand-50">
-        {event.banner_image_url ? (
-          <img
-            src={event.banner_image_url}
-            alt=""
-            loading="lazy"
-            className="size-full object-cover transition duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center font-display text-3xl font-bold text-brand-300">
-            klix
-          </div>
-        )}
+        <SafeImg
+          src={event.banner_image_url ?? undefined}
+          alt=""
+          loading="lazy"
+          className="size-full object-cover transition duration-500 group-hover:scale-105"
+          fallback={
+            <div className="flex size-full items-center justify-center font-display text-3xl font-bold text-brand-300">
+              klix
+            </div>
+          }
+        />
         <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink">
           {CATEGORY_LABELS[event.category] ?? event.category}
         </span>
@@ -55,6 +55,19 @@ export function EventCard({ event }: { event: KlixEvent }) {
         <p className="mt-auto pt-3 text-sm font-bold text-ink">{priceLabel(event.min_price)}</p>
       </div>
     </Link>
+  );
+}
+
+/** A swipeable row on phones, a grid from tablet up. */
+export function EventRow({ events }: { events: KlixEvent[] }) {
+  return (
+    <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
+      {events.map((event) => (
+        <div key={event.id} className="grid w-[78%] shrink-0 snap-start sm:w-auto">
+          <EventCard event={event} />
+        </div>
+      ))}
+    </div>
   );
 }
 

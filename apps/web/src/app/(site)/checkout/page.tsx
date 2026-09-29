@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { Card, EmptyState, ErrorNote } from '@/components/ui/misc';
+import { SafeImg } from '@/components/ui/safe-img';
 import { ApiError } from '@/lib/api/client';
 import { checkoutApi, loyaltyApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/lib/auth';
@@ -194,10 +195,11 @@ export default function CheckoutPage() {
           </Card>
         </form>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+        {/* On phones the summary comes first, so buyers see what they pay for (and can add a code) before the Pay button. */}
+        <aside className="order-first lg:order-none lg:sticky lg:top-24 lg:self-start">
           <Card className="overflow-hidden">
             {event.banner_image_url && (
-              <img src={event.banner_image_url} alt="" className="aspect-[16/7] w-full object-cover" />
+              <SafeImg src={event.banner_image_url} alt="" className="hidden aspect-[16/7] w-full object-cover lg:block" />
             )}
             <div className="space-y-4 p-5">
               <div>
@@ -245,7 +247,7 @@ export default function CheckoutPage() {
                       onChange={(e) => setPromoInput(e.target.value)}
                       placeholder="Promo code"
                       aria-label="Promo code"
-                      className="h-10 pl-9 uppercase"
+                      className="h-10 pl-9 uppercase placeholder:normal-case"
                     />
                   </div>
                   <Button type="button" variant="secondary" size="sm" className="h-10" onClick={applyPromo} loading={checkingPromo}>

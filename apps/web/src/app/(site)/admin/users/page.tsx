@@ -101,7 +101,7 @@ function UserRow({ user }: { user: User }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
         <p className="truncate font-medium">
           {user.full_name || '—'} {!user.is_active && <Badge tone="danger">Suspended</Badge>}
         </p>
@@ -113,8 +113,11 @@ function UserRow({ user }: { user: User }) {
       <Select
         value={user.role}
         disabled={self || setRole.isPending}
-        onChange={(e) => setRole.mutate(e.target.value)}
-        className="h-9 w-40 text-sm"
+        onChange={(e) => {
+          const role = e.target.value;
+          if (window.confirm(`Change ${user.email} to ${role.replace('_', ' ')}?`)) setRole.mutate(role);
+        }}
+        className="h-9 flex-1 text-sm sm:w-40 sm:flex-none"
         aria-label={`Role for ${user.email}`}
       >
         {ROLES.map((r) => (
@@ -123,7 +126,9 @@ function UserRow({ user }: { user: User }) {
           </option>
         ))}
       </Select>
-      <Button size="sm" variant={user.is_active ? 'ghost' : 'secondary'} disabled={self} loading={toggle.isPending} onClick={() => toggle.mutate()}>
+      <Button size="sm" variant={user.is_active ? 'ghost' : 'secondary'} disabled={self} loading={toggle.isPending} onClick={() => {
+          if (!user.is_active || window.confirm(`Suspend ${user.email}? They will be signed out and unable to sign in.`)) toggle.mutate();
+        }}>
         {user.is_active ? 'Suspend' : 'Reactivate'}
       </Button>
     </div>

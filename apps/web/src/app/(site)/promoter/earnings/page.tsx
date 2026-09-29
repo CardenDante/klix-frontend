@@ -36,7 +36,7 @@ export default function EarningsPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Earnings</h1>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
         <Stat icon={Wallet} label="Available" value={formatKES(e.available)} />
         <Stat icon={Clock} label="Pending" value={formatKES(e.pending)} hint="Released after each event ends" />
         <Stat label="Paid out" value={formatKES(e.withdrawn)} hint={`${formatKES(e.total_earned)} earned all-time`} />
