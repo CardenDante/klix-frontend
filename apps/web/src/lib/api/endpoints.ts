@@ -71,7 +71,12 @@ export const authApi = {
   logout: (refresh_token: string | null) =>
     api('/api/v1/auth/logout', { method: 'POST', body: { refresh_token }, anonymous: true }),
   me: () => api<User>('/api/v1/auth/me'),
-  updateProfile: (body: Partial<Pick<User, 'first_name' | 'last_name' | 'phone_number' | 'profile_image_url'>>) =>
+  updateProfile: (body: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string | null;
+    profile_image_url?: string | null;
+  }) =>
     api<User>('/api/v1/users/me', { method: 'PATCH', body }),
   requestPasswordReset: (email: string) =>
     api<{ message: string }>('/api/v1/auth/password-reset', { method: 'POST', body: { email }, anonymous: true }),

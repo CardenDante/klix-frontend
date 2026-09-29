@@ -40,6 +40,7 @@ export interface User {
   is_active: boolean;
   email_verified: boolean;
   profile_image_url: string | null;
+  preferences?: { preferred_categories?: string[]; [key: string]: unknown };
   is_organizer: boolean;
   is_admin: boolean;
   created_at: string;

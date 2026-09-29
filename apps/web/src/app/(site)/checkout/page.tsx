@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarDays, MapPin, ShieldCheck, ShoppingBag, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -12,7 +13,7 @@ import { Button, ButtonLink } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { Card, EmptyState, ErrorNote } from '@/components/ui/misc';
 import { ApiError } from '@/lib/api/client';
-import { checkoutApi } from '@/lib/api/endpoints';
+import { checkoutApi, loyaltyApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/lib/auth';
 import { cartTotals, useCart } from '@/lib/cart';
 import { useHydrated } from '@/hooks/use-hydrated';
@@ -34,6 +35,8 @@ export default function CheckoutPage() {
   const [promoInput, setPromoInput] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useCredits, setUseCredits] = useState(false);
+  const loyalty = useQuery({ queryKey: ['loyalty-balance'], queryFn: loyaltyApi.balance, enabled: !!user });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -50,6 +53,10 @@ export default function CheckoutPage() {
   }, [user, form]);
 
   const totals = cartTotals(lines, discountPercentage);
+  const maxCredits = Math.floor((totals.total * (loyalty.data?.max_redeem_percentage ?? 50)) / 100);
+  const usableCredits = Math.min(loyalty.data?.available_credits ?? 0, maxCredits);
+  const creditsApplied = useCredits ? usableCredits : 0;
+  const payable = Math.max(0, totals.total - creditsApplied);
 
   if (!mounted) return null;
 
@@ -96,6 +103,7 @@ export default function CheckoutPage() {
         attendee_email: values.attendee_email,
         attendee_phone: phone,
         promoter_code: promoCode || undefined,
+        use_loyalty_credits: creditsApplied > 0,
       });
 
       if (order.status === 'pending') {
@@ -162,9 +170,23 @@ export default function CheckoutPage() {
                 {...form.register('attendee_phone')}
               />
             </Field>
+            {usableCredits > 0 && (
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-line px-4 py-3">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-brand-500"
+                  checked={useCredits}
+                  onChange={(e) => setUseCredits(e.target.checked)}
+                />
+                <span className="flex-1 text-sm">
+                  Use <strong>{usableCredits.toLocaleString()}</strong> loyalty credits
+                  <span className="block text-xs text-muted">Save {formatKES(usableCredits)} on this order</span>
+                </span>
+              </label>
+            )}
             {error && <ErrorNote>{error}</ErrorNote>}
             <Button type="submit" block size="lg" loading={form.formState.isSubmitting}>
-              {totals.total === 0 ? 'Get free tickets' : `Pay ${formatKES(totals.total)}`}
+              {payable === 0 ? 'Get free tickets' : `Pay ${formatKES(payable)}`}
             </Button>
             <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
               <ShieldCheck className="size-3.5" aria-hidden /> Tickets are held for 10 minutes while you pay.
@@ -204,9 +226,15 @@ export default function CheckoutPage() {
                   </li>
                 )}
               </ul>
+              {creditsApplied > 0 && (
+                <div className="flex justify-between text-sm text-success">
+                  <span>Loyalty credits</span>
+                  <span>−{formatKES(creditsApplied)}</span>
+                </div>
+              )}
               <div className="flex items-baseline justify-between border-t border-line pt-4">
                 <span className="font-semibold">Total</span>
-                <span className="text-2xl font-bold">{formatKES(totals.total)}</span>
+                <span className="text-2xl font-bold">{formatKES(payable)}</span>
               </div>
               {!promoCode && (
                 <div className="flex gap-2">

@@ -6,6 +6,7 @@ import { fetchEventPage } from '@/lib/api/server';
 import { CATEGORY_LABELS, formatDateLong, formatEventRange, formatTime, stripHtml } from '@/lib/format';
 import { sanitizeDescription } from '@/lib/sanitize';
 import { SITE_URL } from '@/lib/utils';
+import { SimilarEvents } from './similar-events';
 import { TicketPicker } from './ticket-picker';
 
 export const revalidate = 10;
@@ -139,6 +140,7 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
           <p className="mt-3 text-center text-xs text-muted">{formatEventRange(event.start_datetime, event.end_datetime)}</p>
         </aside>
       </div>
+      <SimilarEvents eventId={event.id} />
     </article>
   );
 }

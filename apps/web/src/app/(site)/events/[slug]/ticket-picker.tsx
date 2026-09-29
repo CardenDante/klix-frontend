@@ -3,10 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Minus, Plus, Ticket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/misc';
-import { eventsApi } from '@/lib/api/endpoints';
+import { checkoutApi, eventsApi, promoterApi } from '@/lib/api/endpoints';
 import type { KlixEvent, TicketType } from '@/lib/api/types';
 import { cartTotals, useCart } from '@/lib/cart';
 import { formatKES } from '@/lib/format';
@@ -15,7 +15,23 @@ import { cn } from '@/lib/utils';
 export function TicketPicker({ event, ticketTypes: initial }: { event: KlixEvent; ticketTypes: TicketType[] }) {
   const router = useRouter();
   const startCart = useCart((s) => s.start);
+  const setPromo = useCart((s) => s.setPromo);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [referral, setReferral] = useState<{ code: string; discount: number } | null>(null);
+
+  // Shared promoter links look like /events/<slug>?ref=CODE: count the visit
+  // and pre-apply the code if it's valid for this event.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('ref')?.trim().toUpperCase();
+    if (!code) return;
+    void promoterApi.trackClick(code).catch(() => undefined);
+    checkoutApi
+      .validatePromo(code, event.id)
+      .then((r) => {
+        if (r.valid) setReferral({ code, discount: Number(r.data.discount_percentage ?? 0) });
+      })
+      .catch(() => undefined);
+  }, [event.id]);
 
   // Keep availability fresh while people are deciding.
   const { data: ticketTypes = initial } = useQuery({
@@ -28,7 +44,7 @@ export function TicketPicker({ event, ticketTypes: initial }: { event: KlixEvent
   const lines = ticketTypes
     .filter((tt) => (quantities[tt.id] ?? 0) > 0)
     .map((tt) => ({ ticketTypeId: tt.id, name: tt.name, price: tt.price, quantity: quantities[tt.id]! }));
-  const totals = cartTotals(lines);
+  const totals = cartTotals(lines, referral?.discount ?? 0);
 
   const change = (tt: TicketType, delta: number) => {
     setQuantities((q) => {
@@ -102,6 +118,11 @@ export function TicketPicker({ event, ticketTypes: initial }: { event: KlixEvent
       )}
 
       <div className="border-t border-line bg-canvas px-5 py-4">
+        {referral && (
+          <p className="mb-3 rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-800">
+            Code {referral.code} applied{referral.discount > 0 ? ` — ${referral.discount}% off` : ''}
+          </p>
+        )}
         <div className="mb-3 flex items-baseline justify-between">
           <span className="text-sm text-muted">
             {totals.count} {totals.count === 1 ? 'ticket' : 'tickets'}
@@ -114,6 +135,7 @@ export function TicketPicker({ event, ticketTypes: initial }: { event: KlixEvent
           disabled={totals.count === 0}
           onClick={() => {
             startCart(event, ticketTypes, quantities);
+            if (referral) setPromo(referral.code, referral.discount);
             router.push('/checkout');
           }}
         >
