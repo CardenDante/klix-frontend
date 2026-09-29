@@ -9,7 +9,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: SITE_URL, changeFrequency: 'daily', priority: 1 },
     { url: `${SITE_URL}/events`, changeFrequency: 'hourly', priority: 0.9 },
-    { url: `${SITE_URL}/become-organizer`, changeFrequency: 'monthly', priority: 0.5 },
+    ...['/become-organizer', '/become-promoter', '/pricing', '/about', '/contact', '/careers', '/safety', '/terms', '/privacy', '/leaderboard'].map(
+      (path) => ({ url: `${SITE_URL}${path}`, changeFrequency: 'monthly' as const, priority: 0.5 }),
+    ),
     ...(events?.data ?? []).map((e) => ({
       url: `${SITE_URL}/events/${e.slug}`,
       lastModified: e.updated_at,

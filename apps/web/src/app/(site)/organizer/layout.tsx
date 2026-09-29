@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { RequireAuth } from '@/components/require-auth';
+import { SubNav } from '@/components/sub-nav';
 import { ButtonLink } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/misc';
 import { LayoutDashboard } from 'lucide-react';
@@ -22,7 +23,18 @@ export default function OrganizerLayout({ children }: { children: ReactNode }) {
         </div>
       }
     >
-      <div className="mx-auto max-w-6xl px-4 py-10">{children}</div>
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <SubNav
+          items={[
+            { href: '/organizer', label: 'Events', exact: true },
+            { href: '/organizer/analytics', label: 'Analytics' },
+            { href: '/organizer/promoters', label: 'Promoters' },
+            { href: '/organizer/payouts', label: 'Payouts' },
+            { href: '/organizer/settings', label: 'Settings' },
+          ]}
+        />
+        {children}
+      </div>
     </RequireAuth>
   );
 }

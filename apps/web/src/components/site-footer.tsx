@@ -25,13 +25,20 @@ export function SiteFooter() {
             ['/become-organizer', 'Sell tickets on Klix'],
             ['/organizer', 'Organizer dashboard'],
             ['/staff/scanner', 'Ticket scanner'],
+            ['/become-promoter', 'Become a promoter'],
+            ['/leaderboard', 'Promoter leaderboard'],
           ]}
         />
         <FooterColumn
-          title="Help"
+          title="Klix"
           links={[
-            ['/tickets', 'Find my tickets'],
-            ['mailto:support@klix.co.ke', 'support@klix.co.ke'],
+            ['/about', 'About'],
+            ['/pricing', 'Pricing'],
+            ['/careers', 'Careers'],
+            ['/contact', 'Contact & help'],
+            ['/safety', 'Safety'],
+            ['/terms', 'Terms'],
+            ['/privacy', 'Privacy'],
           ]}
         />
       </div>

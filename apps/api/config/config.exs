@@ -39,7 +39,7 @@ config :klix, :auth,
 
 # The platform takes this share of every paid order.
 # (A string: config.exs is evaluated before dependencies such as Decimal load.)
-config :klix, :platform_fee_percentage, "5.0"
+config :klix, :platform_fee_percentage, "2.5"
 
 config :klix, Klix.Payments.Mpesa, adapter: Klix.Payments.Mpesa.Sandbox
 
@@ -50,7 +50,7 @@ config :klix, :loyalty, earn_rate_percent: "1", expiry_days: 365, max_redeem_per
 config :klix, Klix.Notifications,
   mailer: Klix.Notifications.LogMailer,
   sms: Klix.Notifications.LogSMS,
-  from_email: "Klix <tickets@klix.co.ke>",
+  from_email: "Klix <tickets@e-klix.com>",
   web_url: "http://localhost:3000"
 
 config :klix, Klix.Uploads, storage: Klix.Uploads.LocalStorage

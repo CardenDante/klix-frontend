@@ -138,7 +138,7 @@ defmodule Klix.Notifications do
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1c1917;font-size:15px;line-height:1.55">
       <p style="font-size:22px;font-weight:700;color:#eb7d30;margin:0 0 20px">klix</p>
       #{paragraphs}#{button_html}
-      <p style="color:#6b6560;font-size:12px;margin-top:32px">Klix · support@klix.co.ke</p>
+      <p style="color:#6b6560;font-size:12px;margin-top:32px">Klix · support@chach-a.com</p>
     </div>
     """
   end

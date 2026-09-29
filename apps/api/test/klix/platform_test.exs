@@ -105,11 +105,11 @@ defmodule Klix.PlatformTest do
       paid_order_fixture(tt, nil, 2, %{"promoter_code" => code.code})
 
       statement = Settlements.statement(event)
-      # gross 5000, fee 5% = 250, commission 10% of 2000 = 200
+      # gross 5000, fee 2.5% = 125, commission 10% of 2000 = 200
       assert Decimal.eq?(statement.gross, 5000)
-      assert Decimal.eq?(statement.platform_fees, 250)
+      assert Decimal.eq?(statement.platform_fees, 125)
       assert Decimal.eq?(statement.promoter_commissions, 200)
-      assert Decimal.eq?(statement.net_payable, 4550)
+      assert Decimal.eq?(statement.net_payable, 4675)
       assert statement.status == "accruing"
 
       admin = admin_fixture()
@@ -120,14 +120,14 @@ defmodule Klix.PlatformTest do
       assert id == event.id
 
       assert {:ok, settlement} = Settlements.mark_paid(event, admin, %{"reference" => "BANK-1"})
-      assert Decimal.eq?(settlement.net_payable, 4550)
+      assert Decimal.eq?(settlement.net_payable, 4675)
       assert Settlements.pending() == []
       assert [%{status: "paid"}] = Settlements.organizer_statements(organizer)
 
       dashboard = Analytics.organizer_dashboard(organizer)
       assert Decimal.eq?(dashboard.total_revenue, 5000)
       assert dashboard.total_tickets_sold == 5
-      assert Decimal.eq?(dashboard.total_net_revenue, 4550)
+      assert Decimal.eq?(dashboard.total_net_revenue, 4675)
 
       stats = Analytics.event_analytics(event)
       assert stats.tickets_sold == 5

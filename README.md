@@ -4,9 +4,8 @@ Event discovery and ticketing for Kenya, with M-Pesa payments and QR check-in.
 
 ```
 apps/
-  api/          Elixir / Phoenix JSON API  (new)
-  web/          Next.js 16 web app          (new)
-  legacy-web/   Previous Next.js app, kept until the new web app reaches feature parity
+  api/   Elixir / Phoenix JSON API
+  web/   Next.js 16 web app
 ```
 
 ## Quick start
@@ -36,8 +35,8 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Seeded accounts (password `password123`): `admin@klix.test`, `organizer@klix.test`, `staff@klix.test`, `fan@klix.test`.
-The seeded concert has a promo code, `KLIX10`. In dev, M-Pesa numbers `0700000001` and `0700000002` simulate a failed and a cancelled payment.
+Seeded accounts (password `password123`): `admin@klix.test`, `organizer@klix.test`, `staff@klix.test`, `promoter@klix.test`, `fan@klix.test` (has 500 loyalty credits).
+The seeded concert has promo codes `KLIX10` and `PAT-SAUTI` (a promoter's code; try `/events/<slug>?ref=PAT-SAUTI`). In dev, M-Pesa numbers `0700000001` and `0700000002` simulate a failed and a cancelled payment.
 
 ## Architecture
 
@@ -68,7 +67,7 @@ When tickets go on sale, thousands of people hit the same event at once. The API
 
 ### API contract
 
-The API keeps the `/api/v1` paths and JSON field names of the previous backend, so `apps/legacy-web` can be pointed at it during the transition. Conventions:
+The API keeps the `/api/v1` paths and JSON field names of the previous backend. Conventions:
 
 * Single resources come back as plain objects; lists come back as `{success, data, total, page, page_size, total_pages}`; actions come back as `{success, message, data}`.
 * Errors look like `{ "detail": "Human readable message", "errors": { field: [...] } }`.
@@ -86,7 +85,15 @@ The API keeps the `/api/v1` paths and JSON field names of the previous backend, 
 | Promoters | `GET /promoters/codes/validate?code=&event_id=` |
 | Organizers | `POST /organizers/apply`, `GET/PATCH /organizers/me` |
 | Staff | `GET /staff/my-staff-assignments`, `GET/POST /staff/events/:event_id/staff`, `PATCH/DELETE /staff/events/:event_id/staff/:id` |
-| Admin | `GET /admin/organizers[/pending]`, `POST /admin/organizers/:id/approve\|reject\|suspend` |
+| Promoters | `POST /promoters/apply`, `GET/PATCH /promoters/me`, `POST /promoters/codes`, `GET /promoters/my-codes`, `GET /promoters/code/:id/analytics`, `POST /promoters/code/:id/deactivate`, `POST /promoters/track-click`, `GET /promoters/earnings`, `POST /promoters/withdraw`, `GET /promoters/withdrawals`, `GET /promoters/leaderboard`, `GET /analytics/promoter/dashboard` |
+| Promoter requests | `POST /promoter-requests/events/request`, `GET /promoter-requests/my-requests`, `GET /promoter-requests/approved-events`; organizers: `GET /promoter-requests/organizers/promoter-requests`, `POST …/:id/approve\|reject\|revoke`, `PATCH …/:id`, `GET /promoter-requests/organizers/events/:event_id/approved-promoters` |
+| Loyalty | `GET /loyalty/balance`, `/loyalty/transactions`, `/loyalty/credits/available`, `/loyalty/credits/expiring`, `/loyalty/summary`; checkout accepts `use_loyalty_credits` and `loyalty_credits_amount` |
+| Accounts | `POST /auth/password-reset`, `/auth/password-reset/confirm`, `/auth/verify-email`, `/auth/verify-email/request`, `/auth/change-password` |
+| Uploads | `POST /uploads/upload` (multipart `file`, `upload_type`), `GET /uploads/my-uploads`, `GET/DELETE /uploads/files/:id` |
+| Analytics | `GET /analytics/organizer/dashboard`, `GET /analytics/organizer/events/:event_id/stats` |
+| Organizer money | `GET/PUT/DELETE /organizers/me/mpesa`, `POST /organizers/me/mpesa/verify`, `GET /organizers/me/settlements` |
+| Discovery | `GET /recommendations/trending\|popular\|for-you\|discovery`, `GET /recommendations/similar/:event_id`, `GET/PUT /recommendations/preferences`, `GET /search/suggestions\|facets\|nearby\|popular` |
+| Admin | organizers, promoters (`/admin/organizers…`, `/admin/promoters…` approve/reject/suspend), `GET /admin/statistics`, users (`GET /admin/users`, `GET /admin/users/:id`, `PATCH …/role`, `POST …/suspend\|unsuspend\|loyalty`, `DELETE …`), events (`GET /admin/events`, `POST …/flag\|unflag`, `DELETE …/force-delete`), payouts (`GET /admin/withdrawals`, `POST …/:id/pay\|reject`, `GET /admin/settlements[/pending]`, `POST /admin/settlements/:event_id`), `GET /admin/audit-logs` |
 | Realtime | WebSocket `/socket`, topic `order:<transaction id>`, event `payment_status` |
 
 ## Configuration (API, production)
@@ -95,6 +102,11 @@ The API keeps the `/api/v1` paths and JSON field names of the previous backend, 
 | --- | --- |
 | `DATABASE_URL`, `POOL_SIZE` | Postgres connection |
 | `SECRET_KEY_BASE`, `JWT_SIGNING_SECRET`, `QR_SIGNING_SECRET` | Secrets (generate with `mix phx.gen.secret`) |
+| `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`); encrypts organizers' M-Pesa credentials at rest |
+| `WEB_URL`, `MAIL_FROM` | Links and sender used in emails |
+| `RESEND_API_KEY` | Sends email through Resend (otherwise emails are only logged) |
+| `AFRICASTALKING_API_KEY`, `AFRICASTALKING_USERNAME`, `SMS_SENDER_ID` | Sends SMS through Africa's Talking (otherwise SMS are only logged) |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL` | Image uploads to S3-compatible storage (AWS S3, Cloudflare R2, Spaces); otherwise stored on local disk |
 | `PHX_HOST`, `PORT`, `CORS_ORIGINS` | Hosting and allowed web origins (comma separated) |
 | `MPESA_ENV` (`sandbox`/`production`), `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_TRANSACTION_TYPE` | Daraja credentials |
 | `MPESA_CALLBACK_URL`, `MPESA_CALLBACK_TOKEN` | Callback URL must end in `/api/v1/payments/mpesa/callback/<MPESA_CALLBACK_TOKEN>` |
@@ -102,19 +114,15 @@ The API keeps the `/api/v1` paths and JSON field names of the previous backend, 
 | `DNS_CLUSTER_QUERY` | Optional: DNS name that resolves to all API nodes, for clustering |
 | `ALLOW_SANDBOX_PAYMENTS=true` | Run without Daraja credentials, using the fake M-Pesa (demo and staging only) |
 
-Web: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, and optionally `API_INTERNAL_URL` for server-side fetches over a private network.
+Web: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, optionally `API_INTERNAL_URL` for server-side fetches over a private network, and `NEXT_PUBLIC_FIREBASE_*` to show Google sign-in.
 
-## Roadmap
+## What's built
 
-Phase 1 (this) covers the core ticketing path: accounts, organizer onboarding, events and ticket types, checkout with oversell-safe inventory, M-Pesa STK push with callbacks and reconciliation, QR tickets and door scanning, plus organizer approval for admins.
+- **Buying:** discovery with search, suggestions, trending, "similar" and personal picks; guest or signed-in checkout; M-Pesa STK push with live status; QR tickets by email and SMS.
+- **Organizers:** events and ticket types with image uploads, publishing, staff and door scanning, live analytics per event and overall, promoter approvals with custom terms, their own M-Pesa paybill or till, and per-event payout statements.
+- **Promoters:** application, event requests, codes and share links (`?ref=CODE` auto-applies), click and conversion tracking, commissions released after each event, M-Pesa withdrawals, leaderboard.
+- **Loyalty:** 1 credit per KES 100 spent, redeemable for up to 50% of an order, expiring after a year.
+- **Admin:** overview dashboard, organizer and promoter reviews, user management, event moderation (flagged events disappear from public pages), promoter payouts, organizer settlements, and an audit log of every admin action.
+- **Accounts:** email and password or Google, password reset, email verification.
 
-Still to come, currently only in `apps/legacy-web` against the old backend:
-
-- Promoter programme: applications, code creation, commissions, leaderboard, payouts
-- Loyalty credits
-- Organizer and admin analytics dashboards, and audit logs
-- Image uploads (S3-compatible storage), transactional email and SMS (ticket delivery, password reset)
-- Per-organizer M-Pesa credentials and settlement
-- Recommendations
-
-After that, `apps/legacy-web` can be deleted.
+Business settings live in `apps/api/config/config.exs`: the platform fee (`2.5%`), the checkout hold time (10 minutes) and the loyalty earn, expiry and redemption limits.

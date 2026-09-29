@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { use, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { EventAnalyticsPanel } from '@/components/event-analytics';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { Badge, Card, ErrorNote, Spinner } from '@/components/ui/misc';
@@ -15,7 +16,7 @@ import { formatEventRange, formatKES, fromNairobiInput, toNairobiInput } from '@
 import { cn } from '@/lib/utils';
 import { EventForm } from '../../event-form';
 
-const TABS = ['Tickets', 'Details', 'Staff', 'Door'] as const;
+const TABS = ['Tickets', 'Analytics', 'Details', 'Staff', 'Door'] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ManageEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -102,6 +103,7 @@ export default function ManageEventPage({ params }: { params: Promise<{ id: stri
 
       <div className="mt-6">
         {tab === 'Tickets' && <TicketTypesPanel event={event} />}
+        {tab === 'Analytics' && <EventAnalyticsPanel eventId={event.id} />}
         {tab === 'Details' && (
           <Card className="max-w-2xl p-6 sm:p-8">
             <EventForm

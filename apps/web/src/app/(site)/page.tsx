@@ -1,6 +1,7 @@
 import { ArrowRight, BadgeCheck, QrCode, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { EventCard } from '@/components/event-card';
+import { ForYou } from '@/components/for-you';
 import { HeroSearch } from '@/components/hero-search';
 import { ButtonLink } from '@/components/ui/button';
 import { fetchEvents } from '@/lib/api/server';
@@ -45,6 +46,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <ForYou />
 
       <section className="mx-auto max-w-6xl px-4 pt-14">
         <SectionHeader title="Upcoming events" href="/events" />

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { GoogleSignIn } from '@/components/google-sign-in';
 import { safeNext } from '@/components/require-auth';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -68,7 +69,10 @@ function RegisterForm() {
     <>
       <h1 className="text-3xl font-bold">Create your account</h1>
       <p className="mt-2 text-muted">Keep all your tickets in one place.</p>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
+      <div className="mt-8">
+        <GoogleSignIn onSignedIn={() => router.replace(next)} />
+      </div>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <div className="grid grid-cols-2 gap-3">
           <Field label="First name" htmlFor="first_name" error={errors.first_name?.message}>
             <Input id="first_name" autoComplete="given-name" {...form.register('first_name')} />

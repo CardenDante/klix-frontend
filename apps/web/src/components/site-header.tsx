@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, LogOut, Menu, ScanLine, ShieldCheck, Ticket, X } from 'lucide-react';
+import { CircleUser, LayoutDashboard, LogOut, Megaphone, Menu, ScanLine, ShieldCheck, Ticket, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -23,9 +23,11 @@ export function SiteHeader() {
 
   const accountLinks = [
     { href: '/tickets', label: 'My tickets', icon: Ticket, show: !!user },
+    { href: '/promoter', label: 'Promoter', icon: Megaphone, show: user?.role === 'promoter' },
     { href: '/organizer', label: 'Organizer', icon: LayoutDashboard, show: hasRole(user, 'organizer') },
     { href: '/staff/scanner', label: 'Scanner', icon: ScanLine, show: hasRole(user, 'event_staff', 'organizer') },
     { href: '/admin', label: 'Admin', icon: ShieldCheck, show: hasRole(user) },
+    { href: '/account', label: 'Account', icon: CircleUser, show: !!user },
   ].filter((l) => l.show);
 
   const signOut = async () => {

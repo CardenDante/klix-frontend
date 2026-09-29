@@ -49,7 +49,7 @@ if config_env() == :prod do
     System.get_env("SECRET_KEY_BASE") ||
       raise "environment variable SECRET_KEY_BASE is missing (mix phx.gen.secret)"
 
-  host = System.get_env("PHX_HOST") || "api.klix.co.ke"
+  host = System.get_env("PHX_HOST") || "api.e-klix.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
   config :klix, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
@@ -58,18 +58,18 @@ if config_env() == :prod do
     url: [host: host, port: 443, scheme: "https"],
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}, port: port],
     secret_key_base: secret_key_base,
-    check_origin: String.split(System.get_env("CORS_ORIGINS", "https://klix.co.ke"), ",")
+    check_origin: String.split(System.get_env("CORS_ORIGINS", "https://e-klix.com"), ",")
 
   config :klix,
          :cors_origins,
-         String.split(System.get_env("CORS_ORIGINS", "https://klix.co.ke"), ",")
+         String.split(System.get_env("CORS_ORIGINS", "https://e-klix.com"), ",")
 
   config :klix, :auth, signing_secret: System.fetch_env!("JWT_SIGNING_SECRET")
   config :klix, :encryption_key, System.fetch_env!("ENCRYPTION_KEY")
 
   config :klix, Klix.Notifications,
-    web_url: System.get_env("WEB_URL", "https://klix.co.ke"),
-    from_email: System.get_env("MAIL_FROM", "Klix <tickets@klix.co.ke>")
+    web_url: System.get_env("WEB_URL", "https://e-klix.com"),
+    from_email: System.get_env("MAIL_FROM", "Klix <tickets@e-klix.com>")
 
   if api_key = System.get_env("RESEND_API_KEY") do
     config :klix, Klix.Notifications, mailer: Klix.Notifications.Resend, resend_api_key: api_key

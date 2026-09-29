@@ -194,7 +194,7 @@ function StatusCard({
       <h1 className="mt-4 text-2xl font-bold">{title}</h1>
       <div className="mx-auto mt-2 max-w-md text-muted">{children}</div>
       <p className="mt-6 text-xs text-muted">
-        Need help? <Link href="mailto:support@klix.co.ke" className="underline">support@klix.co.ke</Link>
+        Need help? <Link href="mailto:support@chach-a.com" className="underline">support@chach-a.com</Link>
       </p>
     </Card>
   );

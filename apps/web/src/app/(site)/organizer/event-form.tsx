@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import { ImageUpload } from '@/components/image-upload';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import type { EventInput } from '@/lib/api/endpoints';
@@ -106,17 +107,15 @@ export function EventForm({
           <Input id="end" type="datetime-local" {...form.register('end')} />
         </Field>
       </div>
-      <Field
-        label="Banner image URL"
-        htmlFor="banner_image_url"
-        error={errors.banner_image_url?.message}
-        hint="A wide image (16:9) looks best. Image uploads are coming soon."
-      >
-        <Input id="banner_image_url" type="url" placeholder="https://" {...form.register('banner_image_url')} />
-      </Field>
-      {banner && !errors.banner_image_url && (
-        <img src={banner} alt="Banner preview" className="aspect-[16/9] w-full rounded-xl border border-line object-cover" />
-      )}
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Banner image</p>
+        <ImageUpload
+          value={banner || null}
+          onChange={(url) => form.setValue('banner_image_url', url ?? '', { shouldDirty: true })}
+          uploadType="event_banner"
+          label="Upload a banner (16:9 works best)"
+        />
+      </div>
       <Field label="Description" htmlFor="description" hint="Separate paragraphs with a blank line.">
         <Textarea id="description" rows={8} {...form.register('description')} />
       </Field>

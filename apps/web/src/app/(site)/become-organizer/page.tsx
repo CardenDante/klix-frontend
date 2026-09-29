@@ -94,8 +94,8 @@ function Application() {
     const states = {
       pending: { icon: Clock, tone: 'text-amber-600 bg-amber-100', title: 'Application under review', body: "We'll review your application shortly. You'll be able to create events once approved." },
       approved: { icon: CheckCircle2, tone: 'text-green-700 bg-green-100', title: "You're approved!", body: 'Head to your dashboard to create your first event.' },
-      rejected: { icon: XCircle, tone: 'text-red-600 bg-red-100', title: 'Application not approved', body: organizer.rejection_reason ?? 'Contact support@klix.co.ke for details.' },
-      suspended: { icon: XCircle, tone: 'text-red-600 bg-red-100', title: 'Account suspended', body: organizer.rejection_reason ?? 'Contact support@klix.co.ke for details.' },
+      rejected: { icon: XCircle, tone: 'text-red-600 bg-red-100', title: 'Application not approved', body: organizer.rejection_reason ?? 'Contact support@chach-a.com for details.' },
+      suspended: { icon: XCircle, tone: 'text-red-600 bg-red-100', title: 'Account suspended', body: organizer.rejection_reason ?? 'Contact support@chach-a.com for details.' },
     } as const;
     const state = states[organizer.status];
     const Icon = state.icon;

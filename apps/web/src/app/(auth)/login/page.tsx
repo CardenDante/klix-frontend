@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { GoogleSignIn } from '@/components/google-sign-in';
 import { safeNext } from '@/components/require-auth';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -47,7 +48,10 @@ function LoginForm() {
     <>
       <h1 className="text-3xl font-bold">Welcome back</h1>
       <p className="mt-2 text-muted">Sign in to see your tickets and manage events.</p>
-      <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
+      <div className="mt-8">
+        <GoogleSignIn onSignedIn={() => router.replace(next)} />
+      </div>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Field label="Email" htmlFor="email" error={form.formState.errors.email?.message}>
           <Input id="email" type="email" autoComplete="email" {...form.register('email')} />
         </Field>
