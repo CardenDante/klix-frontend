@@ -17,6 +17,11 @@ defmodule Klix.Orders.Order do
     field :discount_amount, :decimal, default: Decimal.new(0)
     field :amount, :decimal
     field :platform_fee, :decimal, default: Decimal.new(0)
+    # Loyalty credits (KES) applied; the platform funds these.
+    field :credits_applied, :integer, default: 0
+    # "platform" or "organizer": whose M-Pesa account received the money.
+    field :payment_account, :string, default: "platform"
+    field :mpesa_shortcode, :string
     field :attendee_name, :string
     field :attendee_email, :string
     field :attendee_phone, :string
