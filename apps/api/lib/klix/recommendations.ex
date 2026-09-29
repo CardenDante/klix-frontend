@@ -162,7 +162,9 @@ defmodule Klix.Recommendations do
   ## Search helpers
 
   @doc "Typeahead: matching event titles, locations and categories."
-  def suggestions(q, limit \\ 8) when is_binary(q) do
+  def suggestions(q, limit \\ 8)
+
+  def suggestions(q, limit) when is_binary(q) do
     term = String.trim(q)
 
     if String.length(term) < 2 do

@@ -13,7 +13,9 @@ defmodule Klix.Uploads do
   def storage, do: Keyword.get(Application.get_env(:klix, __MODULE__, []), :storage, Klix.Uploads.LocalStorage)
 
   @doc "Stores an uploaded image. `upload` is a `Plug.Upload`."
-  def store(%User{} = user, %Plug.Upload{} = upload, upload_type, entity_id \\ nil) do
+  def store(user, upload, upload_type, entity_id \\ nil)
+
+  def store(%User{} = user, %Plug.Upload{} = upload, upload_type, entity_id) do
     with :ok <- validate_type(upload_type),
          {:ok, body} <- File.read(upload.path),
          :ok <- validate_size(body),

@@ -39,10 +39,7 @@ jobs:
             apps/api/_build
           key: mix-${{ runner.os }}-${{ hashFiles('apps/api/mix.exs', 'apps/api/mix.lock') }}
           restore-keys: mix-${{ runner.os }}-
-      # Temporary: bump mint past its security advisories and show the new lock.
-      - run: mix deps.update mint && mix deps.get
-      - name: Show updated mix.lock
-        run: cat mix.lock
+      - run: mix deps.get --check-locked
       - run: mix compile --warnings-as-errors
       - run: mix test
 
