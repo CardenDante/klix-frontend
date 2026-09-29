@@ -18,6 +18,10 @@ defmodule KlixWeb.Router do
     plug KlixWeb.Plugs.RequireAuth, roles: ["admin"]
   end
 
+  pipeline :promoter do
+    plug KlixWeb.Plugs.RequireAuth, roles: ["promoter"]
+  end
+
   pipeline :auth_rate_limit do
     plug KlixWeb.Plugs.RateLimit, name: :auth, limit: 20, window: 60
   end
@@ -48,6 +52,9 @@ defmodule KlixWeb.Router do
       post "/register", AuthController, :register
       post "/login", AuthController, :login
       post "/firebase-login", AuthController, :firebase_login
+      post "/password-reset", AuthController, :password_reset
+      post "/password-reset/confirm", AuthController, :password_reset_confirm
+      post "/verify-email", AuthController, :verify_email
     end
 
     post "/auth/refresh", AuthController, :refresh
@@ -59,6 +66,19 @@ defmodule KlixWeb.Router do
     get "/events/slug/:slug", EventController, :show_by_slug
     get "/tickets/events/:event_id/ticket-types", TicketTypeController, :index
     get "/promoters/codes/validate", PromoterController, :validate_code
+    post "/promoters/track-click", PromoterController, :track_click
+    get "/promoters/leaderboard", PromoterController, :leaderboard
+
+    # Discovery (personalised when signed in)
+    get "/recommendations/trending", RecommendationController, :trending
+    get "/recommendations/popular", RecommendationController, :popular
+    get "/recommendations/similar/:event_id", RecommendationController, :similar
+    get "/recommendations/for-you", RecommendationController, :for_you
+    get "/recommendations/discovery", RecommendationController, :discovery
+    get "/search/suggestions", RecommendationController, :suggestions
+    get "/search/facets", RecommendationController, :facets
+    get "/search/nearby", RecommendationController, :nearby
+    get "/search/popular", RecommendationController, :popular
 
     # Checkout works for guests and signed-in users alike.
     scope "/" do
@@ -76,6 +96,8 @@ defmodule KlixWeb.Router do
       pipe_through :authenticated
 
       get "/auth/me", UserController, :me
+      post "/auth/verify-email/request", AuthController, :request_verification
+      post "/auth/change-password", AuthController, :change_password
       get "/users/me", UserController, :me
       patch "/users/me", UserController, :update
       patch "/users/me/preferences", UserController, :update_preferences
@@ -91,6 +113,42 @@ defmodule KlixWeb.Router do
       patch "/organizers/me", OrganizerController, :update
 
       get "/staff/my-staff-assignments", StaffController, :mine
+
+      get "/recommendations/preferences", RecommendationController, :preferences
+      put "/recommendations/preferences", RecommendationController, :update_preferences
+
+      get "/loyalty/balance", LoyaltyController, :balance
+      get "/loyalty/transactions", LoyaltyController, :transactions
+      get "/loyalty/credits/available", LoyaltyController, :available
+      get "/loyalty/credits/expiring", LoyaltyController, :expiring
+      get "/loyalty/summary", LoyaltyController, :summary
+
+      post "/uploads/upload", UploadController, :create
+      get "/uploads/my-uploads", UploadController, :mine
+      get "/uploads/files/:id", UploadController, :show
+      delete "/uploads/files/:id", UploadController, :delete
+
+      # Anyone signed in can apply to promote; the rest needs approval.
+      post "/promoters/apply", PromoterController, :create_application
+      get "/promoters/me", PromoterController, :me
+      patch "/promoters/me", PromoterController, :update_me
+    end
+
+    scope "/" do
+      pipe_through :promoter
+
+      post "/promoters/codes", PromoterController, :create_code
+      get "/promoters/my-codes", PromoterController, :my_codes
+      get "/promoters/code/:id/analytics", PromoterController, :code_analytics
+      post "/promoters/code/:id/deactivate", PromoterController, :deactivate_code
+      get "/promoters/earnings", PromoterController, :earnings
+      post "/promoters/withdraw", PromoterController, :withdraw
+      get "/promoters/withdrawals", PromoterController, :withdrawals
+      get "/analytics/promoter/dashboard", AnalyticsController, :promoter_dashboard
+
+      post "/promoter-requests/events/request", PromoterRequestController, :request_event
+      get "/promoter-requests/my-requests", PromoterRequestController, :my_requests
+      get "/promoter-requests/approved-events", PromoterRequestController, :approved_events
     end
 
     scope "/" do
@@ -112,6 +170,22 @@ defmodule KlixWeb.Router do
       post "/staff/events/:event_id/staff", StaffController, :create
       patch "/staff/events/:event_id/staff/:id", StaffController, :update
       delete "/staff/events/:event_id/staff/:id", StaffController, :delete
+
+      get "/analytics/organizer/dashboard", AnalyticsController, :organizer_dashboard
+      get "/analytics/organizer/events/:event_id/stats", AnalyticsController, :event_stats
+
+      get "/promoter-requests/organizers/promoter-requests", PromoterRequestController, :organizer_requests
+      post "/promoter-requests/organizers/promoter-requests/:id/approve", PromoterRequestController, :approve
+      post "/promoter-requests/organizers/promoter-requests/:id/reject", PromoterRequestController, :reject
+      post "/promoter-requests/organizers/promoter-requests/:id/revoke", PromoterRequestController, :revoke
+      patch "/promoter-requests/organizers/promoter-requests/:id", PromoterRequestController, :update_terms
+      get "/promoter-requests/organizers/events/:event_id/approved-promoters", PromoterRequestController, :approved_promoters
+
+      get "/organizers/me/mpesa", OrganizerController, :mpesa
+      put "/organizers/me/mpesa", OrganizerController, :save_mpesa
+      post "/organizers/me/mpesa/verify", OrganizerController, :verify_mpesa
+      delete "/organizers/me/mpesa", OrganizerController, :delete_mpesa
+      get "/organizers/me/settlements", OrganizerController, :settlements
     end
 
     # Must come after /events/my-events so that path isn't read as an id.
@@ -125,6 +199,38 @@ defmodule KlixWeb.Router do
       post "/organizers/:id/approve", AdminController, :approve_organizer
       post "/organizers/:id/reject", AdminController, :reject_organizer
       post "/organizers/:id/suspend", AdminController, :suspend_organizer
+
+      get "/statistics", AnalyticsController, :admin_overview
+      get "/analytics/overview", AnalyticsController, :admin_overview
+
+      get "/promoters", AdminController, :list_promoters
+      get "/promoters/pending", AdminController, :pending_promoters
+      post "/promoters/:id/approve", AdminController, :approve_promoter
+      post "/promoters/:id/reject", AdminController, :reject_promoter
+      post "/promoters/:id/suspend", AdminController, :suspend_promoter
+
+      get "/users", AdminController, :list_users
+      get "/users/:id", AdminController, :show_user
+      patch "/users/:id/role", AdminController, :update_role
+      post "/users/:id/suspend", AdminController, :suspend_user
+      post "/users/:id/unsuspend", AdminController, :unsuspend_user
+      post "/users/:id/loyalty", AdminController, :adjust_loyalty
+      delete "/users/:id", AdminController, :delete_user
+
+      get "/events", AdminController, :list_events
+      post "/events/:id/flag", AdminController, :flag_event
+      post "/events/:id/unflag", AdminController, :unflag_event
+      delete "/events/:id/force-delete", AdminController, :force_delete_event
+
+      get "/withdrawals", AdminController, :list_withdrawals
+      post "/withdrawals/:id/pay", AdminController, :pay_withdrawal
+      post "/withdrawals/:id/reject", AdminController, :reject_withdrawal
+
+      get "/settlements/pending", AdminController, :pending_settlements
+      get "/settlements", AdminController, :paid_settlements
+      post "/settlements/:event_id", AdminController, :settle_event
+
+      get "/audit-logs", AdminController, :audit_logs
     end
   end
 end

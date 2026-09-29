@@ -30,3 +30,6 @@ config :klix, Klix.Payments.Mpesa,
   adapter: Klix.Payments.Mpesa.Sandbox,
   auto_callback_ms: 4_000,
   callback_token: "dev-callback-token"
+
+# 32-byte key for encrypting secrets at rest (dev only).
+config :klix, :encryption_key, "ZGV2LW9ubHktZW5jcnlwdGlvbi1rZXktMzJieXRlcyE="

@@ -10,7 +10,7 @@ defmodule Klix.Payments.Mpesa.Sandbox do
   @behaviour Klix.Payments.Mpesa
 
   @impl true
-  def stk_push(%{phone: phone, amount: amount}) do
+  def stk_push(%{phone: phone, amount: amount}, _config) do
     checkout_id = "ws_CO_SANDBOX_" <> Base.encode16(:crypto.strong_rand_bytes(8))
     merchant_id = "SANDBOX-" <> Base.encode16(:crypto.strong_rand_bytes(4))
 
@@ -25,7 +25,12 @@ defmodule Klix.Payments.Mpesa.Sandbox do
   end
 
   @impl true
-  def stk_query(_checkout_request_id), do: {:ok, :pending}
+  def stk_query(_checkout_request_id, _config), do: {:ok, :pending}
+
+  @impl true
+  def verify_credentials(config) do
+    if config[:consumer_key] == "invalid", do: {:error, :invalid_credentials}, else: :ok
+  end
 
   @doc "Builds a callback body shaped exactly like Safaricom's."
   def callback_payload(checkout_id, merchant_id, phone, amount) do

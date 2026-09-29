@@ -18,14 +18,15 @@ config :klix, KlixWeb.Endpoint,
 config :klix, Oban,
   engine: Oban.Engines.Basic,
   repo: Klix.Repo,
-  queues: [default: 10, payments: 20, reservations: 20],
+  queues: [default: 10, payments: 20, reservations: 20, notifications: 10],
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(30)},
     {Oban.Plugins.Cron,
      crontab: [
        # Safety net: release any reservation whose expiry job was lost.
-       {"* * * * *", Klix.Orders.Workers.SweepExpiredOrders}
+       {"* * * * *", Klix.Orders.Workers.SweepExpiredOrders},
+       {"15 0 * * *", Klix.Loyalty.Workers.ExpireCredits}
      ]}
   ]
 
@@ -41,6 +42,18 @@ config :klix, :auth,
 config :klix, :platform_fee_percentage, "5.0"
 
 config :klix, Klix.Payments.Mpesa, adapter: Klix.Payments.Mpesa.Sandbox
+
+# Loyalty: credits earned per KES spent, how long they last, and how much
+# of an order they can pay for.
+config :klix, :loyalty, earn_rate_percent: "1", expiry_days: 365, max_redeem_percent: 50
+
+config :klix, Klix.Notifications,
+  mailer: Klix.Notifications.LogMailer,
+  sms: Klix.Notifications.LogSMS,
+  from_email: "Klix <tickets@klix.co.ke>",
+  web_url: "http://localhost:3000"
+
+config :klix, Klix.Uploads, storage: Klix.Uploads.LocalStorage
 
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

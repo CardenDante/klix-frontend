@@ -27,3 +27,6 @@ config :logger, level: :warning
 config :phoenix, :plug_init_mode, :runtime
 config :klix, :cache_enabled, false
 config :klix, Klix.Payments.Mpesa, adapter: Klix.Payments.Mpesa.Sandbox, callback_token: "test-callback-token"
+
+# 32-byte key for encrypting secrets at rest (test only).
+config :klix, :encryption_key, "dGVzdC1vbmx5LWVuY3J5cHRpb24ta2V5LTMyYnl0ZXM="

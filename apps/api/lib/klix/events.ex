@@ -37,11 +37,17 @@ defmodule Klix.Events do
       }
   end
 
+  # Events flagged by moderators disappear from public pages until cleared.
   defp public_events do
     from e in Event,
       as: :event,
-      where: e.status == "published",
+      where: e.status == "published" and is_nil(e.flagged_at),
       preload: [:organizer]
+  end
+
+  @doc "Published, upcoming, unflagged events with inventory totals (a base for other queries)."
+  def upcoming_public_query do
+    public_events() |> with_inventory() |> filter_upcoming(nil)
   end
 
   @doc """
@@ -323,6 +329,38 @@ defmodule Klix.Events do
       nil -> Cache.delete({:ticket_types, event_id})
       event -> invalidate(event)
     end
+  end
+
+  ## Moderation (admins)
+
+  def list_all_events(params) do
+    from(e in Event, as: :event, preload: [:organizer])
+    |> with_inventory()
+    |> filter_search(params["q"])
+    |> then(fn q ->
+      case params["status"] do
+        st when st in [nil, ""] -> q
+        st -> where(q, [event: e], e.status == ^st)
+      end
+    end)
+    |> then(fn q -> if params["flagged"] == "true", do: where(q, [event: e], not is_nil(e.flagged_at)), else: q end)
+    |> order_by([event: e], desc: e.inserted_at)
+    |> Repo.paginate(params)
+  end
+
+  @doc "Hides an event from public pages until an admin clears it."
+  def flag_event(%Event{} = event, reason) do
+    event
+    |> Ecto.Changeset.change(flagged_at: DateTime.utc_now(), flag_reason: reason)
+    |> Repo.update()
+    |> after_change()
+  end
+
+  def unflag_event(%Event{} = event) do
+    event
+    |> Ecto.Changeset.change(flagged_at: nil, flag_reason: nil)
+    |> Repo.update()
+    |> after_change()
   end
 
   ## Ticket types

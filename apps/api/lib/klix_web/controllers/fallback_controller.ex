@@ -24,6 +24,10 @@ defmodule KlixWeb.FallbackController do
   def call(conn, {:error, {:payment_provider, message}}), do: error(conn, 502, message)
 
   def call(conn, {:error, :not_found}), do: error(conn, 404, "Not found")
+  def call(conn, :error), do: error(conn, 404, "Not found")
+
+  def call(conn, {:error, :promoter_not_approved}),
+    do: error(conn, 403, "Your promoter account has not been approved yet")
   def call(conn, nil), do: error(conn, 404, "Not found")
   def call(conn, {:error, :forbidden}), do: error(conn, 403, "You don't have permission to do that")
   def call(conn, {:error, :invalid_credentials}), do: error(conn, 401, "Incorrect email or password")

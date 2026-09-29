@@ -65,6 +65,36 @@ if config_env() == :prod do
          String.split(System.get_env("CORS_ORIGINS", "https://klix.co.ke"), ",")
 
   config :klix, :auth, signing_secret: System.fetch_env!("JWT_SIGNING_SECRET")
+  config :klix, :encryption_key, System.fetch_env!("ENCRYPTION_KEY")
+
+  config :klix, Klix.Notifications,
+    web_url: System.get_env("WEB_URL", "https://klix.co.ke"),
+    from_email: System.get_env("MAIL_FROM", "Klix <tickets@klix.co.ke>")
+
+  if api_key = System.get_env("RESEND_API_KEY") do
+    config :klix, Klix.Notifications, mailer: Klix.Notifications.Resend, resend_api_key: api_key
+  end
+
+  if at_key = System.get_env("AFRICASTALKING_API_KEY") do
+    config :klix, Klix.Notifications,
+      sms: Klix.Notifications.AfricasTalking,
+      africastalking_api_key: at_key,
+      africastalking_username: System.fetch_env!("AFRICASTALKING_USERNAME"),
+      sms_sender_id: System.get_env("SMS_SENDER_ID")
+  end
+
+  if bucket = System.get_env("S3_BUCKET") do
+    config :klix, Klix.Uploads,
+      storage: Klix.Uploads.S3Storage,
+      s3: [
+        bucket: bucket,
+        endpoint: System.fetch_env!("S3_ENDPOINT"),
+        region: System.get_env("S3_REGION", "auto"),
+        access_key_id: System.fetch_env!("S3_ACCESS_KEY_ID"),
+        secret_access_key: System.fetch_env!("S3_SECRET_ACCESS_KEY"),
+        public_url: System.get_env("S3_PUBLIC_URL")
+      ]
+  end
   config :klix, :qr_secret, System.fetch_env!("QR_SIGNING_SECRET")
 
   if System.get_env("MPESA_CONSUMER_KEY") == nil and System.get_env("ALLOW_SANDBOX_PAYMENTS") != "true" do

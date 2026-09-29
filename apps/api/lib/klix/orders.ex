@@ -28,6 +28,7 @@ defmodule Klix.Orders do
   alias Klix.Events.{Event, TicketType}
   alias Klix.Orders.{Order, OrderItem, Ticket}
   alias Klix.Orders.Workers.ExpireOrder
+  alias Klix.Loyalty
   alias Klix.Promoters
 
   @max_line_items 10
@@ -72,7 +73,8 @@ defmodule Klix.Orders do
 
   `params` follows the `/tickets/purchase-cart` body: `items` (list of
   `%{"ticket_type_id", "quantity"}`), `attendee_name`, `attendee_email`,
-  `attendee_phone` and an optional `promoter_code`.
+  `attendee_phone`, an optional `promoter_code`, and for signed-in users
+  `use_loyalty_credits` (with an optional `loyalty_credits_amount`).
   """
   def create_order(user, params) do
     now = DateTime.utc_now()
@@ -88,9 +90,10 @@ defmodule Klix.Orders do
 
       Multi.new()
       |> Multi.run(:reserved, fn repo, _ -> reserve_all(repo, items, now) end)
-      |> Multi.run(:order, fn repo, %{reserved: reserved} ->
+      |> Multi.run(:priced, fn repo, %{reserved: reserved} ->
         insert_order(repo, user, event, attendee, reserved, promoter_code, discount_pct, expires_at, now)
       end)
+      |> Multi.run(:order, fn repo, %{priced: order} -> apply_loyalty(repo, user, order, params) end)
       |> Oban.insert(:expire_job, fn %{order: order} ->
         ExpireOrder.new(%{order_id: order.id}, scheduled_at: expires_at)
       end)
@@ -109,6 +112,32 @@ defmodule Klix.Orders do
       end
     end
   end
+
+  # Credits reduce what the buyer pays; the organizer's revenue is unchanged.
+  defp apply_loyalty(repo, %User{} = user, order, %{"use_loyalty_credits" => use} = params)
+       when use in [true, "true"] do
+    requested =
+      case parse_int(params["loyalty_credits_amount"]) do
+        {n, ""} when n >= 0 -> n
+        _ -> nil
+      end
+
+    credits = Loyalty.redeemable(user, order.amount, requested)
+
+    with {:ok, credits} when credits > 0 <- Loyalty.redeem(repo, user.id, credits, order.id) do
+      order
+      |> Ecto.Changeset.change(
+        credits_applied: credits,
+        amount: Decimal.sub(order.amount, credits)
+      )
+      |> repo.update()
+    else
+      {:ok, 0} -> {:ok, order}
+      error -> error
+    end
+  end
+
+  defp apply_loyalty(_repo, _user, order, _params), do: {:ok, order}
 
   defp reservation_ttl, do: Application.fetch_env!(:klix, :reservation_ttl_seconds)
 
@@ -350,7 +379,10 @@ defmodule Klix.Orders do
           # The money arrived after we released the reservation. Take the
           # tickets from what is still available, or flag for refund.
           case take_available(order, now) do
-            :ok -> mark_completed(order, payment, now)
+            :ok ->
+              respend_credits(order)
+              mark_completed(order, payment, now)
+
             :sold_out -> Repo.rollback({:refund_required, order})
           end
 
@@ -386,6 +418,18 @@ defmodule Klix.Orders do
     end
   end
 
+  # Releasing the order gave its credits back; the late payment only covered
+  # the rest, so take them again if the buyer still has them.
+  defp respend_credits(%Order{credits_applied: credits, user_id: user_id} = order)
+       when credits > 0 and is_binary(user_id) do
+    case Loyalty.redeem(Repo, user_id, credits, order.id) do
+      {:ok, _} -> :ok
+      {:error, _} -> Logger.warning("Could not re-spend credits for late-paid order #{order.id}", order_id: order.id)
+    end
+  end
+
+  defp respend_credits(_order), do: :ok
+
   defp take_available(order, now) do
     Enum.reduce_while(Enum.sort_by(order.items, & &1.ticket_type_id), :ok, fn item, :ok ->
       query =
@@ -405,16 +449,23 @@ defmodule Klix.Orders do
     from(t in Ticket, where: t.order_id == ^order.id)
     |> Repo.update_all(set: [status: "confirmed", purchased_at: now, updated_at: now])
 
-    if order.promoter_code_id, do: Promoters.record_use(Repo, order.promoter_code_id)
+    Promoters.record_use(Repo, order)
+    Loyalty.earn(Repo, order)
 
+    order =
+      order
+      |> Ecto.Changeset.change(
+        status: "completed",
+        paid_at: now,
+        failure_reason: nil,
+        mpesa_receipt: payment[:mpesa_receipt] || order.mpesa_receipt
+      )
+      |> Repo.update!()
+
+    # Queued in the same transaction: sent exactly once, and only if the
+    # order really completed.
+    Klix.Notifications.ticket_confirmation(order)
     order
-    |> Ecto.Changeset.change(
-      status: "completed",
-      paid_at: now,
-      failure_reason: nil,
-      mpesa_receipt: payment[:mpesa_receipt] || order.mpesa_receipt
-    )
-    |> Repo.update!()
   end
 
   defp flag_refund(order, payment) do
@@ -456,6 +507,8 @@ defmodule Klix.Orders do
 
         from(t in Ticket, where: t.order_id == ^order.id)
         |> Repo.update_all(set: [status: "cancelled", updated_at: now])
+
+        Loyalty.refund_redemption(Repo, order)
 
         order
         |> Ecto.Changeset.change(status: status, failure_reason: reason)

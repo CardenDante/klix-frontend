@@ -5,6 +5,9 @@ defmodule KlixWeb.Endpoint do
     websocket: [compress: true],
     longpoll: false
 
+  # Locally stored uploads (development; production uses S3-compatible storage).
+  plug Plug.Static, at: "/uploads", from: {:klix, "priv/uploads"}, gzip: false
+
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
   plug KlixWeb.Plugs.CORS
@@ -13,7 +16,8 @@ defmodule KlixWeb.Endpoint do
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library(),
-    length: 1_000_000
+    # Room for 5 MB image uploads plus multipart overhead.
+    length: 8_000_000
 
   plug Plug.MethodOverride
   plug Plug.Head

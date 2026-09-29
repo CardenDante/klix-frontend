@@ -6,8 +6,7 @@ defmodule Klix.Payments.Mpesa.Daraja do
   alias Klix.Payments.Mpesa
 
   @impl true
-  def stk_push(%{phone: phone, amount: amount, reference: reference, description: description}) do
-    config = Mpesa.config()
+  def stk_push(%{phone: phone, amount: amount, reference: reference, description: description}, config) do
     {password, timestamp} = password(config)
 
     body = %{
@@ -17,16 +16,16 @@ defmodule Klix.Payments.Mpesa.Daraja do
       "TransactionType" => config[:transaction_type],
       "Amount" => amount,
       "PartyA" => phone,
-      "PartyB" => config[:shortcode],
+      "PartyB" => config[:party_b] || config[:shortcode],
       "PhoneNumber" => phone,
       "CallBackURL" => config[:callback_url],
       "AccountReference" => String.slice(reference, 0, 12),
       "TransactionDesc" => String.slice(description, 0, 13)
     }
 
-    with {:ok, token} <- access_token(),
+    with {:ok, token} <- access_token(config),
          {:ok, %{status: 200, body: %{"ResponseCode" => "0"} = resp}} <-
-           Req.post(base_url() <> "/mpesa/stkpush/v1/processrequest",
+           Req.post(base_url(config) <> "/mpesa/stkpush/v1/processrequest",
              json: body,
              auth: {:bearer, token},
              receive_timeout: 15_000
@@ -48,8 +47,7 @@ defmodule Klix.Payments.Mpesa.Daraja do
   end
 
   @impl true
-  def stk_query(checkout_request_id) do
-    config = Mpesa.config()
+  def stk_query(checkout_request_id, config) do
     {password, timestamp} = password(config)
 
     body = %{
@@ -59,9 +57,9 @@ defmodule Klix.Payments.Mpesa.Daraja do
       "CheckoutRequestID" => checkout_request_id
     }
 
-    with {:ok, token} <- access_token(),
+    with {:ok, token} <- access_token(config),
          {:ok, %{body: resp}} <-
-           Req.post(base_url() <> "/mpesa/stkpushquery/v1/query",
+           Req.post(base_url(config) <> "/mpesa/stkpushquery/v1/query",
              json: body,
              auth: {:bearer, token},
              receive_timeout: 15_000
@@ -91,8 +89,16 @@ defmodule Klix.Payments.Mpesa.Daraja do
   defp error_message(%{"ResponseDescription" => msg}), do: msg
   defp error_message(_), do: "M-Pesa rejected the request"
 
-  defp base_url do
-    case Mpesa.config()[:environment] do
+  @impl true
+  def verify_credentials(config) do
+    case fetch_token(config) do
+      {:ok, _} -> :ok
+      {:error, _} -> {:error, :invalid_credentials}
+    end
+  end
+
+  defp base_url(config) do
+    case config[:environment] do
       "production" -> "https://api.safaricom.co.ke"
       _ -> "https://sandbox.safaricom.co.ke"
     end
@@ -107,22 +113,22 @@ defmodule Klix.Payments.Mpesa.Daraja do
     {Base.encode64(config[:shortcode] <> config[:passkey] <> timestamp), timestamp}
   end
 
-  # OAuth tokens last an hour; cache them for a little less.
-  defp access_token do
-    case Klix.Cache.fetch({:mpesa, :token}, :timer.minutes(50), &fetch_token/0) do
+  # OAuth tokens last an hour; cache them (per app) for a little less.
+  defp access_token(config) do
+    cache_key = {:mpesa, :token, :crypto.hash(:sha256, config[:consumer_key] || "")}
+
+    case Klix.Cache.fetch(cache_key, :timer.minutes(50), fn -> fetch_token(config) end) do
       {:ok, token} ->
         {:ok, token}
 
       error ->
-        Klix.Cache.delete({:mpesa, :token})
+        Klix.Cache.delete(cache_key)
         error
     end
   end
 
-  defp fetch_token do
-    config = Mpesa.config()
-
-    case Req.get(base_url() <> "/oauth/v1/generate",
+  defp fetch_token(config) do
+    case Req.get(base_url(config) <> "/oauth/v1/generate",
            params: [grant_type: "client_credentials"],
            auth: {:basic, "#{config[:consumer_key]}:#{config[:consumer_secret]}"},
            receive_timeout: 10_000

@@ -5,7 +5,8 @@
 #   admin@klix.test      admin
 #   organizer@klix.test  organizer
 #   staff@klix.test      event staff
-#   fan@klix.test        attendee
+#   promoter@klix.test   approved promoter (code PAT-SAUTI on the concert)
+#   fan@klix.test        attendee (with 500 loyalty credits)
 
 alias Klix.{Accounts, Events, Repo}
 alias Klix.Accounts.User
@@ -30,7 +31,18 @@ else
   admin = user.("admin@klix.test", "admin", "Ada", "Admin")
   organizer_user = user.("organizer@klix.test", "attendee", "Otieno", "Events")
   staff = user.("staff@klix.test", "event_staff", "Sam", "Scanner")
-  _fan = user.("fan@klix.test", "attendee", "Faith", "Fan")
+  fan = user.("fan@klix.test", "attendee", "Faith", "Fan")
+  promoter_user = user.("promoter@klix.test", "attendee", "Pat", "Promoter")
+
+  {:ok, profile} =
+    Klix.Promoters.apply_as_promoter(promoter_user, %{
+      "display_name" => "Pat Promotes",
+      "bio" => "Nairobi nightlife insider.",
+      "payout_phone" => "0711000111"
+    })
+
+  {:ok, _} = Klix.Promoters.approve_profile(profile, admin)
+  {:ok, _} = Klix.Loyalty.adjust(fan, 500, "Welcome to Klix")
 
   {:ok, organizer} =
     Accounts.apply_as_organizer(organizer_user, %{
@@ -109,6 +121,13 @@ else
       Klix.Staff.assign(event, organizer_user, %{"email" => staff.email})
 
     if event.category == "music" do
+      {:ok, approval} = Klix.Promoters.request_event(promoter_user, event.id, "I can fill this venue.")
+
+      {:ok, _} =
+        Klix.Promoters.approve_request(approval, %{"commission_percentage" => "8", "discount_percentage" => "5"})
+
+      {:ok, _} = Klix.Promoters.create_code(promoter_user, %{"event_id" => event.id, "code" => "PAT-SAUTI"})
+
       Repo.insert!(%PromoterCode{
         code: "KLIX10",
         code_type: "discount",

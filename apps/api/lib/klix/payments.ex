@@ -7,7 +7,8 @@ defmodule Klix.Payments do
   alias Klix.Repo
   alias Klix.Orders
   alias Klix.Orders.Order
-  alias Klix.Payments.{Mpesa, PaymentEvent}
+  alias Klix.Accounts.Organizer
+  alias Klix.Payments.{Mpesa, MpesaCredential, PaymentEvent}
   alias Klix.Payments.Workers.ReconcilePayment
 
   # Customers get this long to answer the prompt on their phone.
@@ -37,7 +38,9 @@ defmodule Klix.Payments do
           description: "Klix tickets"
         }
 
-        case Mpesa.stk_push(request) do
+        {account, config} = payment_config(order)
+
+        case Mpesa.stk_push(request, config) do
           {:ok, %{checkout_request_id: checkout_id, merchant_request_id: merchant_id}} ->
             order = Orders.extend_expiry(order, @prompt_window_seconds)
 
@@ -46,7 +49,9 @@ defmodule Klix.Payments do
               |> Ecto.Changeset.change(
                 mpesa_phone: phone,
                 mpesa_checkout_request_id: checkout_id,
-                mpesa_merchant_request_id: merchant_id
+                mpesa_merchant_request_id: merchant_id,
+                payment_account: account,
+                mpesa_shortcode: config[:party_b] || config[:shortcode]
               )
               |> Repo.update()
 
@@ -126,7 +131,7 @@ defmodule Klix.Payments do
   """
   def query_status(%Order{status: "pending", mpesa_checkout_request_id: checkout_id} = order)
       when is_binary(checkout_id) do
-    result = Mpesa.stk_query(checkout_id)
+    result = Mpesa.stk_query(checkout_id, config_for_account(order))
     log_event(order.id, "stk_query", %{result: inspect(result)})
 
     case result do
@@ -139,6 +144,74 @@ defmodule Klix.Payments do
   end
 
   def query_status(%Order{} = order), do: {:ok, order}
+
+  ## Which M-Pesa account an order is paid into
+
+  # Organizers with verified credentials of their own are paid directly.
+  defp payment_config(%Order{event_id: event_id}) do
+    case active_credential_for_event(event_id) do
+      %MpesaCredential{} = credential -> {"organizer", MpesaCredential.to_config(credential, Mpesa.config())}
+      nil -> {"platform", Mpesa.config()}
+    end
+  end
+
+  # Status queries must use the same app the push went through.
+  defp config_for_account(%Order{payment_account: "organizer", event_id: event_id}) do
+    case active_credential_for_event(event_id) || credential_for_event(event_id) do
+      %MpesaCredential{} = credential -> MpesaCredential.to_config(credential, Mpesa.config())
+      nil -> Mpesa.config()
+    end
+  end
+
+  defp config_for_account(_order), do: Mpesa.config()
+
+  defp active_credential_for_event(event_id) do
+    Repo.one(
+      from c in MpesaCredential,
+        join: e in Klix.Events.Event,
+        on: e.organizer_id == c.organizer_id,
+        where: e.id == ^event_id and c.is_active
+    )
+  end
+
+  defp credential_for_event(event_id) do
+    Repo.one(
+      from c in MpesaCredential,
+        join: e in Klix.Events.Event,
+        on: e.organizer_id == c.organizer_id,
+        where: e.id == ^event_id
+    )
+  end
+
+  ## Organizer credentials
+
+  def get_credential(%Organizer{id: organizer_id}), do: Repo.get_by(MpesaCredential, organizer_id: organizer_id)
+
+  @doc "Saves an organizer's Daraja credentials. They stay inactive until verified."
+  def save_credential(%Organizer{} = organizer, attrs) do
+    (get_credential(organizer) || %MpesaCredential{organizer_id: organizer.id})
+    |> MpesaCredential.changeset(attrs)
+    |> Repo.insert_or_update()
+  end
+
+  @doc "Authenticates with Safaricom using the saved credentials and activates them on success."
+  def verify_credential(%MpesaCredential{} = credential) do
+    case Mpesa.verify_credentials(MpesaCredential.to_config(credential, Mpesa.config())) do
+      :ok ->
+        credential
+        |> Ecto.Changeset.change(is_active: true, verified_at: DateTime.utc_now())
+        |> Repo.update()
+
+      {:error, _} ->
+        {:error, {:validation, "Safaricom rejected these credentials. Check the consumer key and secret."}}
+    end
+  end
+
+  def deactivate_credential(%MpesaCredential{} = credential) do
+    credential |> Ecto.Changeset.change(is_active: false) |> Repo.update()
+  end
+
+  def delete_credential(%MpesaCredential{} = credential), do: Repo.delete(credential)
 
   defp log_event(order_id, kind, payload) do
     Repo.insert(%PaymentEvent{order_id: order_id, kind: kind, payload: sanitize(payload)})

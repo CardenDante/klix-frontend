@@ -4,7 +4,7 @@ defmodule Klix.Accounts do
   import Ecto.Query
   alias Ecto.Multi
   alias Klix.Repo
-  alias Klix.Accounts.{User, Organizer, RefreshToken, Token, Firebase}
+  alias Klix.Accounts.{User, Organizer, RefreshToken, Token, Firebase, UserToken}
 
   ## Users
 
@@ -166,6 +166,151 @@ defmodule Klix.Accounts do
     |> Repo.update_all(set: [revoked_at: DateTime.utc_now()])
 
     :ok
+  end
+
+  ## Password reset and email verification
+
+  @doc "Emails a reset link if the account exists. Always returns :ok so emails can't be probed."
+  def request_password_reset(email) when is_binary(email) do
+    case get_user_by_email(email) do
+      %User{is_active: true} = user ->
+        {token, record} = UserToken.build(user, "reset_password")
+        Repo.insert!(record)
+        Klix.Notifications.password_reset(user, token)
+
+      _ ->
+        :ok
+    end
+
+    :ok
+  end
+
+  def request_password_reset(_), do: :ok
+
+  @doc "Sets a new password with a reset token and signs the user out everywhere."
+  def reset_password(token, password) when is_binary(token) and is_binary(password) do
+    Repo.transaction(fn ->
+      case Repo.one(UserToken.valid_query(token, "reset_password")) do
+        nil ->
+          Repo.rollback(:invalid_token)
+
+        {record, user} ->
+          user =
+            case user |> User.password_changeset(%{"password" => password}) |> Repo.update() do
+              {:ok, user} -> user
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+
+          # Resetting also proves the user controls the address.
+          user = user |> Ecto.Changeset.change(email_verified: true) |> Repo.update!()
+          record |> Ecto.Changeset.change(used_at: DateTime.utc_now()) |> Repo.update!()
+
+          from(t in UserToken, where: t.user_id == ^user.id and t.context == "reset_password" and is_nil(t.used_at))
+          |> Repo.update_all(set: [used_at: DateTime.utc_now()])
+
+          revoke_all_sessions(user)
+          user
+      end
+    end)
+  end
+
+  def reset_password(_, _), do: {:error, :invalid_token}
+
+  def request_email_verification(%User{email_verified: true}), do: {:error, {:validation, "Your email is already verified"}}
+
+  def request_email_verification(%User{} = user) do
+    {token, record} = UserToken.build(user, "verify_email")
+    Repo.insert!(record)
+    Klix.Notifications.verify_email(user, token)
+    :ok
+  end
+
+  def verify_email(token) when is_binary(token) do
+    case Repo.one(UserToken.valid_query(token, "verify_email")) do
+      nil ->
+        {:error, :invalid_token}
+
+      {record, user} ->
+        Repo.transaction(fn ->
+          record |> Ecto.Changeset.change(used_at: DateTime.utc_now()) |> Repo.update!()
+          user |> Ecto.Changeset.change(email_verified: true) |> Repo.update!()
+        end)
+    end
+  end
+
+  def verify_email(_), do: {:error, :invalid_token}
+
+  def change_password(%User{} = user, current, new) do
+    if User.valid_password?(user, current) or is_nil(user.hashed_password) do
+      user |> User.password_changeset(%{"password" => new}) |> Repo.update()
+    else
+      {:error, {:validation, "Your current password is incorrect"}}
+    end
+  end
+
+  ## Admin: users
+
+  def list_users(params) do
+    User
+    |> then(fn q ->
+      case params["q"] do
+        term when term in [nil, ""] ->
+          q
+
+        term ->
+          like = "%" <> String.replace(term, ~r/([\\%_])/, "\\\\\\1") <> "%"
+          where(q, [u], ilike(u.email, ^like) or ilike(u.first_name, ^like) or ilike(u.last_name, ^like))
+      end
+    end)
+    |> then(fn q ->
+      case params["role"] do
+        r when r in [nil, ""] -> q
+        r -> where(q, [u], u.role == ^r)
+      end
+    end)
+    |> then(fn q ->
+      case params["is_active"] do
+        "true" -> where(q, [u], u.is_active)
+        "false" -> where(q, [u], not u.is_active)
+        _ -> q
+      end
+    end)
+    |> order_by(desc: :inserted_at)
+    |> Repo.paginate(params)
+  end
+
+  def set_role(%User{} = user, role), do: user |> User.role_changeset(role) |> Repo.update()
+
+  @doc "Suspending blocks sign-in immediately: sessions are revoked and access tokens stop working."
+  def set_active(%User{} = user, active?) when is_boolean(active?) do
+    with {:ok, user} <- user |> Ecto.Changeset.change(is_active: active?) |> Repo.update() do
+      unless active?, do: revoke_all_sessions(user)
+      {:ok, user}
+    end
+  end
+
+  @doc """
+  Deletes an account by anonymizing it. Orders and tickets are kept for the
+  organizers' records, but no longer identify the person.
+  """
+  def anonymize_user(%User{} = user) do
+    Repo.transaction(fn ->
+      revoke_all_sessions(user)
+
+      user
+      |> Ecto.Changeset.change(
+        email: "deleted-#{user.id}@deleted.klix",
+        first_name: nil,
+        last_name: nil,
+        phone_number: nil,
+        profile_image_url: nil,
+        hashed_password: nil,
+        firebase_uid: nil,
+        is_active: false,
+        preferences: %{}
+      )
+      |> Repo.update!()
+    end)
   end
 
   ## Organizers

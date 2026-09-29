@@ -8,6 +8,7 @@ defmodule Klix.Promoters.PromoterCode do
     field :commission_percentage, :decimal
     field :usage_limit, :integer
     field :times_used, :integer, default: 0
+    field :clicks, :integer, default: 0
     field :is_active, :boolean, default: true
     field :valid_from, :utc_datetime_usec
     field :valid_until, :utc_datetime_usec

@@ -24,6 +24,8 @@ services:
       SECRET_KEY_BASE: local-dev-secret-key-base-local-dev-secret-key-base-local-dev-0000
       JWT_SIGNING_SECRET: local-dev-jwt-secret
       QR_SIGNING_SECRET: local-dev-qr-secret
+      ENCRYPTION_KEY: bG9jYWwtZG9ja2VyLWVuY3J5cHRpb24ta2V5LTMyYiE=
+      WEB_URL: http://localhost:3000
       PHX_HOST: localhost
       CORS_ORIGINS: http://localhost:3000
       # Uses the fake M-Pesa. Set MPESA_* variables to use Daraja instead.

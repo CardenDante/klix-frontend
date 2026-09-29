@@ -42,6 +42,14 @@ defmodule Klix.Accounts.User do
     |> unique_constraint(:firebase_uid)
   end
 
+  def password_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_required([:password])
+    |> validate_length(:password, min: 8, max: 72)
+    |> hash_password()
+  end
+
   def profile_changeset(user, attrs) do
     user
     |> cast(attrs, [:first_name, :last_name, :phone_number, :profile_image_url, :preferences])

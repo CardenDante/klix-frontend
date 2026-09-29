@@ -85,4 +85,37 @@ defmodule Klix.Fixtures do
       extra
     )
   end
+
+  @doc "An approved promoter (user with an approved profile)."
+  def promoter_fixture do
+    user = user_fixture(%{"first_name" => "Pat"})
+    {:ok, profile} = Klix.Promoters.apply_as_promoter(user, %{"display_name" => "Pat Promotes", "payout_phone" => "0711000111"})
+    {:ok, _} = Klix.Promoters.approve_profile(profile, admin_fixture())
+    Repo.get!(User, user.id)
+  end
+
+  @doc "A promoter approved for `event` with the given terms, plus a code."
+  def promoter_code_fixture(event, terms \\ %{"commission_percentage" => "10", "discount_percentage" => "5"}) do
+    promoter = promoter_fixture()
+    {:ok, approval} = Klix.Promoters.request_event(promoter, event.id, "Let me sell this")
+    {:ok, _} = Klix.Promoters.approve_request(approval, terms)
+    {:ok, code} = Klix.Promoters.create_code(promoter, %{"event_id" => event.id, "code" => "PAT#{System.unique_integer([:positive])}"})
+    %{promoter: promoter, code: code}
+  end
+
+  @doc "Moves an event into the past (for payouts that wait until the event ends)."
+  def end_event(event) do
+    past_end = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+    event
+    |> Ecto.Changeset.change(start_datetime: DateTime.add(past_end, -7200, :second), end_datetime: past_end)
+    |> Repo.update!()
+  end
+
+  @doc "Creates and pays an order."
+  def paid_order_fixture(ticket_type, user \\ nil, quantity \\ 1, extra \\ %{}) do
+    {:ok, order} = Klix.Orders.create_order(user, order_params(ticket_type, quantity, extra))
+    {:ok, order} = Klix.Orders.complete_order(order.id, %{mpesa_receipt: "R#{System.unique_integer([:positive])}"})
+    order
+  end
 end

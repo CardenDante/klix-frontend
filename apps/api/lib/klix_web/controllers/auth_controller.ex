@@ -44,6 +44,39 @@ defmodule KlixWeb.AuthController do
     json(conn, %{success: true, message: "Logged out"})
   end
 
+  def password_reset(conn, params) do
+    Accounts.request_password_reset(params["email"])
+    json(conn, %{success: true, message: "If that email has an account, a reset link is on its way."})
+  end
+
+  def password_reset_confirm(conn, %{"token" => token, "password" => password}) do
+    with {:ok, user} <- Accounts.reset_password(token, password) do
+      json(conn, session(user))
+    end
+  end
+
+  def password_reset_confirm(_conn, _params), do: {:error, {:validation, "token and password are required"}}
+
+  def verify_email(conn, %{"token" => token}) do
+    with {:ok, user} <- Accounts.verify_email(token) do
+      json(conn, %{success: true, message: "Email confirmed", user: JSON.user(user)})
+    end
+  end
+
+  def verify_email(_conn, _params), do: {:error, {:validation, "token is required"}}
+
+  def request_verification(conn, _params) do
+    with :ok <- Accounts.request_email_verification(current_user(conn)) do
+      json(conn, %{success: true, message: "Check your inbox for a confirmation link."})
+    end
+  end
+
+  def change_password(conn, params) do
+    with {:ok, _user} <- Accounts.change_password(current_user(conn), params["current_password"], params["new_password"]) do
+      json(conn, %{success: true, message: "Password changed"})
+    end
+  end
+
   # Token fields at the top level, as the previous API returned them, plus
   # the user so clients don't need a second request.
   defp session(user) do
