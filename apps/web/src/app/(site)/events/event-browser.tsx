@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { CalendarSearch, Search, X } from 'lucide-react';
+import { CalendarDays, CalendarSearch, MapPin, Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { EventCard, EventCardSkeleton } from '@/components/event-card';
@@ -30,6 +30,8 @@ export function EventBrowser() {
 
   const q = params.get('q') ?? '';
   const category = params.get('category') ?? '';
+  const location = params.get('location') ?? '';
+  const startDate = params.get('start_date') ?? '';
   const sortBy = (params.get('sort_by') as EventFilters['sort_by']) ?? (q ? 'relevance' : 'date_asc');
 
   const update = (next: Record<string, string | null>) => {
@@ -42,9 +44,17 @@ export function EventBrowser() {
   };
 
   const query = useInfiniteQuery({
-    queryKey: ['events', { q, category, sortBy }],
+    queryKey: ['events', { q, category, location, startDate, sortBy }],
     queryFn: ({ pageParam }) =>
-      eventsApi.list({ q, category, sort_by: sortBy, page: pageParam, page_size: PAGE_SIZE }),
+      eventsApi.list({
+        q,
+        category,
+        location: location || undefined,
+        start_date: startDate || undefined,
+        sort_by: sortBy,
+        page: pageParam,
+        page_size: PAGE_SIZE,
+      }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.total_pages ? last.page + 1 : undefined),
   });
@@ -72,14 +82,29 @@ export function EventBrowser() {
         </Select>
       </div>
 
-      <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      {(location || startDate) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {location && (
+            <FilterChip icon={<MapPin className="size-3.5" />} onClear={() => update({ location: null })}>
+              {location}
+            </FilterChip>
+          )}
+          {startDate && (
+            <FilterChip icon={<CalendarDays className="size-3.5" />} onClear={() => update({ start_date: null })}>
+              From {new Date(`${startDate}T00:00:00`).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </FilterChip>
+          )}
+        </div>
+      )}
+
+      <div className="-mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         {['', ...EVENT_CATEGORIES].map((c) => (
           <button
             key={c || 'all'}
             onClick={() => update({ category: c || null })}
             className={cn(
-              'shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-              category === c ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink/75 hover:border-ink/30',
+              'shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-all',
+              category === c ? 'bg-primary text-white shadow-md' : 'bg-white/70 text-gray-600 hover:bg-white hover:text-primary',
             )}
           >
             {c ? CATEGORY_LABELS[c] : 'All'}
@@ -98,7 +123,7 @@ export function EventBrowser() {
           <ErrorNote>{query.error.message}</ErrorNote>
         ) : events.length === 0 ? (
           <EmptyState icon={<CalendarSearch className="size-5" />} title="No events found">
-            {q || category ? 'Try a different search or category.' : 'New events are added all the time — check back soon.'}
+            {q || category || location || startDate ? 'Try a different search or category.' : 'New events are added all the time — check back soon.'}
           </EmptyState>
         ) : (
           <>
@@ -125,7 +150,19 @@ export function EventBrowser() {
 }
 
 function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>;
+  return <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{children}</div>;
+}
+
+function FilterChip({ icon, onClear, children }: { icon: React.ReactNode; onClear: () => void; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 py-1 pl-3 pr-1 text-sm font-medium text-primary">
+      {icon}
+      {children}
+      <button type="button" onClick={onClear} className="rounded-full p-1 hover:bg-primary/15" aria-label="Remove filter">
+        <X className="size-3.5" />
+      </button>
+    </span>
+  );
 }
 
 function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: string) => void }) {
@@ -145,7 +182,7 @@ function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: strin
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search events, artists or venues"
         aria-label="Search events"
-        className="h-11 w-full rounded-full border border-line bg-white pl-10 pr-10 text-[15px] focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/15"
+        className="h-12 w-full rounded-full border border-gray-200 bg-white pl-10 pr-10 text-[15px] shadow-sm focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/15"
       />
       {initial && (
         <button

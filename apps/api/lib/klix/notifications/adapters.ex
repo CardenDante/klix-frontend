@@ -53,6 +53,38 @@ defmodule Klix.Notifications.Resend do
   end
 end
 
+defmodule Klix.Notifications.ZeptoMail do
+  @moduledoc "Sends email through the ZeptoMail HTTP API (https://www.zoho.com/zeptomail/)."
+  @behaviour Klix.Notifications.Mailer
+
+  @impl true
+  def deliver(%{to: to, subject: subject, text: text, html: html}) do
+    config = Klix.Notifications.config()
+
+    body = %{
+      from: %{address: config[:zeptomail_from_email], name: config[:zeptomail_from_name]},
+      to: [%{email_address: %{address: to}}],
+      subject: subject,
+      textbody: text,
+      htmlbody: html
+    }
+
+    case Req.post(config[:zeptomail_api_url] || "https://api.zeptomail.com/v1.1/email",
+           headers: [{"authorization", authorization(config[:zeptomail_api_key])}],
+           json: body,
+           receive_timeout: 15_000
+         ) do
+      {:ok, %{status: status}} when status in 200..299 -> :ok
+      {:ok, %{status: status, body: body}} -> {:error, {:http, status, body}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # The ZeptoMail console shows the token with or without this prefix.
+  defp authorization("Zoho-enczapikey " <> _ = key), do: key
+  defp authorization(key), do: "Zoho-enczapikey " <> key
+end
+
 defmodule Klix.Notifications.AfricasTalking do
   @moduledoc "Sends SMS through Africa's Talking."
   @behaviour Klix.Notifications.SMS

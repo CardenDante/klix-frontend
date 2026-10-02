@@ -9,9 +9,11 @@ import {
   LogIn,
   LogOut,
   Megaphone,
+  Menu,
   ScanLine,
   ShieldCheck,
   Ticket,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -23,8 +25,23 @@ import { cn } from '@/lib/utils';
 
 const NAV = [
   { href: '/events', label: 'Events' },
-  { href: '/become-organizer', label: 'Sell tickets' },
+  { href: '/about', label: 'About Us' },
+  { href: '/become-organizer', label: 'For Organizers' },
+  { href: '/become-promoter', label: 'For Promoters' },
+  { href: '/contact', label: 'Contact' },
 ];
+
+/** True once the page has scrolled past the top. */
+function useScrolled(threshold = 20) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > threshold);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [threshold]);
+  return scrolled;
+}
 
 /** The dashboards a user can switch between, most specific first. */
 function workspaces(user: User | null) {
@@ -56,6 +73,14 @@ export function SiteHeader() {
   const router = useRouter();
   const { user, hydrated, logout } = useAuth();
   const spaces = workspaces(user);
+  const scrolled = useScrolled();
+  // Remembers the page the mobile menu was opened on, so navigating closes it.
+  const [menuOn, setMenuOn] = useState<string | null>(null);
+  const menuOpen = menuOn === pathname;
+
+  // The home page hero runs under a see-through header until you scroll.
+  const overHero = pathname === '/';
+  const clear = overHero && !scrolled && !menuOpen;
 
   const signOut = async () => {
     await logout();
@@ -63,53 +88,114 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line/70 bg-white/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
-        <Link href="/" className="flex shrink-0 items-center" aria-label="Klix home">
-          <img src="/logo.png" alt="Klix" className="h-8 w-auto" />
-        </Link>
+    <>
+      <header
+        className={cn(
+          'top-0 z-40 w-full transition-all duration-300',
+          overHero ? 'fixed' : 'sticky',
+          clear ? 'bg-black/20' : 'bg-white/95 shadow-lg backdrop-blur-md',
+        )}
+      >
+        <div className="mx-auto flex h-20 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex shrink-0 items-center transition-transform hover:scale-105" aria-label="Klix home">
+            <img src={clear ? '/logo-white.png' : '/logo.png'} alt="Klix" className="h-9 w-auto" />
+          </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'rounded-full px-3.5 py-2 text-sm font-medium text-ink/70 hover:text-ink',
-                pathname.startsWith(item.href) && 'text-ink',
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-1">
-          {hydrated &&
-            (user ? (
-              <>
-                <Link
-                  href="/tickets"
-                  className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-ink/70 hover:bg-ink/5 hover:text-ink md:flex"
-                >
-                  <Ticket className="size-4" aria-hidden />
-                  My tickets
-                </Link>
-                <AccountMenu user={user} spaces={spaces} onSignOut={signOut} />
-              </>
-            ) : (
-              <>
-                <ButtonLink href="/login" variant="ghost" size="sm">
-                  Sign in
-                </ButtonLink>
-                <ButtonLink href="/register" size="sm" className="hidden sm:inline-flex">
-                  Create account
-                </ButtonLink>
-              </>
+          <nav className="mx-auto hidden items-center gap-8 lg:flex">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'group relative py-1 font-medium transition-colors',
+                  clear ? 'text-white hover:text-primary-light' : 'text-gray-700 hover:text-primary',
+                  pathname.startsWith(item.href) && (clear ? 'text-primary-light' : 'text-primary'),
+                )}
+              >
+                {item.label}
+                <span
+                  className={cn(
+                    'absolute -bottom-1 left-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full',
+                    pathname.startsWith(item.href) ? 'w-full' : 'w-0',
+                  )}
+                />
+              </Link>
             ))}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            {hydrated &&
+              (user ? (
+                <>
+                  <Link
+                    href="/tickets"
+                    className={cn(
+                      'hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium md:flex',
+                      clear ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-orange-50 hover:text-primary',
+                    )}
+                  >
+                    <Ticket className="size-4" aria-hidden />
+                    My tickets
+                  </Link>
+                  <AccountMenu user={user} spaces={spaces} onSignOut={signOut} light={clear} />
+                </>
+              ) : (
+                <>
+                  <ButtonLink
+                    href="/login"
+                    variant="secondary"
+                    size="sm"
+                    className={cn(
+                      'rounded-md border-primary font-semibold',
+                      clear ? 'bg-transparent text-white hover:bg-white/10' : 'text-primary hover:bg-primary hover:text-white',
+                    )}
+                  >
+                    Login
+                  </ButtonLink>
+                  <ButtonLink href="/register" size="sm" className="hidden rounded-md sm:inline-flex">
+                    Sign Up
+                  </ButtonLink>
+                </>
+              ))}
+            <button
+              onClick={() => setMenuOn(menuOpen ? null : pathname)}
+              className={cn('rounded-lg p-2 lg:hidden', clear ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100')}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+
+        {menuOpen && (
+          <nav className="border-t border-gray-100 bg-white px-4 pb-4 shadow-lg lg:hidden">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'block rounded-lg px-3 py-3 font-medium text-gray-700 hover:bg-orange-50 hover:text-primary',
+                  pathname.startsWith(item.href) && 'bg-orange-50 text-primary',
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+            {hydrated && !user && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <ButtonLink href="/login" variant="secondary" className="rounded-md border-primary text-primary">
+                  Login
+                </ButtonLink>
+                <ButtonLink href="/register" className="rounded-md">
+                  Sign Up
+                </ButtonLink>
+              </div>
+            )}
+          </nav>
+        )}
+      </header>
+    </>
   );
 }
 
@@ -121,10 +207,12 @@ function AccountMenu({
   user,
   spaces,
   onSignOut,
+  light = false,
 }: {
   user: User;
   spaces: ReturnType<typeof workspaces>;
   onSignOut: () => void;
+  light?: boolean;
 }) {
   const pathname = usePathname();
   // Remembers the page it was opened on, so navigating closes it.
@@ -149,7 +237,10 @@ function AccountMenu({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpenOn(open ? null : pathname)}
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-ink/5"
+        className={cn(
+          'flex items-center gap-2 rounded-full py-1 pl-1 pr-2',
+          light ? 'text-white hover:bg-white/10' : 'text-gray-700 hover:bg-orange-50',
+        )}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
@@ -157,12 +248,12 @@ function AccountMenu({
         {user.profile_image_url ? (
           <img src={user.profile_image_url} alt="" className="size-8 rounded-full object-cover" />
         ) : (
-          <span className="flex size-8 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
             {initials(user)}
           </span>
         )}
         <span className="hidden max-w-28 truncate text-sm font-medium md:inline">{user.first_name || 'Account'}</span>
-        <ChevronDown className="size-4 text-muted" aria-hidden />
+        <ChevronDown className={cn('size-4', light ? 'text-white/80' : 'text-muted')} aria-hidden />
       </button>
 
       {open && (
@@ -278,7 +369,7 @@ export function BottomNav() {
                   aria-current={active ? 'page' : undefined}
                   className={cn(
                     'flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
-                    active ? 'text-brand-600' : 'text-ink/60',
+                    active ? 'text-primary' : 'text-gray-500 hover:text-primary',
                   )}
                 >
                   <Icon className="size-5" aria-hidden />

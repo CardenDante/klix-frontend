@@ -23,7 +23,7 @@ function TicketView({ id }: { id: string }) {
   const query = useQuery({ queryKey: ['ticket', id], queryFn: () => ticketsApi.get(id) });
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-10">
+    <div className="mx-auto max-w-sm">
       <Link href="/tickets" className="text-sm font-medium text-muted hover:text-ink">
         ← My tickets
       </Link>

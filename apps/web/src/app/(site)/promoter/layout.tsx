@@ -1,18 +1,28 @@
 'use client';
 
-import { Megaphone } from 'lucide-react';
+import { CalendarDays, DollarSign, LayoutDashboard, Megaphone, Tag, Trophy } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { RequireAuth } from '@/components/require-auth';
-import { SubNav } from '@/components/sub-nav';
+import { DashboardShell } from '@/components/dashboard-shell';
 import { ButtonLink } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/misc';
 
 export default function PromoterLayout({ children }: { children: ReactNode }) {
   return (
+    <DashboardShell
+      title="Promoter"
+      items={[
+        { href: '/promoter', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+        { href: '/promoter/events', label: 'Events', icon: CalendarDays },
+        { href: '/promoter/codes', label: 'My Codes', icon: Tag },
+        { href: '/promoter/earnings', label: 'Earnings', icon: DollarSign },
+        { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+      ]}
+    >
     <RequireAuth
       roles={['promoter']}
       fallback={
-        <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="mx-auto max-w-lg py-8">
           <EmptyState
             icon={<Megaphone className="size-5" />}
             title="Promoter dashboard"
@@ -23,18 +33,8 @@ export default function PromoterLayout({ children }: { children: ReactNode }) {
         </div>
       }
     >
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <SubNav
-          items={[
-            { href: '/promoter', label: 'Dashboard', exact: true },
-            { href: '/promoter/events', label: 'Events' },
-            { href: '/promoter/codes', label: 'My codes' },
-            { href: '/promoter/earnings', label: 'Earnings' },
-            { href: '/leaderboard', label: 'Leaderboard' },
-          ]}
-        />
-        {children}
-      </div>
+      {children}
     </RequireAuth>
+    </DashboardShell>
   );
 }

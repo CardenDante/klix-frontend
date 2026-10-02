@@ -29,7 +29,7 @@ function TicketList() {
   const past = tickets.filter((t) => !upcoming.includes(t));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl">
       <h1 className="text-3xl font-bold">My tickets</h1>
       <div className="mt-8">
         {query.isPending ? (

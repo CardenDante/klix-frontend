@@ -37,13 +37,14 @@ export default function RegisterPage() {
 
 function RegisterForm() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get('next'));
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
   const register = useAuth((s) => s.register);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { first_name: '', last_name: '', email: '', phone_number: '', password: '' },
+    defaultValues: { first_name: '', last_name: '', email: params.get('email') ?? '', phone_number: '', password: '' },
   });
   const errors = form.formState.errors;
 

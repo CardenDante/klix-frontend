@@ -43,6 +43,9 @@ RUN chown nobody /app
 ENV MIX_ENV="prod" PHX_SERVER=true
 
 COPY --from=builder --chown=nobody:root /app/_build/prod/rel/klix ./
+# Local uploads land here when S3 isn't configured; mount a volume on it.
+RUN dir="$(ls -d /app/lib/klix-*)/priv/uploads" && mkdir -p "$dir" && chown nobody "$dir" \
+    && ln -s "$dir" /app/uploads
 USER nobody
 
 EXPOSE 4000

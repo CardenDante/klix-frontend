@@ -104,7 +104,8 @@ The API keeps the `/api/v1` paths and JSON field names of the previous backend. 
 | `SECRET_KEY_BASE`, `JWT_SIGNING_SECRET`, `QR_SIGNING_SECRET` | Secrets (generate with `mix phx.gen.secret`) |
 | `ENCRYPTION_KEY` | 32 bytes, base64 (`openssl rand -base64 32`); encrypts organizers' M-Pesa credentials at rest |
 | `WEB_URL`, `MAIL_FROM` | Links and sender used in emails |
-| `RESEND_API_KEY` | Sends email through Resend (otherwise emails are only logged) |
+| `ZEPTOMAIL_API_KEY`, `ZEPTOMAIL_FROM_EMAIL`, `ZEPTOMAIL_FROM_NAME` | Sends email through ZeptoMail; `ZEPTOMAIL_API_URL` overrides the endpoint for EU/IN accounts |
+| `RESEND_API_KEY` | Sends email through Resend if ZeptoMail isn't set (otherwise emails are only logged) |
 | `AFRICASTALKING_API_KEY`, `AFRICASTALKING_USERNAME`, `SMS_SENDER_ID` | Sends SMS through Africa's Talking (otherwise SMS are only logged) |
 | `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL` | Image uploads to S3-compatible storage (AWS S3, Cloudflare R2, Spaces); otherwise stored on local disk |
 | `PHX_HOST`, `PORT`, `CORS_ORIGINS` | Hosting and allowed web origins (comma separated) |
@@ -115,6 +116,22 @@ The API keeps the `/api/v1` paths and JSON field names of the previous backend. 
 | `ALLOW_SANDBOX_PAYMENTS=true` | Run without Daraja credentials, using the fake M-Pesa (demo and staging only) |
 
 Web: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, optionally `API_INTERNAL_URL` for server-side fetches over a private network, and `NEXT_PUBLIC_FIREBASE_*` to show Google sign-in.
+
+## Deploying (e-klix.com)
+
+The production server runs other apps too, so Klix binds only to `127.0.0.1:3400` (web) and `127.0.0.1:4400` (API) and nginx serves both on `e-klix.com` (`/api`, `/socket`, `/uploads` go to the API). Config lives in `.env.production` (not committed).
+
+```bash
+git pull
+docker compose -p klix -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+The nginx site is `deploy/nginx/e-klix.com` (installed in `/etc/nginx/sites-available/`, TLS added by `certbot --nginx -d e-klix.com`).
+To make someone an admin after they sign up:
+
+```bash
+docker exec klix_api bin/klix rpc 'Klix.Repo.get_by!(Klix.Accounts.User, email: "you@example.com") |> Klix.Accounts.set_role("admin") |> IO.inspect()'
+```
 
 ## What's built
 

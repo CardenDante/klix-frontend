@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 /** Layout for simple text pages (legal, about, help). */
@@ -22,16 +23,14 @@ export function Section({ title, children }: { title: string; children: ReactNod
 
 export function Faq({ items }: { items: [string, string][] }) {
   return (
-    <div className="divide-y divide-line rounded-card border border-line bg-white">
+    <div className="w-full">
       {items.map(([q, a]) => (
-        <details key={q} className="group px-5 py-4">
-          <summary className="cursor-pointer list-none font-semibold marker:hidden">
-            <span className="flex items-center justify-between gap-4">
-              {q}
-              <span className="text-muted transition group-open:rotate-45">+</span>
-            </span>
+        <details key={q} className="group border-b border-gray-200">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-left font-heading text-lg font-semibold text-gray-800 transition-colors marker:hidden hover:text-primary [&::-webkit-details-marker]:hidden">
+            {q}
+            <ChevronDown className="size-5 shrink-0 text-gray-500 transition-transform duration-200 group-open:rotate-180" aria-hidden />
           </summary>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{a}</p>
+          <p className="pb-4 font-body leading-relaxed text-gray-600">{a}</p>
         </details>
       ))}
     </div>

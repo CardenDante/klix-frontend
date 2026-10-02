@@ -71,8 +71,20 @@ if config_env() == :prod do
     web_url: System.get_env("WEB_URL", "https://e-klix.com"),
     from_email: System.get_env("MAIL_FROM", "Klix <tickets@e-klix.com>")
 
-  if api_key = System.get_env("RESEND_API_KEY") do
-    config :klix, Klix.Notifications, mailer: Klix.Notifications.Resend, resend_api_key: api_key
+  cond do
+    api_key = System.get_env("ZEPTOMAIL_API_KEY") ->
+      config :klix, Klix.Notifications,
+        mailer: Klix.Notifications.ZeptoMail,
+        zeptomail_api_key: api_key,
+        zeptomail_api_url: System.get_env("ZEPTOMAIL_API_URL"),
+        zeptomail_from_email: System.get_env("ZEPTOMAIL_FROM_EMAIL", "noreply@e-klix.com"),
+        zeptomail_from_name: System.get_env("ZEPTOMAIL_FROM_NAME", "Klix")
+
+    api_key = System.get_env("RESEND_API_KEY") ->
+      config :klix, Klix.Notifications, mailer: Klix.Notifications.Resend, resend_api_key: api_key
+
+    true ->
+      :ok
   end
 
   if at_key = System.get_env("AFRICASTALKING_API_KEY") do

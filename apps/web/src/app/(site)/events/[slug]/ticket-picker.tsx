@@ -57,15 +57,18 @@ export function TicketPicker({ event, ticketTypes: initial }: { event: KlixEvent
   const salesClosed = event.status !== 'published' || new Date(event.end_datetime) < new Date();
 
   return (
-    <Card className="overflow-hidden shadow-xl shadow-ink/5">
+    <Card className="overflow-hidden rounded-2xl border-0 shadow-2xl">
       <div className="border-b border-line px-5 py-4">
-        <h2 className="flex items-center gap-2 font-sans text-lg font-bold">
-          <Ticket className="size-5 text-brand-500" aria-hidden /> Tickets
+        <h2 className="flex items-center gap-2 font-heading text-xl font-bold">
+          <Ticket className="size-5 text-primary" aria-hidden /> Get Your Tickets
         </h2>
       </div>
 
       {ticketTypes.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-muted">Tickets aren&apos;t on sale yet.</p>
+        <div className="px-5 py-8 text-center">
+          <p className="font-semibold">Tickets Not Yet Available</p>
+          <p className="mt-1 text-sm text-muted">The organizer hasn&apos;t added ticket types yet. Check back soon!</p>
+        </div>
       ) : (
         <ul className="divide-y divide-line">
           {ticketTypes.map((tt) => {

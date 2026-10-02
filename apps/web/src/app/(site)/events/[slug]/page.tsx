@@ -20,15 +20,30 @@ export async function generateMetadata({ params }: PageProps<'/events/[slug]'>):
   if (!page) return { title: 'Event not found' };
 
   const { event } = page;
-  const description = stripHtml(event.description).slice(0, 160) || `${event.title} at ${event.location}`;
+  const description =
+    stripHtml(event.description).slice(0, 160) ||
+    `Join us for ${event.title} on ${formatDateLong(event.start_datetime)} at ${event.location}. Get your tickets now!`;
+  const image = event.portrait_image_url ?? event.banner_image_url;
+  const images = image ? [{ url: image, width: 1200, height: 630, alt: event.title }] : [];
   return {
-    title: event.title,
+    title: { absolute: `${event.title} - Klix Events` },
     description,
+    keywords: [
+      event.title,
+      CATEGORY_LABELS[event.category] ?? event.category,
+      event.location,
+      'Kenya events',
+      'event tickets',
+      'buy tickets online',
+      ...(event.organizer ? [event.organizer.business_name] : []),
+    ],
     alternates: { canonical: `/events/${event.slug}` },
-    openGraph: {
-      title: event.title,
-      description,
-      images: event.banner_image_url ? [event.banner_image_url] : [],
+    openGraph: { type: 'website', title: event.title, description, url: `/events/${event.slug}`, images },
+    twitter: { card: 'summary_large_image', title: event.title, description, images: image ? [image] : [] },
+    other: {
+      'event:start_time': event.start_datetime,
+      'event:end_time': event.end_datetime,
+      'event:location': event.location,
     },
   };
 }
@@ -82,34 +97,42 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
     <article>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
-      <div className="relative bg-ink">
-        {event.banner_image_url && (
-          <>
-            <SafeImg src={event.banner_image_url} alt="" className="absolute inset-0 size-full object-cover opacity-30 blur-2xl" />
-            <div className="relative mx-auto max-w-5xl px-0 sm:px-4 sm:pt-8">
-              <SafeImg
-                src={event.banner_image_url}
-                alt={event.title}
-                fallback={<div className="h-40" />}
-                className="aspect-[16/9] w-full object-cover sm:aspect-[21/9] sm:rounded-3xl"
-              />
-            </div>
-          </>
-        )}
-        {!event.banner_image_url && <div className="h-40" />}
-      </div>
-
-      <div className="mx-auto grid max-w-5xl gap-10 px-4 pt-8 lg:grid-cols-[1fr_380px]">
-        <div>
+      <header className="relative flex h-[60vh] min-h-[400px] items-end overflow-hidden text-white">
+        <SafeImg
+          src={event.banner_image_url ?? event.portrait_image_url ?? undefined}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          fallback={<img src="/hero/hero2.jpg" alt="" className="absolute inset-0 size-full object-cover" />}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
           <div className="flex flex-wrap gap-2">
-            <Badge tone="brand">{CATEGORY_LABELS[event.category] ?? event.category}</Badge>
+            <span className="glass rounded-full px-3 py-1 text-sm font-semibold">
+              {CATEGORY_LABELS[event.category] ?? event.category}
+            </span>
             {event.status === 'cancelled' && <Badge tone="danger">Cancelled</Badge>}
             {event.is_sold_out && <Badge tone="danger">Sold out</Badge>}
           </div>
-          <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">{event.title}</h1>
-          {event.organizer && <p className="mt-2 text-muted">by {event.organizer.business_name}</p>}
+          <h1 className="mt-4 max-w-4xl font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+            {event.title}
+          </h1>
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 font-body text-white/90">
+            <span className="flex items-center gap-2">
+              <CalendarDays className="size-5" aria-hidden /> {formatDateLong(event.start_datetime)}
+            </span>
+            <span className="flex items-center gap-2">
+              <MapPin className="size-5" aria-hidden /> {event.location}
+            </span>
+          </div>
+        </div>
+      </header>
 
-          <dl className="mt-6 grid gap-4 rounded-card border border-line bg-white p-5 sm:grid-cols-2">
+      <div className="bg-gray-50 pb-16">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 pt-10 sm:px-6 lg:grid-cols-[1fr_400px] lg:px-8">
+        <div>
+          {event.organizer && <p className="font-body text-gray-600">Organized by <span className="font-semibold text-ink">{event.organizer.business_name}</span></p>}
+
+          <dl className="mt-4 grid gap-4 rounded-2xl bg-white p-6 shadow-lg sm:grid-cols-2">
             <Detail icon={CalendarDays} label="Date">
               {formatDateLong(event.start_datetime)}
             </Detail>
@@ -139,7 +162,7 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
         </div>
 
         {/* Tickets sit right under the key facts on phones, and in a sticky sidebar on desktop. */}
-        <aside id="tickets" className="scroll-mt-20 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+        <aside id="tickets" className="scroll-mt-24 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <TicketPicker event={event} ticketTypes={ticketTypes} />
           <p className="mt-3 text-center text-xs text-muted">Pay securely with M-Pesa · Tickets arrive instantly by email and SMS</p>
         </aside>
@@ -147,18 +170,18 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
         <div>
 
           {event.description && (
-            <section className="lg:mt-8">
-              <h2 className="text-xl font-bold">About this event</h2>
+            <section className="rounded-2xl bg-white p-6 shadow-lg lg:mt-8">
+              <h2 className="font-heading text-2xl font-bold">About this Event</h2>
               <div className="prose-event mt-3" dangerouslySetInnerHTML={{ __html: sanitizeDescription(event.description) }} />
             </section>
           )}
 
           {event.organizer && (
-            <section className="mt-8 flex items-center gap-4 rounded-card border border-line bg-white p-5">
+            <section className="mt-8 flex items-center gap-4 rounded-2xl bg-white p-6 shadow-lg">
               {event.organizer.logo_url ? (
                 <img src={event.organizer.logo_url} alt="" className="size-12 rounded-full object-cover" />
               ) : (
-                <div className="flex size-12 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">
+                <div className="flex size-12 items-center justify-center rounded-full bg-primary font-bold text-white">
                   {event.organizer.business_name.charAt(0)}
                 </div>
               )}
@@ -169,6 +192,7 @@ export default async function EventPage({ params }: PageProps<'/events/[slug]'>)
             </section>
           )}
         </div>
+      </div>
       </div>
       <SimilarEvents eventId={event.id} />
       <MobileBuyBar
